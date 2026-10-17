@@ -1,7 +1,40 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
+
+// A tag v1.2.3 produces versionName 1.2.3 and versionCode 1002003.
+// Keep local debug builds independent of release credentials.
+val releaseVersion = providers.gradleProperty("releaseVersion").orNull
+val releaseVersionCode = releaseVersion?.let { version ->
+    val match = Regex("""(0|[1-9]\d*)\.(0|[1-9]\d*)(?:\.(0|[1-9]\d*))?""").matchEntire(version)
+        ?: throw GradleException("releaseVersion must be MAJOR.MINOR or MAJOR.MINOR.PATCH (without v)")
+    val major = match.groupValues[1].toLongOrNull()
+    val minor = match.groupValues[2].toLongOrNull()
+    val patch = match.groupValues[3].ifEmpty { "0" }.toLongOrNull()
+    require(major != null && major in 0..2100 && minor != null && minor in 0..999 &&
+        patch != null && patch in 0..999) {
+        "Release version components are out of range (major <= 2100, minor/patch <= 999)"
+    }
+    val code = major * 1_000_000 + minor * 1_000 + patch
+    require(code in 1..2_100_000_000) { "Release versionCode must be between 1 and 2100000000" }
+    code.toInt()
+}
+
+val localSigning = Properties().apply {
+    val propertiesFile = rootProject.file("keystore.properties")
+    if (propertiesFile.isFile) propertiesFile.inputStream().use { load(it) }
+}
+fun signingValue(environmentName: String, propertyName: String): String? =
+    providers.environmentVariable(environmentName).orNull?.takeIf { it.isNotBlank() }
+        ?: localSigning.getProperty(propertyName)?.takeIf { it.isNotBlank() }
+
+val releaseStoreFile = signingValue("ANDROID_KEYSTORE_PATH", "storeFile")
+val releaseStorePassword = signingValue("ANDROID_KEYSTORE_PASSWORD", "storePassword")
+val releaseKeyAlias = signingValue("ANDROID_KEY_ALIAS", "keyAlias")
+val releaseKeyPassword = signingValue("ANDROID_KEY_PASSWORD", "keyPassword")
 
 android {
     namespace = "com.cristianku.nav2pilot"
@@ -11,14 +44,24 @@ android {
         applicationId = "com.cristianku.nav2pilot"
         minSdk = 26
         targetSdk = 33
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = releaseVersionCode ?: 1
+        versionName = releaseVersion ?: "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = releaseStoreFile?.let { rootProject.file(it) }
+            storePassword = releaseStorePassword
+            keyAlias = releaseKeyAlias
+            keyPassword = releaseKeyPassword
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -61,6 +104,17 @@ android {
         disable += "OldTargetApi"
         disable += "GradleDependency"
         disable += "AndroidGradlePluginVersion"
+    }
+}
+
+// Never let a release build silently fall back to an unsigned APK or the debug key.
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    doFirst {
+        check(releaseVersion != null) { "Release builds require -PreleaseVersion=MAJOR.MINOR.PATCH" }
+        check(listOf(releaseStoreFile, releaseStorePassword, releaseKeyAlias, releaseKeyPassword).all { it != null }) {
+            "Release signing is missing: configure ANDROID_KEYSTORE_PATH, ANDROID_KEYSTORE_PASSWORD, " +
+                "ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD, or local keystore.properties (see README)"
+        }
     }
 }
 

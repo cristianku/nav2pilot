@@ -160,8 +160,55 @@ newer AndroidX versions together.
 
 ## CI
 
-`.github/workflows/android.yml` runs unit tests and lint, builds the debug APK and the instrumented
-test APK, and uploads `app-debug.apk` and the reports as artifacts.
+`.github/workflows/android.yml` runs only when a `v*` tag is pushed. It runs unit tests and release
+lint, builds a signed release APK and the instrumented test APK, and publishes the release APK on
+GitHub Releases. Ordinary pushes to `main` do not start a build.
+
+### Permanent release signing
+
+Every release must use the same private signing key. The old `v1.0` and `v1.0.1` APKs used different
+temporary debug keys and cannot update each other. Moving from one of those builds to the permanent
+release key requires uninstalling the old app once, which removes its token, devices and favorites.
+Subsequent releases signed with the permanent key can update in place.
+
+Configure these repository **Actions secrets** before pushing the next release tag:
+
+| Secret | Value |
+| --- | --- |
+| `ANDROID_KEYSTORE_BASE64` | Base64 encoding of the permanent release keystore |
+| `ANDROID_KEYSTORE_PASSWORD` | Keystore password |
+| `ANDROID_KEY_ALIAS` | Signing key alias |
+| `ANDROID_KEY_PASSWORD` | Signing key password |
+
+Keep a secure backup of the keystore and passwords. Never generate a new key in CI, commit it to Git,
+or replace it between releases. The workflow fails if signing secrets are missing and verifies the
+APK signature before uploading it.
+
+For local release builds, put the same signing configuration in an ignored `keystore.properties`
+at the repository root:
+
+```properties
+storeFile=.signing/nav2pilot-release.keystore
+storePassword=YOUR_KEYSTORE_PASSWORD
+keyAlias=nav2pilot
+keyPassword=YOUR_KEY_PASSWORD
+```
+
+Both `*.keystore` and `keystore.properties` are excluded from Git. CI uses the corresponding
+`ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD`
+environment variables instead.
+
+```sh
+./gradlew assembleRelease -PreleaseVersion=1.0.2
+# APK: app/build/outputs/apk/release/app-release.apk
+```
+
+Tags must be `vMAJOR.MINOR.PATCH` (or `vMAJOR.MINOR`, equivalent to patch zero). The tag supplies
+`versionName`; `versionCode` is `MAJOR * 1000000 + MINOR * 1000 + PATCH`, so increasing the version
+also increases Android's update number. Minor and patch components must be between 0 and 999 and
+the resulting code must be between 1 and 2100000000. Publish versions in increasing order.
+Local debug builds without `-PreleaseVersion` keep their development version and do not need
+release signing credentials.
 
 ## License
 
