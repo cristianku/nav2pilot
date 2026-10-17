@@ -115,7 +115,8 @@ object MapLinkParser {
             if (coordinates != null) {
                 return LinkParseResult.Found(Destination(coordinates.latitude, coordinates.longitude, name = placeName))
             }
-            if (queryText.isEmpty()) {
+            // a /maps/place/<name> segment is only a label; it is used as a last resort (step 7)
+            if (queryText.isEmpty() && pathTarget != placeName) {
                 queryText = pathTarget
             }
         }

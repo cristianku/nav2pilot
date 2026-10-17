@@ -34,7 +34,7 @@ object ShareTextParser {
             }
         }
 
-        var title = ""
+        val title: String
         var details = ""
         if (lines.isNotEmpty()) {
             title = lines[0]

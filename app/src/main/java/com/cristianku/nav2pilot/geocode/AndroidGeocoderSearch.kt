@@ -83,14 +83,12 @@ class AndroidGeocoderSearch(
 
     private fun toDestination(address: Address): Destination {
         val firstLine = address.getAddressLine(0) ?: ""
-        var name = ""
+        var name = firstLine.trim()
         var details = ""
         val commaIndex = firstLine.indexOf(',')
         if (commaIndex > 0) {
             name = firstLine.substring(0, commaIndex).trim()
             details = firstLine.substring(commaIndex + 1).trim()
-        } else {
-            name = firstLine.trim()
         }
         if (name.isEmpty()) {
             name = address.featureName ?: ""

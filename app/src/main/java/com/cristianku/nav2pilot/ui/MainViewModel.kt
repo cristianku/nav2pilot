@@ -1,0 +1,411 @@
+package com.cristianku.nav2pilot.ui
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import com.cristianku.nav2pilot.AppContainer
+import com.cristianku.nav2pilot.data.DeviceRepository
+import com.cristianku.nav2pilot.data.Favorite
+import com.cristianku.nav2pilot.data.FavoritesRepository
+import com.cristianku.nav2pilot.geocode.PlaceSearch
+import com.cristianku.nav2pilot.model.BackendKind
+import com.cristianku.nav2pilot.model.Destination
+import com.cristianku.nav2pilot.model.DongleIdRules
+import com.cristianku.nav2pilot.model.PairedDevice
+import com.cristianku.nav2pilot.resolve.DestinationResolver
+import com.cristianku.nav2pilot.resolve.ResolveOutcome
+import com.cristianku.nav2pilot.security.JwtInfo
+import com.cristianku.nav2pilot.security.TokenStore
+import com.cristianku.nav2pilot.transport.CommaAthenaTransport
+import com.cristianku.nav2pilot.transport.DeviceStatus
+import com.cristianku.nav2pilot.transport.TransportErrorText
+import com.cristianku.nav2pilot.transport.TransportRegistry
+import com.cristianku.nav2pilot.transport.TransportResult
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+sealed class ConnectionState {
+    object Unknown : ConnectionState()
+    object Checking : ConnectionState()
+    data class Online(val status: DeviceStatus) : ConnectionState()
+    data class Unreachable(val message: String) : ConnectionState()
+}
+
+data class SendFeedback(
+    val success: Boolean,
+    val message: String,
+    val timeMillis: Long,
+)
+
+data class MainUiState(
+    val destination: Destination? = null,
+    val destinationSource: String = "",
+    val resolving: Boolean = false,
+    val resolveError: String = "",
+    val choices: List<Destination> = emptyList(),
+    val connection: ConnectionState = ConnectionState.Unknown,
+    val sending: Boolean = false,
+    val feedback: SendFeedback? = null,
+    val hasToken: Boolean = false,
+    val tokenExpirySeconds: Long? = null,
+    val accountEmail: String = "",
+    val accountBusy: Boolean = false,
+    val accountMessage: String = "",
+    val tokenDialogVisible: Boolean = false,
+    val refreshingDevices: Boolean = false,
+    val devicesMessage: String = "",
+    val geocoderAvailable: Boolean = true,
+    /** Incremented when the Send tab should be brought to front (share received, favorite picked). */
+    val showSendTabRequest: Int = 0,
+)
+
+class MainViewModel(
+    private val resolver: DestinationResolver,
+    private val placeSearch: PlaceSearch,
+    private val transports: TransportRegistry,
+    private val commaTransport: CommaAthenaTransport,
+    private val tokenStore: TokenStore,
+    private val favoritesRepository: FavoritesRepository,
+    private val deviceRepository: DeviceRepository,
+    private val ioDispatcher: CoroutineDispatcher,
+    private val clock: () -> Long = { System.currentTimeMillis() },
+) : ViewModel() {
+
+    private val state = MutableStateFlow(MainUiState())
+    val uiState: StateFlow<MainUiState> = state
+
+    val favorites: StateFlow<List<Favorite>> = favoritesRepository.favorites
+    val devices: StateFlow<List<PairedDevice>> = deviceRepository.devices
+    val selectedDongleId: StateFlow<String> = deviceRepository.selectedDongleId
+
+    private var resolveJob: Job? = null
+    private var connectionJob: Job? = null
+
+    init {
+        state.value = state.value.copy(geocoderAvailable = placeSearch.isAvailable())
+        viewModelScope.launch {
+            refreshTokenState()
+            checkConnection()
+        }
+    }
+
+    // ---- destination input ----
+
+    fun handleShare(text: String, subject: String) {
+        startResolve { resolver.resolveShared(text, subject) }
+        requestSendTab()
+    }
+
+    fun handleLink(link: String) {
+        startResolve { resolver.resolveLink(link, "", "", DestinationResolver.SOURCE_LINK) }
+        requestSendTab()
+    }
+
+    fun search(text: String) {
+        startResolve { resolver.resolveTyped(text) }
+    }
+
+    fun chooseCandidate(destination: Destination) {
+        state.value = state.value.copy(
+            destination = destination,
+            destinationSource = DestinationResolver.SOURCE_SEARCH,
+            choices = emptyList(),
+            resolveError = "",
+            feedback = null,
+        )
+    }
+
+    fun selectFavorite(favorite: Favorite) {
+        resolveJob?.cancel()
+        state.value = state.value.copy(
+            destination = favorite.destination,
+            destinationSource = DestinationResolver.SOURCE_FAVORITE,
+            choices = emptyList(),
+            resolving = false,
+            resolveError = "",
+            feedback = null,
+        )
+        requestSendTab()
+    }
+
+    fun clearSelection() {
+        resolveJob?.cancel()
+        state.value = state.value.copy(
+            destination = null,
+            destinationSource = "",
+            choices = emptyList(),
+            resolving = false,
+            resolveError = "",
+            feedback = null,
+        )
+    }
+
+    fun toggleFavorite() {
+        val destination = state.value.destination ?: return
+        val existing = favoritesRepository.findByLocation(destination)
+        if (existing != null) {
+            favoritesRepository.remove(existing.id)
+        } else {
+            favoritesRepository.add(destination)
+        }
+    }
+
+    fun removeFavorite(id: String) {
+        favoritesRepository.remove(id)
+    }
+
+    private fun startResolve(block: suspend () -> ResolveOutcome) {
+        resolveJob?.cancel()
+        state.value = state.value.copy(resolving = true, resolveError = "", choices = emptyList())
+        resolveJob = viewModelScope.launch {
+            val outcome = block()
+            applyOutcome(outcome)
+        }
+    }
+
+    private fun applyOutcome(outcome: ResolveOutcome) {
+        if (outcome is ResolveOutcome.Resolved) {
+            state.value = state.value.copy(
+                resolving = false,
+                destination = outcome.destination,
+                destinationSource = outcome.source,
+                choices = emptyList(),
+                resolveError = "",
+                feedback = null,
+            )
+            return
+        }
+        if (outcome is ResolveOutcome.Choices) {
+            state.value = state.value.copy(
+                resolving = false,
+                choices = outcome.candidates,
+                resolveError = "",
+            )
+            return
+        }
+        if (outcome is ResolveOutcome.Failed) {
+            state.value = state.value.copy(
+                resolving = false,
+                choices = emptyList(),
+                resolveError = outcome.reason,
+            )
+        }
+    }
+
+    private fun requestSendTab() {
+        state.value = state.value.copy(showSendTabRequest = state.value.showSendTabRequest + 1)
+    }
+
+    // ---- device commands ----
+
+    fun selectDevice(dongleId: String) {
+        deviceRepository.select(dongleId)
+        state.value = state.value.copy(connection = ConnectionState.Unknown, feedback = null)
+        checkConnection()
+    }
+
+    fun checkConnection() {
+        val device = deviceRepository.selectedDevice()
+        if (device == null) {
+            state.value = state.value.copy(connection = ConnectionState.Unknown)
+            return
+        }
+        if (device.backend == BackendKind.COMMA_ATHENA && !state.value.hasToken) {
+            state.value = state.value.copy(connection = ConnectionState.Unknown)
+            return
+        }
+        connectionJob?.cancel()
+        state.value = state.value.copy(connection = ConnectionState.Checking)
+        connectionJob = viewModelScope.launch {
+            val result = transports.forDevice(device).checkStatus(device)
+            if (result is TransportResult.Ok) {
+                state.value = state.value.copy(connection = ConnectionState.Online(result.value))
+            } else if (result is TransportResult.Failed) {
+                state.value = state.value.copy(connection = ConnectionState.Unreachable(TransportErrorText.describe(result.error)))
+            }
+        }
+    }
+
+    fun sendDestination() {
+        val destination = state.value.destination ?: return
+        val device = deviceRepository.selectedDevice() ?: return
+        if (state.value.sending) {
+            return
+        }
+        state.value = state.value.copy(sending = true, feedback = null)
+        viewModelScope.launch {
+            val result = transports.forDevice(device).setDestination(device, destination)
+            val feedback: SendFeedback
+            if (result is TransportResult.Ok) {
+                var message = "Destination sent to ${device.displayName()}."
+                if (result.value.queued) {
+                    message = "Queued by athena: ${result.value.note}"
+                }
+                feedback = SendFeedback(true, message, clock())
+            } else {
+                val error = (result as TransportResult.Failed).error
+                feedback = SendFeedback(false, TransportErrorText.describe(error), clock())
+            }
+            state.value = state.value.copy(sending = false, feedback = feedback)
+        }
+    }
+
+    fun clearDestinationOnDevice() {
+        val device = deviceRepository.selectedDevice() ?: return
+        if (state.value.sending) {
+            return
+        }
+        state.value = state.value.copy(sending = true, feedback = null)
+        viewModelScope.launch {
+            val result = transports.forDevice(device).clearDestination(device)
+            val feedback: SendFeedback
+            if (result is TransportResult.Ok) {
+                feedback = SendFeedback(true, "Destination cleared on ${device.displayName()}.", clock())
+            } else {
+                val error = (result as TransportResult.Failed).error
+                feedback = SendFeedback(false, TransportErrorText.describe(error), clock())
+            }
+            state.value = state.value.copy(sending = false, feedback = feedback)
+        }
+    }
+
+    // ---- account and devices ----
+
+    fun showTokenDialog() {
+        state.value = state.value.copy(tokenDialogVisible = true, accountMessage = "")
+    }
+
+    fun hideTokenDialog() {
+        state.value = state.value.copy(tokenDialogVisible = false, accountMessage = "")
+    }
+
+    /** Verifies [rawToken] against the comma API and stores it encrypted only when it is accepted. */
+    fun saveToken(rawToken: String) {
+        val token = TokenStore.normalize(rawToken)
+        if (token.isEmpty()) {
+            state.value = state.value.copy(accountMessage = "Paste a token first.")
+            return
+        }
+        if (!JwtInfo.looksLikeJwt(token)) {
+            state.value = state.value.copy(accountMessage = "This does not look like a JWT (three parts separated by dots).")
+            return
+        }
+        state.value = state.value.copy(accountBusy = true, accountMessage = "")
+        viewModelScope.launch {
+            val result = commaTransport.verifyToken(token)
+            if (result is TransportResult.Ok) {
+                withContext(ioDispatcher) { tokenStore.save(token) }
+                state.value = state.value.copy(
+                    accountBusy = false,
+                    tokenDialogVisible = false,
+                    accountEmail = result.value.email,
+                    accountMessage = "",
+                )
+                refreshTokenState()
+                refreshDevices()
+            } else {
+                val error = (result as TransportResult.Failed).error
+                state.value = state.value.copy(
+                    accountBusy = false,
+                    accountMessage = "Token not saved. " + TransportErrorText.describe(error),
+                )
+            }
+        }
+    }
+
+    fun removeToken() {
+        tokenStore.clear()
+        state.value = state.value.copy(
+            hasToken = false,
+            tokenExpirySeconds = null,
+            accountEmail = "",
+            connection = ConnectionState.Unknown,
+        )
+    }
+
+    fun refreshDevices() {
+        if (state.value.refreshingDevices) {
+            return
+        }
+        state.value = state.value.copy(refreshingDevices = true, devicesMessage = "")
+        viewModelScope.launch {
+            val result = commaTransport.listDevices()
+            if (result is TransportResult.Ok) {
+                deviceRepository.replaceAccountDevices(result.value)
+                var message = "${result.value.size} device(s) on the comma account."
+                if (result.value.isEmpty()) {
+                    message = "No devices on this comma account."
+                }
+                state.value = state.value.copy(refreshingDevices = false, devicesMessage = message)
+                checkConnection()
+            } else {
+                val error = (result as TransportResult.Failed).error
+                state.value = state.value.copy(refreshingDevices = false, devicesMessage = TransportErrorText.describe(error))
+            }
+        }
+    }
+
+    /** Returns an error message, or "" when the device was added. */
+    fun addManualDevice(dongleIdText: String, alias: String): String {
+        val dongleId = DongleIdRules.normalize(dongleIdText)
+        if (!DongleIdRules.isValid(dongleId)) {
+            return "A dongle ID is 16 hexadecimal characters (0-9, a-f)."
+        }
+        val device = PairedDevice(
+            dongleId = dongleId,
+            alias = alias.trim(),
+            backend = BackendKind.COMMA_ATHENA,
+            addedManually = true,
+        )
+        if (!deviceRepository.addManual(device)) {
+            return "This device is already in the list."
+        }
+        if (deviceRepository.devices.value.size == 1) {
+            checkConnection()
+        }
+        return ""
+    }
+
+    fun removeDevice(dongleId: String) {
+        val wasSelected = deviceRepository.selectedDongleId.value == dongleId
+        deviceRepository.remove(dongleId)
+        if (wasSelected) {
+            state.value = state.value.copy(connection = ConnectionState.Unknown)
+            checkConnection()
+        }
+    }
+
+    private suspend fun refreshTokenState() {
+        val token = withContext(ioDispatcher) { tokenStore.load() }
+        if (token == null) {
+            state.value = state.value.copy(hasToken = false, tokenExpirySeconds = null)
+            return
+        }
+        state.value = state.value.copy(hasToken = true, tokenExpirySeconds = JwtInfo.expirySeconds(token))
+    }
+
+    companion object {
+        fun factory(container: AppContainer): ViewModelProvider.Factory {
+            return object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                    val viewModel = MainViewModel(
+                        resolver = container.destinationResolver,
+                        placeSearch = container.placeSearch,
+                        transports = container.transports,
+                        commaTransport = container.commaTransport,
+                        tokenStore = container.tokenStore,
+                        favoritesRepository = container.favoritesRepository,
+                        deviceRepository = container.deviceRepository,
+                        ioDispatcher = container.ioDispatcher,
+                    )
+                    return viewModel as T
+                }
+            }
+        }
+    }
+}

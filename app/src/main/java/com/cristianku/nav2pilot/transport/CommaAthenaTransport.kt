@@ -57,7 +57,7 @@ class CommaAthenaTransport(
     }
 
     override suspend fun listDevices(): TransportResult<List<PairedDevice>> {
-        val token = tokenProvider() ?: return TransportResult.Failed(TransportError.NoToken)
+        val token = loadToken() ?: return TransportResult.Failed(TransportError.NoToken)
         val responseResult = get(apiBaseUrl + CommaEndpoints.DEVICES_PATH, token)
         if (responseResult is TransportResult.Failed) {
             return responseResult
@@ -113,7 +113,7 @@ class CommaAthenaTransport(
     }
 
     private suspend fun callAthena(device: PairedDevice, method: String, params: JSONObject?): TransportResult<RpcResponse> {
-        val token = tokenProvider() ?: return TransportResult.Failed(TransportError.NoToken)
+        val token = loadToken() ?: return TransportResult.Failed(TransportError.NoToken)
         if (!DongleIdRules.isValid(device.dongleId)) {
             return TransportResult.Failed(TransportError.InvalidRequest("Invalid dongle ID"))
         }
@@ -183,6 +183,11 @@ class CommaAthenaTransport(
             return successValue
         }
         return false
+    }
+
+    /** The token provider decrypts with the Android Keystore, so it runs off the main thread. */
+    private suspend fun loadToken(): String? {
+        return withContext(ioDispatcher) { tokenProvider() }
     }
 
     private suspend fun get(url: String, token: String): TransportResult<HttpResponse> {

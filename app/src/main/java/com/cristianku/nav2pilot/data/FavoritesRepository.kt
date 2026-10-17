@@ -33,18 +33,6 @@ class FavoritesRepository(private val store: KeyValueStore) {
         save(updated)
     }
 
-    fun rename(id: String, name: String) {
-        val updated = mutableListOf<Favorite>()
-        for (favorite in favoritesState.value) {
-            if (favorite.id == id) {
-                updated.add(favorite.copy(destination = favorite.destination.copy(name = name.trim())))
-            } else {
-                updated.add(favorite)
-            }
-        }
-        save(updated)
-    }
-
     fun findByLocation(destination: Destination): Favorite? {
         for (favorite in favoritesState.value) {
             if (favorite.destination.sameLocationAs(destination)) {
