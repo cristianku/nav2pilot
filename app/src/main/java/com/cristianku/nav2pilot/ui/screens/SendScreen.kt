@@ -285,7 +285,6 @@ private fun DestinationCard(
     onToggleFavorite: () -> Unit,
     onClear: () -> Unit,
 ) {
-    val context = LocalContext.current
     Card(modifier = Modifier.fillMaxWidth()) {
         if (destination == null) {
             Row(
@@ -299,61 +298,78 @@ private fun DestinationCard(
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
-            return@Card
-        }
-
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    destination.displayName(),
-                    style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.weight(1f),
-                )
-                IconButton(onClick = onToggleFavorite) {
-                    if (isFavorite) {
-                        Icon(Icons.Filled.Favorite, contentDescription = "Remove from favorites")
-                    } else {
-                        Icon(Icons.Filled.FavoriteBorder, contentDescription = "Add to favorites")
-                    }
-                }
-                IconButton(onClick = onClear) {
-                    Icon(Icons.Filled.Clear, contentDescription = "Clear destination")
-                }
-            }
-            if (destination.details.isNotEmpty()) {
-                Text(destination.details, style = MaterialTheme.typography.bodyMedium)
-            }
-            Text(
-                destination.coordinatesText(),
-                style = MaterialTheme.typography.bodyMedium,
-                fontFamily = FontFamily.Monospace,
+        } else {
+            DestinationDetails(
+                destination = destination,
+                source = source,
+                isFavorite = isFavorite,
+                onToggleFavorite = onToggleFavorite,
+                onClear = onClear,
             )
-            if (source.isNotEmpty()) {
-                Text(
-                    "From: $source",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            if (destination.approximate) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Filled.Warning,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(16.dp),
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        "Approximate: the link only had the map centre. Check it on the map.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                    )
+        }
+    }
+}
+
+@Composable
+private fun DestinationDetails(
+    destination: Destination,
+    source: String,
+    isFavorite: Boolean,
+    onToggleFavorite: () -> Unit,
+    onClear: () -> Unit,
+) {
+    val context = LocalContext.current
+    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                destination.displayName(),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(onClick = onToggleFavorite) {
+                if (isFavorite) {
+                    Icon(Icons.Filled.Favorite, contentDescription = "Remove from favorites")
+                } else {
+                    Icon(Icons.Filled.FavoriteBorder, contentDescription = "Add to favorites")
                 }
             }
-            TextButton(onClick = { MapIntents.showOnMap(context, destination) }) {
-                Text("Show on map")
+            IconButton(onClick = onClear) {
+                Icon(Icons.Filled.Clear, contentDescription = "Clear destination")
             }
+        }
+        if (destination.details.isNotEmpty()) {
+            Text(destination.details, style = MaterialTheme.typography.bodyMedium)
+        }
+        Text(
+            destination.coordinatesText(),
+            style = MaterialTheme.typography.bodyMedium,
+            fontFamily = FontFamily.Monospace,
+        )
+        if (source.isNotEmpty()) {
+            Text(
+                "From: $source",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (destination.approximate) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Filled.Warning,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    "Approximate: the link only had the map centre. Check it on the map.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
+        TextButton(onClick = { MapIntents.showOnMap(context, destination) }) {
+            Text("Show on map")
         }
     }
 }
@@ -380,17 +396,17 @@ private fun DeviceSection(
             OutlinedButton(onClick = onOpenDevices) {
                 Text("Open Devices")
             }
-            if (devices.isEmpty()) {
-                return@Column
-            }
         }
 
-        DevicePicker(devices = devices, selectedDevice = selectedDevice, onSelectDevice = onSelectDevice)
+        // No early return@Column here: with Compose compiler 1.4.0 it corrupts the composer stack and crashes.
+        if (devices.isNotEmpty()) {
+            DevicePicker(devices = devices, selectedDevice = selectedDevice, onSelectDevice = onSelectDevice)
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            ConnectionIndicator(connection = connection, modifier = Modifier.weight(1f))
-            IconButton(onClick = onCheckConnection, enabled = connection !is ConnectionState.Checking) {
-                Icon(Icons.Filled.Refresh, contentDescription = "Check connection")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ConnectionIndicator(connection = connection, modifier = Modifier.weight(1f))
+                IconButton(onClick = onCheckConnection, enabled = connection !is ConnectionState.Checking) {
+                    Icon(Icons.Filled.Refresh, contentDescription = "Check connection")
+                }
             }
         }
     }
