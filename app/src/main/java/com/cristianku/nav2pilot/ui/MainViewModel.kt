@@ -132,6 +132,15 @@ class MainViewModel(
         requestSendTab()
     }
 
+    /** Send button on a favorite: select it (brings the Send tab up, where the feedback shows) and send it. */
+    fun sendFavorite(favorite: Favorite) {
+        if (state.value.sending) {
+            return
+        }
+        selectFavorite(favorite)
+        sendDestination()
+    }
+
     fun clearSelection() {
         resolveJob?.cancel()
         state.value = state.value.copy(

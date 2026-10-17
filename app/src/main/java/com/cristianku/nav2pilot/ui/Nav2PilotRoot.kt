@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cristianku.nav2pilot.data.Favorite
 import com.cristianku.nav2pilot.model.Destination
+import com.cristianku.nav2pilot.model.PairedDevice
 import com.cristianku.nav2pilot.ui.screens.DevicesScreen
 import com.cristianku.nav2pilot.ui.screens.FavoritesScreen
 import com.cristianku.nav2pilot.ui.screens.SendScreen
@@ -51,6 +52,15 @@ private fun isFavorite(destination: Destination?, favorites: List<Favorite>): Bo
     }
     for (favorite in favorites) {
         if (favorite.destination.sameLocationAs(destination)) {
+            return true
+        }
+    }
+    return false
+}
+
+private fun hasSelectedDevice(devices: List<PairedDevice>, selectedDongleId: String): Boolean {
+    for (device in devices) {
+        if (device.dongleId == selectedDongleId) {
             return true
         }
     }
@@ -113,7 +123,9 @@ fun Nav2PilotRoot(viewModel: MainViewModel) {
             } else if (currentTab == Tab.FAVORITES) {
                 FavoritesScreen(
                     favorites = favorites,
+                    canSend = hasSelectedDevice(devices, selectedDongleId) && !state.sending,
                     onSelect = { favorite -> viewModel.selectFavorite(favorite) },
+                    onSend = { favorite -> viewModel.sendFavorite(favorite) },
                     onRemove = { favorite -> viewModel.removeFavorite(favorite.id) },
                 )
             } else {
