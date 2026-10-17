@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="launcher_background">#FF465BEA</color>
-    <color name="launcher_foreground">#FFFFFFFF</color>
+    <!-- navy of the icon artwork, behind the adaptive foreground -->
+    <color name="launcher_background">#FF010E30</color>
 </resources>
