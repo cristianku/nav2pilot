@@ -6,12 +6,15 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -87,6 +90,7 @@ import com.cristianku.nav2pilot.ui.components.readClipboardText
 import com.cristianku.nav2pilot.ui.theme.StatusColors
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SendScreen(
     state: MainUiState,
@@ -172,12 +176,16 @@ fun SendScreen(
                     destinationBlock()
                     deviceBlock()
                 }
-                SendBar(
-                    state = state,
-                    devices = devices,
-                    selectedDevice = selectedDevice,
-                    onSend = onSend,
-                )
+                // a phone on its side with the keyboard up has ~160dp left: the pinned bar would take half of it
+                // and squeeze the search field; nobody sends while typing, it comes back with the keyboard down
+                if (!WindowInsets.isImeVisible) {
+                    SendBar(
+                        state = state,
+                        devices = devices,
+                        selectedDevice = selectedDevice,
+                        onSend = onSend,
+                    )
+                }
             }
             BoxWithConstraints(
                 modifier = Modifier
