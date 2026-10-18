@@ -27,9 +27,9 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      # The build is pinned to compileSdk 33 and AGP 8.0's default build-tools (README "Toolchain").
+      # The build is pinned to compileSdk 36 and AGP 8.13's default build-tools (README "Toolchain").
       - name: Install Android SDK packages
-        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-33" "build-tools;30.0.3" > /dev/null
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;35.0.0" > /dev/null
 
       - name: Restore permanent release signing key
         env:

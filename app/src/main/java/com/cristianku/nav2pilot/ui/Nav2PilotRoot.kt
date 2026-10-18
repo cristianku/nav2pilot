@@ -2,13 +2,15 @@ package com.cristianku.nav2pilot.ui
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -66,7 +68,7 @@ private fun iconFor(tab: Tab): Painter {
     if (tab == Tab.DEVICES) {
         return painterResource(R.drawable.ic_car)
     }
-    return rememberVectorPainter(Icons.Filled.Send)
+    return rememberVectorPainter(Icons.AutoMirrored.Filled.Send)
 }
 
 private fun isFavorite(destination: Destination?, favorites: List<Favorite>): Boolean {
@@ -170,7 +172,12 @@ fun Nav2PilotRoot(viewModel: MainViewModel) {
 
     if (wide) {
         // no top bar and no bottom tabs: a short screen keeps its height for the content; tabs go in a side rail
-        Scaffold(containerColor = MaterialTheme.colorScheme.background) { innerPadding ->
+        Scaffold(
+            containerColor = MaterialTheme.colorScheme.background,
+            // edge to edge the window no longer shrinks for the keyboard: without this the send button and the
+            // tabs end up under it (the navigation bar insets it covers are consumed with it)
+            modifier = Modifier.imePadding(),
+        ) { innerPadding ->
             Row(
                 modifier = Modifier
                     .padding(innerPadding)
@@ -178,6 +185,8 @@ fun Nav2PilotRoot(viewModel: MainViewModel) {
             ) {
                 NavigationRail(
                     containerColor = MaterialTheme.colorScheme.surface,
+                    // the Scaffold's padding already keeps it clear of the system bars
+                    windowInsets = WindowInsets(0, 0, 0, 0),
                     header = {
                         BrandLogo(size = 40.dp, modifier = Modifier.padding(top = 8.dp, bottom = 16.dp))
                     },
@@ -223,6 +232,8 @@ fun Nav2PilotRoot(viewModel: MainViewModel) {
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        // see the landscape Scaffold above
+        modifier = Modifier.imePadding(),
         topBar = {
             TopAppBar(
                 title = {

@@ -1,8 +1,10 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.util.Properties
 
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 // A tag v1.2.3 produces versionName 1.2.3 and versionCode 1002003.
@@ -38,12 +40,13 @@ val releaseKeyPassword = signingValue("ANDROID_KEY_PASSWORD", "keyPassword")
 
 android {
     namespace = "com.cristianku.nav2pilot"
-    compileSdk = 33
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.cristianku.nav2pilot"
+        // Android 8.0: older phones and car boxes (CarlinKit) keep working with the same APK
         minSdk = 26
-        targetSdk = 33
+        targetSdk = 36
         versionCode = releaseVersionCode ?: 1
         versionName = releaseVersion ?: "0.1.0"
 
@@ -75,17 +78,8 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     buildFeatures {
         compose = true
-    }
-
-    composeOptions {
-        // Compose compiler 1.4.0 is the release matching Kotlin 1.8.0.
-        kotlinCompilerExtensionVersion = "1.4.0"
     }
 
     packaging {
@@ -107,6 +101,12 @@ android {
     }
 }
 
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
+    }
+}
+
 // Never let a release build silently fall back to an unsigned APK or the debug key.
 tasks.matching { it.name == "preReleaseBuild" }.configureEach {
     doFirst {
@@ -119,30 +119,30 @@ tasks.matching { it.name == "preReleaseBuild" }.configureEach {
 }
 
 dependencies {
-    val composeBom = platform("androidx.compose:compose-bom:2023.05.01")
+    val composeBom = platform("androidx.compose:compose-bom:2025.12.01")
     implementation(composeBom)
 
-    implementation("androidx.core:core-ktx:1.10.1")
-    implementation("androidx.activity:activity-compose:1.7.2")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.1")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.6.1")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.1")
+    implementation("androidx.core:core-ktx:1.17.0")
+    implementation("androidx.activity:activity-compose:1.11.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.9.4")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.4")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.4")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-core")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     // Route map: Mapbox raster tiles with the user's own public token. The Mapbox Maps SDK for Android needs a
-    // newer toolchain and a secret token just to download it; osmdroid is on Maven Central.
+    // secret token just to download it from Mapbox's Maven repository; osmdroid is on Maven Central.
     implementation("org.osmdroid:osmdroid-android:6.1.18")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.1")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
     // Real org.json for JVM unit tests (android.jar only ships stubs).
     testImplementation("org.json:json:20230618")
 
-    androidTestImplementation("androidx.test.ext:junit:1.1.5")
-    androidTestImplementation("androidx.test:runner:1.5.2")
+    androidTestImplementation("androidx.test.ext:junit:1.3.0")
+    androidTestImplementation("androidx.test:runner:1.7.0")
 }

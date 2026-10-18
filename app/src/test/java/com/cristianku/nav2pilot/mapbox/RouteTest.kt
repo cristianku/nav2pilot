@@ -19,8 +19,10 @@ import com.cristianku.nav2pilot.transport.SunnylinkTransport
 import com.cristianku.nav2pilot.transport.TransportRegistry
 import com.cristianku.nav2pilot.transport.TransportResult
 import com.cristianku.nav2pilot.ui.MainViewModel
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -49,6 +51,7 @@ private const val DIRECTIONS_ANSWER = """{
   ]
 }"""
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class MapboxDirectionsTest {
 
     @Test
@@ -158,8 +161,8 @@ class RoutePlanningViewModelTest {
     }
 
     /** Starts like the app: reads the tokens and checks the connection (getVersion). */
-    private fun createViewModel(): MainViewModel {
-        val comma = CommaAthenaTransport(http, { tokenStore.load() }, dispatcher)
+    private fun createViewModel(ioDispatcher: CoroutineDispatcher = dispatcher): MainViewModel {
+        val comma = CommaAthenaTransport(http, { tokenStore.load() }, ioDispatcher)
         val search = FakePlaceSearch()
         http.respond(200, """{"jsonrpc": "2.0", "id": 0, "result": {"version": "1", "branch": "b", "remote": "", "commit": ""}}""")
         return MainViewModel(
@@ -170,9 +173,9 @@ class RoutePlanningViewModelTest {
             tokenStore = tokenStore,
             favoritesRepository = FavoritesRepository(storage),
             deviceRepository = deviceRepository,
-            ioDispatcher = dispatcher,
-            mapbox = MapboxSetup(mapboxTokenStore, MapboxTokenVerifier(http, dispatcher)),
-            routePlanning = RoutePlanning(MapboxDirections(http, { mapboxTokenStore.load() }, dispatcher), location),
+            ioDispatcher = ioDispatcher,
+            mapbox = MapboxSetup(mapboxTokenStore, MapboxTokenVerifier(http, ioDispatcher)),
+            routePlanning = RoutePlanning(MapboxDirections(http, { mapboxTokenStore.load() }, ioDispatcher), location),
             clock = { 1_000L },
         )
     }
@@ -194,6 +197,20 @@ class RoutePlanningViewModelTest {
         assertFalse(state.routesLoading)
         assertEquals(LatLng(46.0, 11.0), state.origin)
         assertTrue(http.requests[http.requests.size - 1].url.startsWith(MapboxEndpoints.DIRECTIONS_URL + "11.000000,46.000000;11.100000,46.100000"))
+    }
+
+    /** A geo: link opened from a cold start resolves while the tokens are still being decrypted. */
+    @Test
+    fun aDestinationArrivingWhileTheMapTokenLoadsIsKept() {
+        location.permission = false // no route request: only the token loads run on the IO dispatcher
+        val io = StandardTestDispatcher(dispatcher.scheduler)
+        val viewModel = createViewModel(io)
+
+        viewModel.chooseCandidate(destination)
+        io.scheduler.advanceUntilIdle()
+
+        assertEquals(destination, viewModel.uiState.value.destination)
+        assertEquals(MAPBOX_TOKEN, viewModel.uiState.value.mapboxMapToken)
     }
 
     @Test

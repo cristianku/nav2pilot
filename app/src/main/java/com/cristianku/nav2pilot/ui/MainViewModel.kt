@@ -669,7 +669,9 @@ class MainViewModel(
         }
         state.value = state.value.copy(hasMapboxToken = mapboxStored)
         if (mapboxStored && routePlanning != null) {
-            state.value = state.value.copy(mapboxMapToken = loadMapboxToken() ?: "")
+            // loaded first: state.value read before the suspension would overwrite what changed meanwhile
+            val mapToken = loadMapboxToken() ?: ""
+            state.value = state.value.copy(mapboxMapToken = mapToken)
         }
         val token = withContext(ioDispatcher) { tokenStore.load() }
         if (token == null) {

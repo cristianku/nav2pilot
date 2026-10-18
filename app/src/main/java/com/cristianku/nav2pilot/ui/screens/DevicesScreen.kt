@@ -27,9 +27,9 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -42,11 +42,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
@@ -70,7 +71,9 @@ import com.cristianku.nav2pilot.ui.components.BrandLogo
 import com.cristianku.nav2pilot.ui.components.IconBadge
 import com.cristianku.nav2pilot.ui.components.ScreenPadding
 import com.cristianku.nav2pilot.ui.components.SectionLabel
+import com.cristianku.nav2pilot.ui.components.readClipboardText
 import com.cristianku.nav2pilot.ui.theme.StatusColors
+import kotlinx.coroutines.launch
 
 @Composable
 fun DevicesScreen(
@@ -227,7 +230,7 @@ private fun CarSection(
             for (index in devices.indices) {
                 val device = devices[index]
                 if (index > 0) {
-                    Divider(
+                    HorizontalDivider(
                         color = MaterialTheme.colorScheme.outlineVariant,
                         modifier = Modifier.padding(start = 72.dp),
                     )
@@ -561,7 +564,7 @@ private fun ConnectionCard(selectedDevice: PairedDevice?, connection: Connection
             }
         }
         if (expanded) {
-            Divider(color = MaterialTheme.colorScheme.outlineVariant)
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 // the technical identity of the selected car, kept out of the day-to-day view
                 if (selectedDevice != null) {
@@ -652,7 +655,8 @@ internal fun MapboxTokenDialog(
     onDismiss: () -> Unit,
 ) {
     val uriHandler = LocalUriHandler.current
-    val clipboard = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
     var token by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = {
@@ -692,14 +696,16 @@ internal fun MapboxTokenDialog(
                     label = { Text("pk.…") },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrect = false),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 TextButton(
                     onClick = {
-                        val pasted = clipboard.getText()
-                        if (pasted != null) {
-                            token = pasted.text
+                        scope.launch {
+                            val pasted = readClipboardText(clipboard)
+                            if (pasted != null) {
+                                token = pasted
+                            }
                         }
                     },
                 ) {
@@ -760,7 +766,7 @@ private fun TokenDialog(
                     label = { Text("JWT") },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrect = false),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 if (message.isNotEmpty()) {

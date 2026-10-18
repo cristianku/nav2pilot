@@ -39,7 +39,7 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -63,7 +63,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -71,6 +70,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.cristianku.nav2pilot.mapbox.MapboxEndpoints
 import com.cristianku.nav2pilot.mapbox.RoutePreview
 import com.cristianku.nav2pilot.model.Destination
@@ -272,7 +272,7 @@ private fun PlannedRoute(state: MainUiState, mapboxToken: String, actions: Route
 
         for (index in state.routes.indices) {
             if (index > 0) {
-                Divider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(start = 56.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(start = 56.dp))
             }
             RouteRow(
                 route = state.routes[index],
@@ -283,7 +283,7 @@ private fun PlannedRoute(state: MainUiState, mapboxToken: String, actions: Route
         }
 
         if (state.stops.isNotEmpty()) {
-            Divider(color = MaterialTheme.colorScheme.outlineVariant)
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Text(
                 "Stops",
                 style = MaterialTheme.typography.labelLarge,

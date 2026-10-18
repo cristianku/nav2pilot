@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import com.cristianku.nav2pilot.ui.MainViewModel
 import com.cristianku.nav2pilot.ui.Nav2PilotRoot
@@ -16,6 +17,8 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Android 15+ always draws under the system bars; the same on older versions, the Compose insets do the rest
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         // A recreated activity (rotation) already handled its intent; the ViewModel kept the result.
         if (savedInstanceState == null) {

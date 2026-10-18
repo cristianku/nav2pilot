@@ -22,8 +22,9 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Favorite
@@ -34,14 +35,13 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -54,13 +54,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
@@ -82,7 +83,9 @@ import com.cristianku.nav2pilot.ui.components.EmptyState
 import com.cristianku.nav2pilot.ui.components.IconBadge
 import com.cristianku.nav2pilot.ui.components.ScreenPadding
 import com.cristianku.nav2pilot.ui.components.SectionLabel
+import com.cristianku.nav2pilot.ui.components.readClipboardText
 import com.cristianku.nav2pilot.ui.theme.StatusColors
+import kotlinx.coroutines.launch
 
 @Composable
 fun SendScreen(
@@ -275,7 +278,7 @@ private fun SendBar(
 
     Surface(color = MaterialTheme.colorScheme.background) {
         Column {
-            Divider(color = MaterialTheme.colorScheme.outlineVariant)
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Column(
                 modifier = Modifier.padding(horizontal = ScreenPadding, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -295,7 +298,7 @@ private fun SendBar(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     } else {
-                        Icon(Icons.Filled.Send, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(20.dp))
                     }
                     Spacer(Modifier.width(10.dp))
                     Text(
@@ -352,7 +355,8 @@ private fun FeedbackRow(feedback: SendFeedback) {
 private fun SearchSection(state: MainUiState, onSearch: (String) -> Unit) {
     var query by rememberSaveable { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
-    val clipboard = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
@@ -390,7 +394,7 @@ private fun SearchSection(state: MainUiState, onSearch: (String) -> Unit) {
                             enabled = query.isNotBlank(),
                         ) {
                             Icon(
-                                Icons.Filled.ArrowForward,
+                                Icons.AutoMirrored.Filled.ArrowForward,
                                 contentDescription = "Search",
                                 tint = MaterialTheme.colorScheme.primary,
                             )
@@ -417,10 +421,12 @@ private fun SearchSection(state: MainUiState, onSearch: (String) -> Unit) {
             )
             TextButton(
                 onClick = {
-                    val clip = clipboard.getText()
-                    if (clip != null && clip.text.isNotBlank()) {
-                        query = clip.text
-                        onSearch(clip.text)
+                    scope.launch {
+                        val clip = readClipboardText(clipboard)
+                        if (clip != null && clip.isNotBlank()) {
+                            query = clip
+                            onSearch(clip)
+                        }
                     }
                 },
                 enabled = !state.resolving,
@@ -466,7 +472,7 @@ private fun ChoicesCard(choices: List<Destination>, onChoose: (Destination) -> U
             for (index in choices.indices) {
                 val choice = choices[index]
                 if (index > 0) {
-                    Divider(
+                    HorizontalDivider(
                         color = MaterialTheme.colorScheme.outlineVariant,
                         modifier = Modifier.padding(start = 68.dp),
                     )

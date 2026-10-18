@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.platform.Clipboard
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -141,4 +142,15 @@ fun EmptyState(
             textAlign = TextAlign.Center,
         )
     }
+}
+
+/** The clipboard's text, or null when it holds none. */
+suspend fun readClipboardText(clipboard: Clipboard): String? {
+    val entry = clipboard.getClipEntry() ?: return null
+    val clipData = entry.clipData
+    if (clipData.itemCount == 0) {
+        return null
+    }
+    val text = clipData.getItemAt(0).text ?: return null
+    return text.toString()
 }

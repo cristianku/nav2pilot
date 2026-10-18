@@ -17,13 +17,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Place
-import androidx.compose.material.icons.filled.Send
-import androidx.compose.material3.DismissDirection
-import androidx.compose.material3.DismissValue
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -31,9 +29,10 @@ import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SwipeToDismiss
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberDismissState
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -107,23 +106,19 @@ private fun FavoriteItem(
     onRemove: (Favorite) -> Unit,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
-    val dismissState = rememberDismissState(
-        confirmValueChange = { value ->
-            if (value == DismissValue.DismissedToStart) {
-                onRemove(favorite)
-                true
-            } else {
-                false
-            }
-        },
-    )
+    val dismissState = rememberSwipeToDismissBoxState()
 
     val sendDescription = "Send " + favorite.destination.displayName() + " to comma"
 
-    SwipeToDismiss(
+    SwipeToDismissBox(
         state = dismissState,
-        directions = setOf(DismissDirection.EndToStart),
-        background = {
+        enableDismissFromStartToEnd = false,
+        onDismiss = { value ->
+            if (value == SwipeToDismissBoxValue.EndToStart) {
+                onRemove(favorite)
+            }
+        },
+        backgroundContent = {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -138,7 +133,7 @@ private fun FavoriteItem(
                 )
             }
         },
-        dismissContent = {
+        content = {
             BrandCard(modifier = Modifier.clickable { onSelect(favorite) }) {
                 Row(
                     modifier = Modifier.padding(start = 16.dp, top = 14.dp, bottom = 14.dp, end = 4.dp),
@@ -171,7 +166,7 @@ private fun FavoriteItem(
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.size(48.dp),
                     ) {
-                        Icon(Icons.Filled.Send, contentDescription = sendDescription, modifier = Modifier.size(20.dp))
+                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = sendDescription, modifier = Modifier.size(20.dp))
                     }
                     Box {
                         IconButton(onClick = { menuExpanded = true }) {

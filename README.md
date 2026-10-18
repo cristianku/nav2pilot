@@ -242,8 +242,8 @@ Setup: Devices → Mapbox → **Set up Mapbox**.
   phone's position (platform `LocationManager`, no Google Play services needed) through the stops to the
   destination, with up to two alternatives when there are no stops.
 - Map: [osmdroid](https://github.com/osmdroid/osmdroid) with Mapbox Streets raster tiles (Static Tiles API)
-  and the user's public token. The Mapbox Maps SDK for Android is not used: it needs a newer toolchain than
-  the pinned one and a secret token just to download it from Mapbox's Maven repository.
+  and the user's public token. The Mapbox Maps SDK for Android is not used: it needs a secret token just to
+  download it from Mapbox's Maven repository, which every contributor and the CI would need.
 - What the device gets: `setNavRoute(latitude, longitude, waypoints)` (cristianku/sunnypilot `feature/nav-alpha`,
   `sunnypilot/navd/athena.py`; cristianku/openpilot `nav-alpha`, `selfdrive/navigation/nav2pilot/athena.py`). Stops go as waypoints with `via: false`; a picked alternative goes as three
   silent `via: true` points at 25 %, 50 % and 75 % of its length, so the device's own Mapbox request follows
@@ -299,12 +299,14 @@ another backend can be added without touching the UI.
 
 ### Build
 
-Toolchain (pinned on purpose, it matches what was available locally when the project was created):
+Toolchain (pinned on purpose):
 
 - JDK 17 (with `jlink`, e.g. Temurin 17)
-- Android SDK platform 33 and build-tools 30.0.3
-- Gradle 8.0 through the wrapper (distribution SHA-256 pinned), Android Gradle Plugin 8.0.0,
-  Kotlin 1.8.0, Compose BOM 2023.05.01 (Material 3 1.1.0)
+- Android SDK platform 36 (Android 16) and build-tools 35.0.0
+- Gradle 8.14.3 through the wrapper (distribution SHA-256 pinned), Android Gradle Plugin 8.13.2,
+  Kotlin 2.2.21 with its Compose compiler plugin, Compose BOM 2025.12.01
+- `targetSdk` 36, as Google Play requires a recent one; `minSdk` 26 (Android 8.0), so the same APK also
+  installs on older phones and car boxes. The app draws edge to edge on every Android version.
 
 ```
 ./gradlew testDebugUnitTest lintDebug assembleDebug

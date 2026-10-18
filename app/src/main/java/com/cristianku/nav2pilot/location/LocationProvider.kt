@@ -112,7 +112,7 @@ class AndroidLocationProvider(context: Context) : LocationProvider {
 
                 override fun onProviderDisabled(provider: String) {}
 
-                @Deprecated("Deprecated in Java")
+                @Suppress("OVERRIDE_DEPRECATION") // deprecated, but abstract before API 29
                 override fun onStatusChanged(provider: String?, status: Int, extras: android.os.Bundle?) {}
             }
             var requested = false
