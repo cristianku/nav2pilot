@@ -21,6 +21,8 @@ openpilot / sunnypilot source code: it only talks to documented network APIs.
 - Send and clear the destination, with confirmation or a precise error.
 - Favorite destinations.
 - comma token stored encrypted with an Android Keystore key.
+- **Mapbox (optional)**: your own free Mapbox token, sent to the device so that it asks Mapbox for its routes
+  instead of comma's route service (see "Mapbox token on the device").
 
 ## Requirements on the device
 
@@ -60,6 +62,7 @@ Everything Nav2Pilot sends is taken from source code or official documentation:
 | `GET /v1/me` validates a token | openpilot `tools/lib/auth.py` |
 | `setNavDestination(latitude: float, longitude: float)` returns `{"success": 1}`, or `{"success": 0, "error": "Invalid destination coordinates"}` out of range | commaai/openpilot `openpilot/system/athena/athenad.py`; sunnypilot `feature/nav-alpha` same file |
 | `clearNavDestination()` returns `{"success": 1}` | same file |
+| `setMapboxToken(token: str)` returns `{"success": 1}`, or `{"success": 0, "error": ...}` for anything but a public `pk.` token; `""` removes it | sunnypilot `feature/nav-alpha` `openpilot/sunnypilot/navd/athena.py` (not in commaai/openpilot) |
 | Both write/remove the `NavDestination` param (JSON `{"latitude", "longitude"}`) that `navd` routes to | `openpilot/selfdrive/navigation/navd.py` |
 | `NavDestination` flags `CLEAR_ON_MANAGER_START \| CLEAR_ON_OFFROAD_TRANSITION` | `openpilot/common/params_keys.h`, applied in `openpilot/system/manager/manager.py` |
 | JSON-RPC errors: `-32601` method not found, `-32602` invalid params, `-32000` server error | `openpilot/system/athena/rpc.py` |
@@ -87,6 +90,33 @@ Notes:
   be kilometres away from the place. A viewport-only result is marked approximate.
 - When a link has no coordinates, the shared address lines (or the place name) are geocoded.
 
+## Mapbox token on the device
+
+On a device without comma prime (`PrimeType` 0), comma's route service `api.commadotai.com/v1/nav` answered
+**HTTP 403** to every route request (route `0000011a`, 2026-10-17): navd got no route and the map stayed on
+"Waiting for route". The sunnypilot method `setMapboxToken(token)` of
+[cristianku/sunnypilot `feature/nav-alpha`](https://github.com/cristianku/sunnypilot/tree/feature/nav-alpha)
+(`sunnypilot/navd/athena.py`) stores the user's public token in the `MapboxToken` param, and navd then asks
+`api.mapbox.com` directly.
+
+Setup: Devices → Mapbox → **Set up Mapbox**.
+
+1. Create a free Mapbox account (<https://account.mapbox.com/auth/signup/>) and confirm the e-mail.
+2. Add a payment card: without one Mapbox gives only a trial token with lower limits; with a card the free
+   tiers apply ([Mapbox sign-up guide](https://docs.mapbox.com/accounts/guides/signup/)).
+3. Copy the **Default public token** (`pk.…`) from the Tokens page
+   (<https://console.mapbox.com/account/access-tokens/>). Secret tokens (`sk.…`) are refused.
+4. Paste it and tap **Verify and save**: it is checked with Mapbox's Tokens API
+   (`GET https://api.mapbox.com/tokens/v2`, answer `TokenValid`) and stored encrypted like the comma token.
+
+- The app sends the token right after saving (to the selected device) and before a destination to a device
+  that does not have this token yet. Only a SHA-256 fingerprint per device is kept, in the data preferences.
+- **Send token to …** and **Remove token from …** do it by hand; removing sends an empty token, and the
+  device goes back to comma's route service. Removing the token from the phone leaves the device's copy.
+- A device without `setMapboxToken` (`-32601`, unmodified openpilot) is not an error: the destination goes
+  out and the feedback is the usual one. Only "Send token to …" shows a short note.
+- The device's map tiles (mapsd) still come from comma (`v1/<dongle_id>/nav/tiles`).
+
 ## sunnylink
 
 Investigated, **not implemented** (the `SunnylinkTransport` backend is an explicit stub):
@@ -112,13 +142,14 @@ app/src/main/java/com/cristianku/nav2pilot/
   geocode/                   PlaceSearch (Android Geocoder)
   net/                       HttpClient abstraction (HttpURLConnection)
   transport/                 NavigationTransport + comma athena backend + sunnylink stub
+  mapbox/                    Mapbox token check, record of the token sent to each device
   security/                  Keystore AES-GCM cipher, encrypted token store, JWT expiry
   data/                      favorites and devices (SharedPreferences + JSON)
   ui/                        Compose screens: Send, Favorites, Devices
 ```
 
 `NavigationTransport` is the backend abstraction (`listDevices`, `checkStatus`, `setDestination`,
-`clearDestination`). Each device records its backend, and `TransportRegistry` picks the implementation, so
+`clearDestination`, `setMapboxToken`). Each device records its backend, and `TransportRegistry` picks the implementation, so
 another backend can be added without touching the UI.
 
 ## Security and privacy
@@ -127,8 +158,11 @@ another backend can be added without touching the UI.
   ciphertext is stored, in app-private preferences. Backups and device transfer are disabled.
 - The token is never logged (the app has no logging), is excluded from `HttpRequest.toString()`, and is not
   shown again after saving.
+- The Mapbox public token is encrypted the same way, and is sent only to `api.mapbox.com` (token check) and,
+  through athena, to your own device.
 - Network access is limited to `api.commadotai.com`, `athena.comma.ai`, Google Maps hosts (only to expand
-  shared links) and the phone's Geocoder service (address search). No analytics.
+  shared links), the phone's Geocoder service (address search) and, only with a Mapbox token,
+  `api.mapbox.com`. No analytics.
 
 ## Build
 

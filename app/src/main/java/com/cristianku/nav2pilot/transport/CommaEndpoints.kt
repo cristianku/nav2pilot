@@ -21,5 +21,11 @@ object CommaEndpoints {
 
     const val METHOD_SET_NAV_DESTINATION = "setNavDestination"
     const val METHOD_CLEAR_NAV_DESTINATION = "clearNavDestination"
+
+    /**
+     * sunnypilot (cristianku/sunnypilot feature/nav-alpha, sunnypilot/navd/athena.py): the user's Mapbox public
+     * token, so the device asks Mapbox for its routes directly instead of comma's route service.
+     */
+    const val METHOD_SET_MAPBOX_TOKEN = "setMapboxToken"
     const val METHOD_GET_VERSION = "getVersion"
 }

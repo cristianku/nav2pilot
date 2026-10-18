@@ -112,6 +112,13 @@ class CommaAthenaTransport(
         return interpretCommandResult(rpcResult, CommaEndpoints.METHOD_CLEAR_NAV_DESTINATION)
     }
 
+    override suspend fun setMapboxToken(device: PairedDevice, token: String): TransportResult<Delivery> {
+        val params = JSONObject()
+        params.put("token", token)
+        val rpcResult = callAthena(device, CommaEndpoints.METHOD_SET_MAPBOX_TOKEN, params)
+        return interpretCommandResult(rpcResult, CommaEndpoints.METHOD_SET_MAPBOX_TOKEN)
+    }
+
     private suspend fun callAthena(device: PairedDevice, method: String, params: JSONObject?): TransportResult<RpcResponse> {
         val token = loadToken() ?: return TransportResult.Failed(TransportError.NoToken)
         if (!DongleIdRules.isValid(device.dongleId)) {

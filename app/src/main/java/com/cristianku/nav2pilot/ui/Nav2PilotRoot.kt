@@ -141,6 +141,12 @@ fun Nav2PilotRoot(viewModel: MainViewModel) {
                     onSelectDevice = { dongleId -> viewModel.selectDevice(dongleId) },
                     onAddManualDevice = { dongleId, alias -> viewModel.addManualDevice(dongleId, alias) },
                     onRemoveDevice = { dongleId -> viewModel.removeDevice(dongleId) },
+                    onShowMapboxDialog = { viewModel.showMapboxDialog() },
+                    onHideMapboxDialog = { viewModel.hideMapboxDialog() },
+                    onSaveMapboxToken = { token -> viewModel.saveMapboxToken(token) },
+                    onRemoveMapboxToken = { viewModel.removeMapboxToken() },
+                    onSendMapboxTokenToDevice = { viewModel.sendMapboxTokenToDevice() },
+                    onRemoveMapboxTokenFromDevice = { viewModel.removeMapboxTokenFromDevice() },
                 )
             }
         }

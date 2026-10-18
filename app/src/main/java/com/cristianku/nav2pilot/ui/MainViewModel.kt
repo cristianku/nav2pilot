@@ -8,6 +8,9 @@ import com.cristianku.nav2pilot.data.DeviceRepository
 import com.cristianku.nav2pilot.data.Favorite
 import com.cristianku.nav2pilot.data.FavoritesRepository
 import com.cristianku.nav2pilot.geocode.PlaceSearch
+import com.cristianku.nav2pilot.mapbox.MapboxSetup
+import com.cristianku.nav2pilot.mapbox.MapboxTokenCheck
+import com.cristianku.nav2pilot.mapbox.MapboxTokenRules
 import com.cristianku.nav2pilot.model.BackendKind
 import com.cristianku.nav2pilot.model.Destination
 import com.cristianku.nav2pilot.model.DongleIdRules
@@ -18,6 +21,7 @@ import com.cristianku.nav2pilot.security.JwtInfo
 import com.cristianku.nav2pilot.security.TokenStore
 import com.cristianku.nav2pilot.transport.CommaAthenaTransport
 import com.cristianku.nav2pilot.transport.DeviceStatus
+import com.cristianku.nav2pilot.transport.TransportError
 import com.cristianku.nav2pilot.transport.TransportErrorText
 import com.cristianku.nav2pilot.transport.TransportRegistry
 import com.cristianku.nav2pilot.transport.TransportResult
@@ -27,6 +31,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.security.GeneralSecurityException
 
 sealed class ConnectionState {
     object Unknown : ConnectionState()
@@ -59,6 +64,12 @@ data class MainUiState(
     val refreshingDevices: Boolean = false,
     val devicesMessage: String = "",
     val geocoderAvailable: Boolean = true,
+    val hasMapboxToken: Boolean = false,
+    val mapboxBusy: Boolean = false,
+    val mapboxMessage: String = "",
+    val mapboxDialogVisible: Boolean = false,
+    val mapboxDeviceBusy: Boolean = false,
+    val mapboxDeviceMessage: String = "",
     /** Incremented when the Send tab should be brought to front (share received, favorite picked). */
     val showSendTabRequest: Int = 0,
 )
@@ -72,6 +83,7 @@ class MainViewModel(
     private val favoritesRepository: FavoritesRepository,
     private val deviceRepository: DeviceRepository,
     private val ioDispatcher: CoroutineDispatcher,
+    private val mapbox: MapboxSetup? = null,
     private val clock: () -> Long = { System.currentTimeMillis() },
 ) : ViewModel() {
 
@@ -213,7 +225,7 @@ class MainViewModel(
 
     fun selectDevice(dongleId: String) {
         deviceRepository.select(dongleId)
-        state.value = state.value.copy(connection = ConnectionState.Unknown, feedback = null)
+        state.value = state.value.copy(connection = ConnectionState.Unknown, feedback = null, mapboxDeviceMessage = "")
         checkConnection()
     }
 
@@ -247,12 +259,17 @@ class MainViewModel(
         }
         state.value = state.value.copy(sending = true, feedback = null)
         viewModelScope.launch {
+            // before the destination, so that the first route request of the device already uses the token
+            val mapboxNote = deliverMapboxTokenIfNeeded(device)
             val result = transports.forDevice(device).setDestination(device, destination)
             val feedback: SendFeedback
             if (result is TransportResult.Ok) {
                 var message = "Destination sent to ${device.displayName()}."
                 if (result.value.queued) {
                     message = "Queued by athena: ${result.value.note}"
+                }
+                if (mapboxNote.isNotEmpty()) {
+                    message = message + " " + mapboxNote
                 }
                 feedback = SendFeedback(true, message, clock())
             } else {
@@ -388,7 +405,165 @@ class MainViewModel(
         }
     }
 
+    // ---- Mapbox ----
+
+    fun showMapboxDialog() {
+        state.value = state.value.copy(mapboxDialogVisible = true, mapboxMessage = "")
+    }
+
+    fun hideMapboxDialog() {
+        state.value = state.value.copy(mapboxDialogVisible = false, mapboxMessage = "")
+    }
+
+    /** Checks [rawToken] with Mapbox's Tokens API and stores it encrypted only when it is a valid public token. */
+    fun saveMapboxToken(rawToken: String) {
+        val setup = mapbox ?: return
+        val token = rawToken.trim()
+        if (token.isEmpty()) {
+            state.value = state.value.copy(mapboxMessage = "Paste a token first.")
+            return
+        }
+        if (MapboxTokenRules.isSecretToken(token)) {
+            state.value = state.value.copy(mapboxMessage = "This is a secret token (sk.). Paste your Default public token (pk.) instead.")
+            return
+        }
+        if (!MapboxTokenRules.isPublicToken(token)) {
+            state.value = state.value.copy(mapboxMessage = "A Mapbox public token starts with pk. (Default public token on the Tokens page).")
+            return
+        }
+        state.value = state.value.copy(mapboxBusy = true, mapboxMessage = "")
+        viewModelScope.launch {
+            val check = setup.verifier.verify(token)
+            if (check is MapboxTokenCheck.Valid) {
+                try {
+                    withContext(ioDispatcher) { setup.tokenStore.save(token) }
+                } catch (error: GeneralSecurityException) {
+                    state.value = state.value.copy(mapboxBusy = false, mapboxMessage = "Token not saved. " + (error.message ?: "Keystore error"))
+                    return@launch
+                }
+                state.value = state.value.copy(mapboxBusy = false, mapboxDialogVisible = false, hasMapboxToken = true)
+                if (state.value.hasToken && deviceRepository.selectedDevice() != null) {
+                    sendMapboxTokenNow(reportUnsupported = false)
+                }
+            } else if (check is MapboxTokenCheck.Rejected) {
+                state.value = state.value.copy(mapboxBusy = false, mapboxMessage = "Token not saved: Mapbox answered ${check.code}.")
+            } else if (check is MapboxTokenCheck.Failed) {
+                state.value = state.value.copy(mapboxBusy = false, mapboxMessage = "Token not saved. " + TransportErrorText.describe(check.error))
+            }
+        }
+    }
+
+    /** Removes the token from this phone only: the devices keep their copy (see removeMapboxTokenFromDevice). */
+    fun removeMapboxToken() {
+        mapbox?.tokenStore?.clear()
+        state.value = state.value.copy(hasMapboxToken = false, mapboxDeviceMessage = "")
+    }
+
+    /** Sends the stored Mapbox token to the selected device, which then asks Mapbox for its routes itself. */
+    fun sendMapboxTokenToDevice() {
+        if (state.value.mapboxDeviceBusy) {
+            return
+        }
+        viewModelScope.launch {
+            sendMapboxTokenNow(reportUnsupported = true)
+        }
+    }
+
+    /** Removes the Mapbox token from the selected device: it goes back to comma's route service. */
+    fun removeMapboxTokenFromDevice() {
+        val setup = mapbox ?: return
+        val device = deviceRepository.selectedDevice() ?: return
+        if (state.value.mapboxDeviceBusy) {
+            return
+        }
+        state.value = state.value.copy(mapboxDeviceBusy = true, mapboxDeviceMessage = "")
+        viewModelScope.launch {
+            val result = transports.forDevice(device).setMapboxToken(device, "")
+            val message: String
+            if (result is TransportResult.Ok) {
+                setup.deliveries.forget(device.dongleId)
+                if (result.value.queued) {
+                    message = "Queued by athena: ${result.value.note}"
+                } else {
+                    message = "Mapbox token removed from ${device.displayName()}: it uses comma's route service again."
+                }
+            } else {
+                val error = (result as TransportResult.Failed).error
+                if (error is TransportError.MethodNotAvailable) {
+                    // without setMapboxToken the device cannot have a token: nothing to remove
+                    setup.deliveries.forget(device.dongleId)
+                    message = unsupportedNote(device)
+                } else {
+                    message = "Mapbox token not removed. " + TransportErrorText.describe(error)
+                }
+            }
+            state.value = state.value.copy(mapboxDeviceBusy = false, mapboxDeviceMessage = message)
+        }
+    }
+
+    /**
+     * [reportUnsupported]: a device without setMapboxToken (unmodified openpilot) gets a note only when the user
+     * asked for the token to be sent; it is never an error.
+     */
+    private suspend fun sendMapboxTokenNow(reportUnsupported: Boolean) {
+        val setup = mapbox ?: return
+        val device = deviceRepository.selectedDevice() ?: return
+        val token = withContext(ioDispatcher) { setup.tokenStore.load() } ?: return
+        state.value = state.value.copy(mapboxDeviceBusy = true, mapboxDeviceMessage = "")
+        val result = transports.forDevice(device).setMapboxToken(device, token)
+        val message: String
+        if (result is TransportResult.Ok) {
+            if (result.value.queued) {
+                message = "Queued by athena: ${result.value.note}"
+            } else {
+                setup.deliveries.markDelivered(device.dongleId, token)
+                message = "Mapbox token sent to ${device.displayName()}: it computes its routes with your Mapbox account."
+            }
+        } else {
+            val error = (result as TransportResult.Failed).error
+            if (error is TransportError.MethodNotAvailable) {
+                if (reportUnsupported) {
+                    message = unsupportedNote(device)
+                } else {
+                    message = ""
+                }
+            } else {
+                message = mapboxNotSent(error)
+            }
+        }
+        state.value = state.value.copy(mapboxDeviceBusy = false, mapboxDeviceMessage = message)
+    }
+
+    /** Delivers the Mapbox token to a device that does not have this token yet. Returns a note for the send feedback. */
+    private suspend fun deliverMapboxTokenIfNeeded(device: PairedDevice): String {
+        val setup = mapbox ?: return ""
+        val token = withContext(ioDispatcher) { setup.tokenStore.load() } ?: return ""
+        if (setup.deliveries.isDelivered(device.dongleId, token)) {
+            return ""
+        }
+        val result = transports.forDevice(device).setMapboxToken(device, token)
+        if (result is TransportResult.Ok) {
+            // a queued token is sent again with the next destination
+            if (result.value.queued) {
+                return ""
+            }
+            setup.deliveries.markDelivered(device.dongleId, token)
+            return "Your Mapbox token was sent too."
+        }
+        val error = (result as TransportResult.Failed).error
+        // unmodified openpilot has no setMapboxToken: the destination goes out as usual, without a word
+        if (error is TransportError.MethodNotAvailable) {
+            return ""
+        }
+        return mapboxNotSent(error)
+    }
+
     private suspend fun refreshTokenState() {
+        var mapboxStored = false
+        if (mapbox != null) {
+            mapboxStored = mapbox.tokenStore.hasToken()
+        }
+        state.value = state.value.copy(hasMapboxToken = mapboxStored)
         val token = withContext(ioDispatcher) { tokenStore.load() }
         if (token == null) {
             state.value = state.value.copy(hasToken = false, tokenExpirySeconds = null)
@@ -398,6 +573,14 @@ class MainViewModel(
     }
 
     companion object {
+        fun mapboxNotSent(error: TransportError): String {
+            return "Mapbox token not sent. " + TransportErrorText.describe(error)
+        }
+
+        fun unsupportedNote(device: PairedDevice): String {
+            return "${device.displayName()} takes no Mapbox token (its software has no setMapboxToken): it uses comma's route service."
+        }
+
         fun factory(container: AppContainer): ViewModelProvider.Factory {
             return object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
@@ -411,6 +594,7 @@ class MainViewModel(
                         favoritesRepository = container.favoritesRepository,
                         deviceRepository = container.deviceRepository,
                         ioDispatcher = container.ioDispatcher,
+                        mapbox = container.mapbox,
                     )
                     return viewModel as T
                 }

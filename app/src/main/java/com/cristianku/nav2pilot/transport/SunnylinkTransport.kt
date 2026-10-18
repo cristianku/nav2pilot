@@ -38,6 +38,10 @@ class SunnylinkTransport : NavigationTransport {
         return notImplemented()
     }
 
+    override suspend fun setMapboxToken(device: PairedDevice, token: String): TransportResult<Delivery> {
+        return notImplemented()
+    }
+
     private fun notImplemented(): TransportResult.Failed {
         return TransportResult.Failed(TransportError.NotImplemented(REASON))
     }

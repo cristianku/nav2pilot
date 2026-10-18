@@ -34,11 +34,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.cristianku.nav2pilot.mapbox.MapboxEndpoints
 import com.cristianku.nav2pilot.model.BackendKind
 import com.cristianku.nav2pilot.model.PairedDevice
 import com.cristianku.nav2pilot.transport.CommaEndpoints
@@ -59,8 +61,20 @@ fun DevicesScreen(
     onSelectDevice: (String) -> Unit,
     onAddManualDevice: (String, String) -> String,
     onRemoveDevice: (String) -> Unit,
+    onShowMapboxDialog: () -> Unit,
+    onHideMapboxDialog: () -> Unit,
+    onSaveMapboxToken: (String) -> Unit,
+    onRemoveMapboxToken: () -> Unit,
+    onSendMapboxTokenToDevice: () -> Unit,
+    onRemoveMapboxTokenFromDevice: () -> Unit,
 ) {
     var addDialogVisible by remember { mutableStateOf(false) }
+    var selectedDevice: PairedDevice? = null
+    for (device in devices) {
+        if (device.dongleId == selectedDongleId) {
+            selectedDevice = device
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -107,6 +121,15 @@ fun DevicesScreen(
             Text("Add device by dongle ID")
         }
 
+        MapboxCard(
+            state = state,
+            selectedDevice = selectedDevice,
+            onShowMapboxDialog = onShowMapboxDialog,
+            onRemoveMapboxToken = onRemoveMapboxToken,
+            onSendToDevice = onSendMapboxTokenToDevice,
+            onRemoveFromDevice = onRemoveMapboxTokenFromDevice,
+        )
+
         BackendsCard()
     }
 
@@ -124,6 +147,164 @@ fun DevicesScreen(
             onDismiss = { addDialogVisible = false },
         )
     }
+    if (state.mapboxDialogVisible) {
+        MapboxTokenDialog(
+            busy = state.mapboxBusy,
+            message = state.mapboxMessage,
+            onSave = onSaveMapboxToken,
+            onDismiss = onHideMapboxDialog,
+        )
+    }
+}
+
+@Composable
+private fun MapboxCard(
+    state: MainUiState,
+    selectedDevice: PairedDevice?,
+    onShowMapboxDialog: () -> Unit,
+    onRemoveMapboxToken: () -> Unit,
+    onSendToDevice: () -> Unit,
+    onRemoveFromDevice: () -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Mapbox", style = MaterialTheme.typography.titleMedium)
+            if (state.hasMapboxToken) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.Lock, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Text(
+                        "  Mapbox token stored, encrypted with the Android Keystore",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+                if (selectedDevice != null) {
+                    val deviceActionsEnabled = !state.mapboxDeviceBusy && state.hasToken
+                    OutlinedButton(onClick = onSendToDevice, enabled = deviceActionsEnabled) {
+                        Text("Send token to " + selectedDevice.displayName())
+                    }
+                    TextButton(onClick = onRemoveFromDevice, enabled = deviceActionsEnabled) {
+                        Text("Remove token from " + selectedDevice.displayName())
+                    }
+                }
+                if (state.mapboxDeviceBusy) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                }
+                if (state.mapboxDeviceMessage.isNotEmpty()) {
+                    Text(state.mapboxDeviceMessage, style = MaterialTheme.typography.bodySmall)
+                }
+                Text(
+                    "The device gets the token with the next destination you send, or now with the button. " +
+                        "Removing it from this phone leaves the copy on the device.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = onShowMapboxDialog) {
+                        Text("Replace token")
+                    }
+                    TextButton(onClick = onRemoveMapboxToken) {
+                        Text("Remove")
+                    }
+                }
+            } else {
+                Text(
+                    "With your own free Mapbox account the device computes its routes with Mapbox instead of comma's route service.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Button(onClick = onShowMapboxDialog) {
+                    Text("Set up Mapbox")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MapboxTokenDialog(
+    busy: Boolean,
+    message: String,
+    onSave: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val uriHandler = LocalUriHandler.current
+    val clipboard = LocalClipboardManager.current
+    var token by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = {
+            if (!busy) {
+                onDismiss()
+            }
+        },
+        title = { Text("Mapbox token") },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text("1. Create a free Mapbox account and confirm the e-mail.", style = MaterialTheme.typography.bodySmall)
+                Text(
+                    "2. Add a payment card in the account: without one Mapbox gives only a trial token with low limits. " +
+                        "With a card the free tier applies, enough for personal use.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                Text(
+                    "3. On the Tokens page copy the Default public token (it starts with pk.). Never the secret one (sk.).",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                Text(
+                    "4. Paste it here. If you rotate the token on Mapbox later, paste the new one again.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                TextButton(onClick = { uriHandler.openUri(MapboxEndpoints.SIGNUP_URL) }) {
+                    Text("Create a free Mapbox account")
+                }
+                TextButton(onClick = { uriHandler.openUri(MapboxEndpoints.TOKENS_PAGE_URL) }) {
+                    Text("Open the Mapbox Tokens page")
+                }
+                OutlinedTextField(
+                    value = token,
+                    onValueChange = { text -> token = text },
+                    label = { Text("pk.…") },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrect = false),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                TextButton(
+                    onClick = {
+                        val pasted = clipboard.getText()
+                        if (pasted != null) {
+                            token = pasted.text
+                        }
+                    },
+                ) {
+                    Text("Paste")
+                }
+                Text(
+                    "The token is checked with Mapbox, then stored encrypted on this phone and sent to your comma device, " +
+                        "which asks Mapbox for its routes with it.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                if (message.isNotEmpty()) {
+                    Text(message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(token) }, enabled = !busy && token.isNotBlank()) {
+                if (busy) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                } else {
+                    Text("Verify and save")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !busy) {
+                Text("Cancel")
+            }
+        },
+    )
 }
 
 @Composable
@@ -237,7 +418,7 @@ private fun BackendsCard() {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("Backends", style = MaterialTheme.typography.titleMedium)
             Text(
-                "comma athena: available. Sends setNavDestination / clearNavDestination to the device.",
+                "comma athena: available. Sends setNavDestination / clearNavDestination, and setMapboxToken to sunnypilot Nav Alpha.",
                 style = MaterialTheme.typography.bodySmall,
             )
             Text(

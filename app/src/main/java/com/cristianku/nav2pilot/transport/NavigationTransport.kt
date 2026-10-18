@@ -60,4 +60,7 @@ interface NavigationTransport {
     suspend fun setDestination(device: PairedDevice, destination: Destination): TransportResult<Delivery>
 
     suspend fun clearDestination(device: PairedDevice): TransportResult<Delivery>
+
+    /** The user's Mapbox public token, for the route requests of the device itself; an empty token removes it. */
+    suspend fun setMapboxToken(device: PairedDevice, token: String): TransportResult<Delivery>
 }
