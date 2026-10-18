@@ -5,15 +5,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Place
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -21,11 +23,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.cristianku.nav2pilot.R
 import com.cristianku.nav2pilot.data.Favorite
 import com.cristianku.nav2pilot.model.Destination
 import com.cristianku.nav2pilot.model.PairedDevice
+import com.cristianku.nav2pilot.ui.components.BrandTitle
 import com.cristianku.nav2pilot.ui.screens.DevicesScreen
 import com.cristianku.nav2pilot.ui.screens.FavoritesScreen
 import com.cristianku.nav2pilot.ui.screens.SendScreen
@@ -36,14 +44,15 @@ enum class Tab(val label: String) {
     DEVICES("Devices"),
 }
 
-private fun iconFor(tab: Tab): ImageVector {
+@Composable
+private fun iconFor(tab: Tab): Painter {
     if (tab == Tab.FAVORITES) {
-        return Icons.Filled.Favorite
+        return rememberVectorPainter(Icons.Filled.Favorite)
     }
     if (tab == Tab.DEVICES) {
-        return Icons.Filled.Settings
+        return painterResource(R.drawable.ic_car)
     }
-    return Icons.Filled.Place
+    return rememberVectorPainter(Icons.Filled.Send)
 }
 
 private fun isFavorite(destination: Destination?, favorites: List<Favorite>): Boolean {
@@ -58,13 +67,13 @@ private fun isFavorite(destination: Destination?, favorites: List<Favorite>): Bo
     return false
 }
 
-private fun hasSelectedDevice(devices: List<PairedDevice>, selectedDongleId: String): Boolean {
+private fun findSelectedDevice(devices: List<PairedDevice>, selectedDongleId: String): PairedDevice? {
     for (device in devices) {
         if (device.dongleId == selectedDongleId) {
-            return true
+            return device
         }
     }
-    return false
+    return null
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -82,18 +91,42 @@ fun Nav2PilotRoot(viewModel: MainViewModel) {
         }
     }
 
+    val selectedDevice = findSelectedDevice(devices, selectedDongleId)
+
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(title = { Text("Nav2Pilot") })
+            TopAppBar(
+                title = {
+                    // the logo on the main screen; the other tabs keep their own title
+                    if (currentTab == Tab.SEND) {
+                        BrandTitle()
+                    } else {
+                        Text(currentTab.label, fontWeight = FontWeight.SemiBold)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    scrolledContainerColor = MaterialTheme.colorScheme.background,
+                ),
+            )
         },
         bottomBar = {
-            NavigationBar {
+            NavigationBar(
+                containerColor = MaterialTheme.colorScheme.surface,
+                tonalElevation = 0.dp,
+            ) {
                 for (tab in Tab.values()) {
                     NavigationBarItem(
                         selected = currentTab == tab,
                         onClick = { currentTab = tab },
                         icon = { Icon(iconFor(tab), contentDescription = null) },
                         label = { Text(tab.label) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                        ),
                     )
                 }
             }
@@ -123,7 +156,8 @@ fun Nav2PilotRoot(viewModel: MainViewModel) {
             } else if (currentTab == Tab.FAVORITES) {
                 FavoritesScreen(
                     favorites = favorites,
-                    canSend = hasSelectedDevice(devices, selectedDongleId) && !state.sending,
+                    selectedDevice = selectedDevice,
+                    sending = state.sending,
                     onSelect = { favorite -> viewModel.selectFavorite(favorite) },
                     onSend = { favorite -> viewModel.sendFavorite(favorite) },
                     onRemove = { favorite -> viewModel.removeFavorite(favorite.id) },
@@ -139,14 +173,11 @@ fun Nav2PilotRoot(viewModel: MainViewModel) {
                     onRemoveToken = { viewModel.removeToken() },
                     onRefreshDevices = { viewModel.refreshDevices() },
                     onSelectDevice = { dongleId -> viewModel.selectDevice(dongleId) },
-                    onAddManualDevice = { dongleId, alias -> viewModel.addManualDevice(dongleId, alias) },
                     onRemoveDevice = { dongleId -> viewModel.removeDevice(dongleId) },
                     onShowMapboxDialog = { viewModel.showMapboxDialog() },
                     onHideMapboxDialog = { viewModel.hideMapboxDialog() },
                     onSaveMapboxToken = { token -> viewModel.saveMapboxToken(token) },
                     onRemoveMapboxToken = { viewModel.removeMapboxToken() },
-                    onSendMapboxTokenToDevice = { viewModel.sendMapboxTokenToDevice() },
-                    onRemoveMapboxTokenFromDevice = { viewModel.removeMapboxTokenFromDevice() },
                 )
             }
         }

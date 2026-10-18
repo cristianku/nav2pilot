@@ -1,28 +1,39 @@
 package com.cristianku.nav2pilot.ui.screens
 
+import android.content.Context
+import android.content.pm.PackageManager
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
@@ -31,22 +42,35 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.cristianku.nav2pilot.R
 import com.cristianku.nav2pilot.mapbox.MapboxEndpoints
-import com.cristianku.nav2pilot.model.BackendKind
 import com.cristianku.nav2pilot.model.PairedDevice
 import com.cristianku.nav2pilot.transport.CommaEndpoints
 import com.cristianku.nav2pilot.transport.SunnylinkTransport
+import com.cristianku.nav2pilot.ui.ConnectionState
 import com.cristianku.nav2pilot.ui.Formatting
 import com.cristianku.nav2pilot.ui.MainUiState
+import com.cristianku.nav2pilot.ui.components.BrandCard
+import com.cristianku.nav2pilot.ui.components.BrandLogo
+import com.cristianku.nav2pilot.ui.components.IconBadge
+import com.cristianku.nav2pilot.ui.components.ScreenPadding
+import com.cristianku.nav2pilot.ui.components.SectionLabel
+import com.cristianku.nav2pilot.ui.theme.StatusColors
 
 @Composable
 fun DevicesScreen(
@@ -59,92 +83,81 @@ fun DevicesScreen(
     onRemoveToken: () -> Unit,
     onRefreshDevices: () -> Unit,
     onSelectDevice: (String) -> Unit,
-    onAddManualDevice: (String, String) -> String,
     onRemoveDevice: (String) -> Unit,
     onShowMapboxDialog: () -> Unit,
     onHideMapboxDialog: () -> Unit,
     onSaveMapboxToken: (String) -> Unit,
     onRemoveMapboxToken: () -> Unit,
-    onSendMapboxTokenToDevice: () -> Unit,
-    onRemoveMapboxTokenFromDevice: () -> Unit,
 ) {
-    var addDialogVisible by remember { mutableStateOf(false) }
-    var selectedDevice: PairedDevice? = null
-    for (device in devices) {
-        if (device.dongleId == selectedDongleId) {
-            selectedDevice = device
-        }
-    }
+    var deviceToRemove by remember { mutableStateOf<PairedDevice?>(null) }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .padding(horizontal = ScreenPadding, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
-        AccountCard(
-            state = state,
-            onShowTokenDialog = onShowTokenDialog,
-            onRemoveToken = onRemoveToken,
-        )
+        // connected: the car comes first; otherwise the account is the next step
+        if (state.hasToken) {
+            CarSection(
+                state = state,
+                devices = devices,
+                selectedDongleId = selectedDongleId,
+                onRefreshDevices = onRefreshDevices,
+                onSelectDevice = onSelectDevice,
+                onAskRemove = { device -> deviceToRemove = device },
+            )
+            AccountSection(state = state, onShowTokenDialog = onShowTokenDialog, onRemoveToken = onRemoveToken)
+        } else {
+            AccountSection(state = state, onShowTokenDialog = onShowTokenDialog, onRemoveToken = onRemoveToken)
+            CarSection(
+                state = state,
+                devices = devices,
+                selectedDongleId = selectedDongleId,
+                onRefreshDevices = onRefreshDevices,
+                onSelectDevice = onSelectDevice,
+                onAskRemove = { device -> deviceToRemove = device },
+            )
+        }
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Devices", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-            if (state.refreshingDevices) {
-                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-            } else {
-                IconButton(onClick = onRefreshDevices, enabled = state.hasToken) {
-                    Icon(Icons.Filled.Refresh, contentDescription = "Refresh devices from comma")
-                }
+        Column {
+            SectionLabel("Maps and routes")
+            MapboxCard(
+                state = state,
+                onShowMapboxDialog = onShowMapboxDialog,
+                onRemoveMapboxToken = onRemoveMapboxToken,
+            )
+        }
+
+        var selectedDevice: PairedDevice? = null
+        for (device in devices) {
+            if (device.dongleId == selectedDongleId) {
+                selectedDevice = device
             }
         }
-        if (state.devicesMessage.isNotEmpty()) {
-            Text(state.devicesMessage, style = MaterialTheme.typography.bodySmall)
-        }
-        if (devices.isEmpty()) {
-            Text(
-                "No devices. Refresh after adding a token, or add one by dongle ID.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        for (device in devices) {
-            DeviceRow(
-                device = device,
-                selected = device.dongleId == selectedDongleId,
-                onSelect = { onSelectDevice(device.dongleId) },
-                onRemove = { onRemoveDevice(device.dongleId) },
-            )
-        }
-        OutlinedButton(onClick = { addDialogVisible = true }) {
-            Text("Add device by dongle ID")
-        }
+        ConnectionCard(selectedDevice = selectedDevice, connection = state.connection)
 
-        MapboxCard(
-            state = state,
-            selectedDevice = selectedDevice,
-            onShowMapboxDialog = onShowMapboxDialog,
-            onRemoveMapboxToken = onRemoveMapboxToken,
-            onSendToDevice = onSendMapboxTokenToDevice,
-            onRemoveFromDevice = onRemoveMapboxTokenFromDevice,
-        )
-
-        BackendsCard()
+        AboutCard()
     }
 
+    val removing = deviceToRemove
+    if (removing != null) {
+        RemoveDeviceDialog(
+            device = removing,
+            onConfirm = {
+                deviceToRemove = null
+                onRemoveDevice(removing.dongleId)
+            },
+            onDismiss = { deviceToRemove = null },
+        )
+    }
     if (state.tokenDialogVisible) {
         TokenDialog(
             busy = state.accountBusy,
             message = state.accountMessage,
             onSave = onSaveToken,
             onDismiss = onHideTokenDialog,
-        )
-    }
-    if (addDialogVisible) {
-        AddDeviceDialog(
-            onAdd = onAddManualDevice,
-            onDismiss = { addDialogVisible = false },
         )
     }
     if (state.mapboxDialogVisible) {
@@ -158,64 +171,475 @@ fun DevicesScreen(
 }
 
 @Composable
-private fun MapboxCard(
+private fun CarSection(
     state: MainUiState,
-    selectedDevice: PairedDevice?,
-    onShowMapboxDialog: () -> Unit,
-    onRemoveMapboxToken: () -> Unit,
-    onSendToDevice: () -> Unit,
-    onRemoveFromDevice: () -> Unit,
+    devices: List<PairedDevice>,
+    selectedDongleId: String,
+    onRefreshDevices: () -> Unit,
+    onSelectDevice: (String) -> Unit,
+    onAskRemove: (PairedDevice) -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Mapbox", style = MaterialTheme.typography.titleMedium)
-            if (state.hasMapboxToken) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Lock, contentDescription = null, modifier = Modifier.size(16.dp))
+    Column {
+        if (devices.size > 1) {
+            SectionLabel("Your cars")
+        } else {
+            SectionLabel("Your car")
+        }
+        BrandCard {
+            if (devices.isEmpty()) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconBadge(
+                        painter = painterResource(R.drawable.ic_car),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        background = MaterialTheme.colorScheme.surfaceVariant,
+                    )
+                    Spacer(Modifier.width(16.dp))
+                    var text = "Connect your comma account above to see your car."
+                    if (state.hasToken) {
+                        text = "No car on this comma account yet."
+                    }
                     Text(
-                        "  Mapbox token stored, encrypted with the Android Keystore",
+                        text,
                         style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                if (selectedDevice != null) {
-                    val deviceActionsEnabled = !state.mapboxDeviceBusy && state.hasToken
-                    OutlinedButton(onClick = onSendToDevice, enabled = deviceActionsEnabled) {
-                        Text("Send token to " + selectedDevice.displayName())
-                    }
-                    TextButton(onClick = onRemoveFromDevice, enabled = deviceActionsEnabled) {
-                        Text("Remove token from " + selectedDevice.displayName())
+                if (state.hasToken) {
+                    OutlinedButton(
+                        onClick = onRefreshDevices,
+                        enabled = !state.refreshingDevices,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.padding(start = 72.dp, bottom = 16.dp),
+                    ) {
+                        if (state.refreshingDevices) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                        } else {
+                            Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Text("Refresh from comma account")
                     }
                 }
-                if (state.mapboxDeviceBusy) {
+            }
+            for (index in devices.indices) {
+                val device = devices[index]
+                if (index > 0) {
+                    Divider(
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                        modifier = Modifier.padding(start = 72.dp),
+                    )
+                }
+                val selected = device.dongleId == selectedDongleId
+                DeviceRow(
+                    device = device,
+                    selected = selected,
+                    // nothing to choose with a single car
+                    showsSelection = devices.size > 1,
+                    canRefresh = state.hasToken && !state.refreshingDevices,
+                    refreshing = state.refreshingDevices,
+                    onSelect = { onSelectDevice(device.dongleId) },
+                    onRefresh = onRefreshDevices,
+                    onRemove = { onAskRemove(device) },
+                )
+            }
+        }
+        if (state.devicesMessage.isNotEmpty()) {
+            Text(
+                state.devicesMessage,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 4.dp, top = 8.dp, end = 4.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun DeviceRow(
+    device: PairedDevice,
+    selected: Boolean,
+    showsSelection: Boolean,
+    canRefresh: Boolean,
+    refreshing: Boolean,
+    onSelect: () -> Unit,
+    onRefresh: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    var rowModifier = Modifier.fillMaxWidth()
+    if (showsSelection) {
+        rowModifier = rowModifier.clickable { onSelect() }
+    }
+    Row(
+        modifier = rowModifier.padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (showsSelection) {
+            RadioButton(selected = selected, onClick = onSelect, modifier = Modifier.size(40.dp))
+        } else {
+            IconBadge(
+                painter = painterResource(R.drawable.ic_car),
+                tint = MaterialTheme.colorScheme.primary,
+                background = MaterialTheme.colorScheme.primaryContainer,
+            )
+        }
+        Spacer(Modifier.width(16.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                Formatting.carName(device),
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            var details = ""
+            if (device.deviceType.isNotEmpty()) {
+                details = "comma " + device.deviceType + " · "
+            }
+            if (device.addedManually) {
+                details = details + "added by hand"
+            } else {
+                details = details + Formatting.lastSeen(device.lastAthenaPingSeconds)
+            }
+            if (!device.isOwner) {
+                details = details + " · read-only access"
+            }
+            Text(details, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Box {
+            if (refreshing) {
+                Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                 }
-                if (state.mapboxDeviceMessage.isNotEmpty()) {
-                    Text(state.mapboxDeviceMessage, style = MaterialTheme.typography.bodySmall)
+            } else {
+                IconButton(onClick = { menuExpanded = true }) {
+                    Icon(Icons.Filled.MoreVert, contentDescription = "Actions for " + Formatting.carName(device))
+                }
+            }
+            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                DropdownMenuItem(
+                    text = { Text("Refresh from comma account") },
+                    leadingIcon = { Icon(Icons.Filled.Refresh, contentDescription = null) },
+                    enabled = canRefresh,
+                    onClick = {
+                        menuExpanded = false
+                        onRefresh()
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text("Remove car", color = MaterialTheme.colorScheme.error) },
+                    leadingIcon = {
+                        Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                    },
+                    onClick = {
+                        menuExpanded = false
+                        onRemove()
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RemoveDeviceDialog(
+    device: PairedDevice,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var message = "It comes back with Refresh from comma account."
+    if (device.addedManually) {
+        message = "It was added by hand, so it does not come back from the comma account."
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Remove " + Formatting.carName(device) + "?") },
+        text = { Text(message) },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("Remove", color = MaterialTheme.colorScheme.error)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+    )
+}
+
+@Composable
+private fun AccountSection(
+    state: MainUiState,
+    onShowTokenDialog: () -> Unit,
+    onRemoveToken: () -> Unit,
+) {
+    Column {
+        SectionLabel("comma account")
+        AccountCard(state = state, onShowTokenDialog = onShowTokenDialog, onRemoveToken = onRemoveToken)
+    }
+}
+
+@Composable
+private fun AccountCard(
+    state: MainUiState,
+    onShowTokenDialog: () -> Unit,
+    onRemoveToken: () -> Unit,
+) {
+    val uriHandler = LocalUriHandler.current
+    BrandCard {
+        if (state.hasToken) {
+            ConnectedAccount(state = state, onShowTokenDialog = onShowTokenDialog, onRemoveToken = onRemoveToken)
+        } else {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Connect your comma account", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    "Sign in at jwt.comma.ai with the account your device is paired to, copy the token and paste it here.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = onShowTokenDialog, shape = RoundedCornerShape(12.dp)) {
+                        Text("Add token")
+                    }
+                    TextButton(onClick = { uriHandler.openUri(CommaEndpoints.TOKEN_PAGE_URL) }) {
+                        Text("Open jwt.comma.ai")
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** One compact row: "saved", not "connected", because the token is only checked when it is added. */
+@Composable
+private fun ConnectedAccount(
+    state: MainUiState,
+    onShowTokenDialog: () -> Unit,
+    onRemoveToken: () -> Unit,
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    val expiry = state.tokenExpirySeconds
+    var expired = false
+    if (expiry != null && expiry * 1000L < System.currentTimeMillis()) {
+        expired = true
+    }
+    var title = "Credentials saved"
+    var tint = StatusColors.success()
+    if (expired) {
+        title = "Access needs renewal"
+        tint = StatusColors.warning()
+    }
+    var expiryText = "Expiry not readable from the token."
+    if (expiry != null) {
+        expiryText = "Expires " + Formatting.date(expiry)
+        if (expired) {
+            expiryText = "Expired on " + Formatting.date(expiry) + ". Generate a new token."
+        }
+    }
+
+    Row(
+        modifier = Modifier.padding(start = 16.dp, top = 14.dp, bottom = 14.dp, end = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (expired) {
+            Icon(Icons.Filled.Warning, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
+        } else {
+            Icon(Icons.Filled.Lock, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, style = MaterialTheme.typography.titleSmall)
+            if (state.accountEmail.isNotEmpty()) {
+                Text(state.accountEmail, style = MaterialTheme.typography.bodySmall)
+            }
+            Text(expiryText, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                "Stored on this phone only, encrypted with the Android Keystore.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Box {
+            TextButton(onClick = { menuExpanded = true }) {
+                Text("Manage")
+            }
+            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                DropdownMenuItem(
+                    text = { Text("Replace token") },
+                    onClick = {
+                        menuExpanded = false
+                        onShowTokenDialog()
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text("Remove token", color = MaterialTheme.colorScheme.error) },
+                    onClick = {
+                        menuExpanded = false
+                        onRemoveToken()
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MapboxCard(
+    state: MainUiState,
+    onShowMapboxDialog: () -> Unit,
+    onRemoveMapboxToken: () -> Unit,
+) {
+    BrandCard {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (state.hasMapboxToken) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Filled.Lock,
+                        contentDescription = null,
+                        tint = StatusColors.success(),
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Mapbox token saved", style = MaterialTheme.typography.titleSmall)
                 }
                 Text(
-                    "The device gets the token with the next destination you send, or now with the button. " +
-                        "Removing it from this phone leaves the copy on the device.",
+                    "Your car gets the token automatically with every destination you send. " +
+                        "Removing it here also removes it from the selected car.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    "Stored on this phone, encrypted with the Android Keystore.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = onShowMapboxDialog) {
+                    OutlinedButton(onClick = onShowMapboxDialog, shape = RoundedCornerShape(12.dp)) {
                         Text("Replace token")
                     }
                     TextButton(onClick = onRemoveMapboxToken) {
-                        Text("Remove")
+                        Text("Remove", color = MaterialTheme.colorScheme.error)
                     }
                 }
             } else {
+                Text("Mapbox routes (optional)", style = MaterialTheme.typography.titleSmall)
                 Text(
-                    "With your own free Mapbox account the device computes its routes with Mapbox instead of comma's route service.",
+                    "With your own free Mapbox account the car computes its routes with Mapbox instead of comma's route service.",
                     style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Button(onClick = onShowMapboxDialog) {
+                OutlinedButton(onClick = onShowMapboxDialog, shape = RoundedCornerShape(12.dp)) {
                     Text("Set up Mapbox")
                 }
             }
         }
+    }
+}
+
+/** How the app reaches the car, folded: not needed day to day. */
+@Composable
+private fun ConnectionCard(selectedDevice: PairedDevice?, connection: ConnectionState) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    BrandCard {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expanded = !expanded }
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Connection details", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+            if (expanded) {
+                Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Hide connection details")
+            } else {
+                Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Show connection details")
+            }
+        }
+        if (expanded) {
+            Divider(color = MaterialTheme.colorScheme.outlineVariant)
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // the technical identity of the selected car, kept out of the day-to-day view
+                if (selectedDevice != null) {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(Formatting.carName(selectedDevice), style = MaterialTheme.typography.labelLarge)
+                        Text(
+                            "Dongle ID " + selectedDevice.dongleId,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontFamily = FontFamily.Monospace,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        if (connection is ConnectionState.Online) {
+                            var software = "Software " + connection.status.version
+                            if (connection.status.branch.isNotEmpty()) {
+                                software = software + " (" + connection.status.branch + ")"
+                            }
+                            Text(
+                                software,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+                Text(
+                    "comma athena: available. Sends setNavDestination / clearNavDestination, and setMapboxToken to sunnypilot Nav Alpha.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    "sunnylink: not available. " + SunnylinkTransport.REASON,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+private fun appVersion(context: Context): String {
+    try {
+        val info = context.packageManager.getPackageInfo(context.packageName, 0)
+        val name = info.versionName
+        if (name != null) {
+            return name
+        }
+    } catch (notFound: PackageManager.NameNotFoundException) {
+        // our own package is always installed; keep the about box without a version anyway
+    }
+    return ""
+}
+
+@Composable
+private fun AboutCard() {
+    val context = LocalContext.current
+    val version = appVersion(context)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp, bottom = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        BrandLogo(size = 68.dp)
+        Spacer(Modifier.size(6.dp))
+        Text("Nav2Pilot", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        if (version.isNotEmpty()) {
+            Text(
+                "Version $version",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Text(
+            "An independent project, not affiliated with comma.ai or sunnypilot.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 
@@ -307,128 +731,6 @@ private fun MapboxTokenDialog(
     )
 }
 
-@Composable
-private fun AccountCard(
-    state: MainUiState,
-    onShowTokenDialog: () -> Unit,
-    onRemoveToken: () -> Unit,
-) {
-    val uriHandler = LocalUriHandler.current
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("comma account", style = MaterialTheme.typography.titleMedium)
-            if (state.hasToken) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Lock, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Text(
-                        "  Token stored, encrypted with the Android Keystore",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                }
-                if (state.accountEmail.isNotEmpty()) {
-                    Text(state.accountEmail, style = MaterialTheme.typography.bodySmall)
-                }
-                val expiry = state.tokenExpirySeconds
-                if (expiry != null) {
-                    var expiryText = "Expires " + Formatting.date(expiry)
-                    if (expiry * 1000L < System.currentTimeMillis()) {
-                        expiryText = "Expired on " + Formatting.date(expiry) + ". Generate a new token."
-                    }
-                    Text(expiryText, style = MaterialTheme.typography.bodySmall)
-                } else {
-                    Text("Expiry not readable from the token.", style = MaterialTheme.typography.bodySmall)
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = onShowTokenDialog) {
-                        Text("Replace token")
-                    }
-                    TextButton(onClick = onRemoveToken) {
-                        Text("Remove")
-                    }
-                }
-            } else {
-                Text(
-                    "Sign in at jwt.comma.ai with the account your device is paired to, copy the token and paste it here.",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = onShowTokenDialog) {
-                        Text("Add token")
-                    }
-                    TextButton(onClick = { uriHandler.openUri(CommaEndpoints.TOKEN_PAGE_URL) }) {
-                        Text("Open jwt.comma.ai")
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun DeviceRow(
-    device: PairedDevice,
-    selected: Boolean,
-    onSelect: () -> Unit,
-    onRemove: () -> Unit,
-) {
-    OutlinedCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onSelect() },
-    ) {
-        Row(
-            modifier = Modifier.padding(end = 4.dp, top = 8.dp, bottom = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            RadioButton(selected = selected, onClick = onSelect)
-            Column(Modifier.weight(1f)) {
-                Text(device.displayName(), style = MaterialTheme.typography.bodyLarge)
-                Text(
-                    device.dongleId,
-                    style = MaterialTheme.typography.bodySmall,
-                    fontFamily = FontFamily.Monospace,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                var details = ""
-                if (device.deviceType.isNotEmpty()) {
-                    details = "comma " + device.deviceType + " · "
-                }
-                if (device.addedManually) {
-                    details = details + "added by hand"
-                } else {
-                    details = details + Formatting.lastSeen(device.lastAthenaPingSeconds)
-                }
-                if (!device.isOwner) {
-                    details = details + " · read-only access"
-                }
-                Text(details, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            if (device.addedManually) {
-                IconButton(onClick = onRemove) {
-                    Icon(Icons.Filled.Delete, contentDescription = "Remove device")
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun BackendsCard() {
-    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("Backends", style = MaterialTheme.typography.titleMedium)
-            Text(
-                "comma athena: available. Sends setNavDestination / clearNavDestination, and setMapboxToken to sunnypilot Nav Alpha.",
-                style = MaterialTheme.typography.bodySmall,
-            )
-            Text(
-                "sunnylink: not available. " + SunnylinkTransport.REASON,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
 
 @Composable
 private fun TokenDialog(
@@ -480,70 +782,4 @@ private fun TokenDialog(
             }
         },
     )
-}
-
-@Composable
-private fun AddDeviceDialog(
-    onAdd: (String, String) -> String,
-    onDismiss: () -> Unit,
-) {
-    var dongleId by remember { mutableStateOf("") }
-    var alias by remember { mutableStateOf("") }
-    var error by remember { mutableStateOf("") }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Add device") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = dongleId,
-                    onValueChange = { text -> dongleId = text },
-                    label = { Text("Dongle ID (16 hex characters)") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(autoCorrect = false),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = alias,
-                    onValueChange = { text -> alias = text },
-                    label = { Text("Name (optional)") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Text(
-                    "Backend: " + backendLabel(BackendKind.COMMA_ATHENA) + ". The dongle ID is in the device settings.",
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                if (error.isNotEmpty()) {
-                    Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    val result = onAdd(dongleId, alias)
-                    if (result.isEmpty()) {
-                        onDismiss()
-                    } else {
-                        error = result
-                    }
-                },
-            ) {
-                Text("Add")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        },
-    )
-}
-
-private fun backendLabel(kind: BackendKind): String {
-    if (kind == BackendKind.SUNNYLINK) {
-        return "sunnylink"
-    }
-    return "comma athena"
 }

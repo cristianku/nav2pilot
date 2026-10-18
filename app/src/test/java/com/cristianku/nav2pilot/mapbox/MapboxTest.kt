@@ -65,23 +65,6 @@ class MapboxTokenTest {
     }
 
     @Test
-    fun deliveriesKeepOnlyAFingerprint() {
-        val storage = InMemoryKeyValueStore()
-        val deliveries = MapboxDeliveries(storage)
-        deliveries.markDelivered(Fixtures.DONGLE_ID, TOKEN)
-
-        val stored = storage.values[MapboxDeliveries.KEY_PREFIX + Fixtures.DONGLE_ID]!!
-        assertEquals(64, stored.length)
-        assertFalse(stored.contains("pk."))
-        assertTrue(deliveries.isDelivered(Fixtures.DONGLE_ID, TOKEN))
-        assertFalse(deliveries.isDelivered(Fixtures.DONGLE_ID, "pk.eyJ1IjoiYiJ9.other"))
-        assertFalse(deliveries.isDelivered("0000000000000000", TOKEN))
-
-        deliveries.forget(Fixtures.DONGLE_ID)
-        assertFalse(deliveries.isDelivered(Fixtures.DONGLE_ID, TOKEN))
-    }
-
-    @Test
     fun tokenStoresWithDifferentKeysAreIndependent() {
         val storage = InMemoryKeyValueStore()
         val comma = TokenStore(storage, FakeTokenCipher())
@@ -105,7 +88,6 @@ class MapboxDeviceTokenTest {
     private val storage = InMemoryKeyValueStore()
     private val tokenStore = TokenStore(storage, FakeTokenCipher())
     private val mapboxTokenStore = TokenStore(storage, FakeTokenCipher(), TokenStore.KEY_MAPBOX_TOKEN)
-    private val deliveries = MapboxDeliveries(storage)
     private val deviceRepository = DeviceRepository(storage)
 
     @Before
@@ -134,7 +116,7 @@ class MapboxDeviceTokenTest {
             favoritesRepository = FavoritesRepository(storage),
             deviceRepository = deviceRepository,
             ioDispatcher = dispatcher,
-            mapbox = MapboxSetup(mapboxTokenStore, MapboxTokenVerifier(http, dispatcher), deliveries),
+            mapbox = MapboxSetup(mapboxTokenStore, MapboxTokenVerifier(http, dispatcher)),
             clock = { 1_000L },
         )
     }
@@ -152,38 +134,27 @@ class MapboxDeviceTokenTest {
         return names
     }
 
-    @Test
-    fun firstSendDeliversTheTokenBeforeTheDestinationThenNeverAgain() {
-        mapboxTokenStore.save(TOKEN)
-        val viewModel = createViewModel()
-        viewModel.search("45.0, 9.2")
-
-        http.respond(200, SUCCESS)
-        http.respond(200, SUCCESS)
-        viewModel.sendDestination()
-
-        assertEquals(listOf("getVersion", "setMapboxToken", "setNavDestination"), methods())
-        assertEquals(TOKEN, JSONObject(http.requests[1].body!!).getJSONObject("params").getString("token"))
-        assertEquals("Destination sent to Car. Your Mapbox token was sent too.", viewModel.uiState.value.feedback!!.message)
-
-        http.respond(200, SUCCESS)
-        viewModel.sendDestination()
-        assertEquals(listOf("getVersion", "setMapboxToken", "setNavDestination", "setNavDestination"), methods())
-        assertEquals("Destination sent to Car.", viewModel.uiState.value.feedback!!.message)
+    private fun sentToken(index: Int): String {
+        return JSONObject(http.requests[index].body!!).getJSONObject("params").getString("token")
     }
 
     @Test
-    fun aNewTokenIsDeliveredAgain() {
+    fun everySendCarriesTheTokenBeforeTheDestination() {
         mapboxTokenStore.save(TOKEN)
-        deliveries.markDelivered(Fixtures.DONGLE_ID, "pk.eyJ1IjoiYiJ9.old")
         val viewModel = createViewModel()
         viewModel.search("45.0, 9.2")
 
         http.respond(200, SUCCESS)
         http.respond(200, SUCCESS)
         viewModel.sendDestination()
+        http.respond(200, SUCCESS)
+        http.respond(200, SUCCESS)
+        viewModel.sendDestination()
 
-        assertEquals(listOf("getVersion", "setMapboxToken", "setNavDestination"), methods())
+        assertEquals(listOf("getVersion", "setMapboxToken", "setNavDestination", "setMapboxToken", "setNavDestination"), methods())
+        assertEquals(TOKEN, sentToken(1))
+        assertEquals(TOKEN, sentToken(3))
+        assertEquals("Destination sent to Car.", viewModel.uiState.value.feedback!!.message)
     }
 
     @Test
@@ -199,35 +170,6 @@ class MapboxDeviceTokenTest {
         val feedback = viewModel.uiState.value.feedback!!
         assertTrue(feedback.success)
         assertEquals("Destination sent to Car.", feedback.message)
-        assertFalse(deliveries.isDelivered(Fixtures.DONGLE_ID, TOKEN))
-    }
-
-    @Test
-    fun savingOnUnmodifiedOpenpilotSaysNothing() {
-        val viewModel = createViewModel()
-        http.respond(200, """{"code": "TokenValid"}""")
-        http.respond(200, METHOD_NOT_FOUND)
-
-        viewModel.saveMapboxToken(TOKEN)
-
-        val state = viewModel.uiState.value
-        assertTrue(state.hasMapboxToken)
-        assertEquals("", state.mapboxMessage)
-        assertEquals("", state.mapboxDeviceMessage)
-    }
-
-    @Test
-    fun buttonsOnUnmodifiedOpenpilotGiveANoteNotAnError() {
-        mapboxTokenStore.save(TOKEN)
-        val viewModel = createViewModel()
-
-        http.respond(200, METHOD_NOT_FOUND)
-        viewModel.sendMapboxTokenToDevice()
-        assertEquals(MainViewModel.unsupportedNote(PairedDevice(Fixtures.DONGLE_ID, "Car")), viewModel.uiState.value.mapboxDeviceMessage)
-
-        http.respond(200, METHOD_NOT_FOUND)
-        viewModel.removeMapboxTokenFromDevice()
-        assertFalse(viewModel.uiState.value.mapboxDeviceMessage.contains("not removed"))
     }
 
     @Test
@@ -253,21 +195,21 @@ class MapboxDeviceTokenTest {
     }
 
     @Test
-    fun savingTheTokenStoresItEncryptedAndSendsItToTheSelectedDevice() {
+    fun savingStoresTheTokenEncryptedAndSendsItToTheSelectedCarSilently() {
         val viewModel = createViewModel()
         http.respond(200, """{"code": "TokenValid"}""")
-        http.respond(200, SUCCESS)
+        http.respond(200, METHOD_NOT_FOUND)
 
         viewModel.saveMapboxToken(" $TOKEN ")
 
         val state = viewModel.uiState.value
         assertTrue(state.hasMapboxToken)
         assertFalse(state.mapboxDialogVisible)
+        assertEquals("", state.mapboxMessage)
         assertEquals(TOKEN, mapboxTokenStore.load())
         assertFalse(storage.values[TokenStore.KEY_MAPBOX_TOKEN]!!.contains(TOKEN))
         assertEquals("setMapboxToken", methods().last())
-        assertTrue(state.mapboxDeviceMessage.contains("sent to Car"))
-        assertTrue(deliveries.isDelivered(Fixtures.DONGLE_ID, TOKEN))
+        assertEquals(TOKEN, sentToken(http.requests.size - 1))
     }
 
     @Test
@@ -283,29 +225,17 @@ class MapboxDeviceTokenTest {
     }
 
     @Test
-    fun removeFromTheDeviceSendsAnEmptyToken() {
-        mapboxTokenStore.save(TOKEN)
-        deliveries.markDelivered(Fixtures.DONGLE_ID, TOKEN)
-        val viewModel = createViewModel()
-
-        http.respond(200, SUCCESS)
-        viewModel.removeMapboxTokenFromDevice()
-
-        assertEquals("", JSONObject(http.requests.last().body!!).getJSONObject("params").getString("token"))
-        assertTrue(viewModel.uiState.value.mapboxDeviceMessage.contains("removed from Car"))
-        assertFalse(deliveries.isDelivered(Fixtures.DONGLE_ID, TOKEN))
-    }
-
-    @Test
-    fun removingTheTokenFromThePhoneDoesNotTouchTheDevice() {
+    fun removingTheTokenAlsoRemovesItFromTheSelectedCar() {
         mapboxTokenStore.save(TOKEN)
         val viewModel = createViewModel()
         assertTrue(viewModel.uiState.value.hasMapboxToken)
 
+        http.respond(200, SUCCESS)
         viewModel.removeMapboxToken()
 
         assertFalse(viewModel.uiState.value.hasMapboxToken)
         assertFalse(mapboxTokenStore.hasToken())
-        assertEquals(listOf("getVersion"), methods())
+        assertEquals("setMapboxToken", methods().last())
+        assertEquals("", sentToken(http.requests.size - 1))
     }
 }

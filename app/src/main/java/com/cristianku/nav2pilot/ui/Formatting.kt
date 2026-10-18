@@ -6,6 +6,7 @@ import android.content.Intent
 import android.net.Uri
 import android.text.format.DateUtils
 import com.cristianku.nav2pilot.model.Destination
+import com.cristianku.nav2pilot.model.PairedDevice
 import java.text.DateFormat
 import java.util.Date
 
@@ -16,6 +17,17 @@ object Formatting {
 
     fun date(epochSeconds: Long): String {
         return DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(epochSeconds * 1000L))
+    }
+
+    /** The name shown for a car: its alias, otherwise its type. Never the bare dongle ID. */
+    fun carName(device: PairedDevice): String {
+        if (device.alias.isNotBlank()) {
+            return device.alias
+        }
+        if (device.deviceType.isNotEmpty()) {
+            return "comma " + device.deviceType
+        }
+        return "comma device"
     }
 
     fun lastSeen(epochSeconds: Long): String {

@@ -45,8 +45,11 @@ Nav Alpha asks comma's route service for the route. In my tests that service ref
 prime, and the car stayed on "Waiting for route". With your own free Mapbox account the car computes its
 route with Mapbox instead.
 
-This needs the sunnypilot build from
-[cristianku/sunnypilot `feature/nav-alpha`](https://github.com/cristianku/sunnypilot/tree/feature/nav-alpha).
+This needs one of these two builds, with Nav Alpha and the token support:
+
+- sunnypilot: [cristianku/sunnypilot `feature/nav-alpha`](https://github.com/cristianku/sunnypilot/tree/feature/nav-alpha)
+- openpilot: [cristianku/openpilot `nav-alpha`](https://github.com/cristianku/openpilot/tree/nav-alpha)
+
 On any other software the token simply stays on your phone and everything else works as usual.
 
 Set it up in **Devices → Mapbox → Set up Mapbox**, the app walks you through it:
@@ -54,7 +57,7 @@ Set it up in **Devices → Mapbox → Set up Mapbox**, the app walks you through
 1. Create a free Mapbox account. Without a payment card Mapbox only gives you a trial token with low limits;
    with a card you get the free tier, which is plenty for personal use.
 2. Copy the **Default public token** (it starts with `pk.`).
-3. Paste it in the app. The next destination you send takes it to the car as well.
+3. Paste it in the app. From then on it goes to the car by itself, with every destination you send.
 
 ## If something doesn't work
 
@@ -115,7 +118,7 @@ Everything Nav2Pilot sends is taken from source code or official documentation:
 | `GET /v1/me` validates a token | openpilot `tools/lib/auth.py` |
 | `setNavDestination(latitude: float, longitude: float)` returns `{"success": 1}`, or `{"success": 0, "error": "Invalid destination coordinates"}` out of range | commaai/openpilot `openpilot/system/athena/athenad.py`; sunnypilot `feature/nav-alpha` same file |
 | `clearNavDestination()` returns `{"success": 1}` | same file |
-| `setMapboxToken(token: str)` returns `{"success": 1}`, or `{"success": 0, "error": ...}` for anything but a public `pk.` token; `""` removes it | sunnypilot `feature/nav-alpha` `openpilot/sunnypilot/navd/athena.py` (not in commaai/openpilot) |
+| `setMapboxToken(token: str)` returns `{"success": 1}`, or `{"success": 0, "error": ...}` for anything but a public `pk.` token; `""` removes it | cristianku/sunnypilot `feature/nav-alpha` `openpilot/sunnypilot/navd/athena.py`; cristianku/openpilot `nav-alpha` `openpilot/selfdrive/navigation/nav2pilot/athena.py` (not in commaai/openpilot) |
 | Both write/remove the `NavDestination` param (JSON `{"latitude", "longitude"}`) that `navd` routes to | `openpilot/selfdrive/navigation/navd.py` |
 | `NavDestination` flags `CLEAR_ON_MANAGER_START \| CLEAR_ON_OFFROAD_TRANSITION` | `openpilot/common/params_keys.h`, applied in `openpilot/system/manager/manager.py` |
 | JSON-RPC errors: `-32601` method not found, `-32602` invalid params, `-32000` server error | `openpilot/system/athena/rpc.py` |
@@ -147,10 +150,11 @@ Notes:
 
 On a device without comma prime (`PrimeType` 0), comma's route service `api.commadotai.com/v1/nav` answered
 **HTTP 403** to every route request (route `0000011a`, 2026-10-17): navd got no route and the map stayed on
-"Waiting for route". The sunnypilot method `setMapboxToken(token)` of
-[cristianku/sunnypilot `feature/nav-alpha`](https://github.com/cristianku/sunnypilot/tree/feature/nav-alpha)
-(`sunnypilot/navd/athena.py`) stores the user's public token in the `MapboxToken` param, and navd then asks
-`api.mapbox.com` directly.
+"Waiting for route". The method `setMapboxToken(token)` stores the user's public token in the `MapboxToken`
+param, and navd then asks `api.mapbox.com` directly. It is in two builds:
+
+- sunnypilot: [cristianku/sunnypilot `feature/nav-alpha`](https://github.com/cristianku/sunnypilot/tree/feature/nav-alpha) (`sunnypilot/navd/athena.py`)
+- openpilot: [cristianku/openpilot `nav-alpha`](https://github.com/cristianku/openpilot/tree/nav-alpha) (`selfdrive/navigation/nav2pilot/athena.py`)
 
 Setup: Devices → Mapbox → **Set up Mapbox**.
 
@@ -162,12 +166,13 @@ Setup: Devices → Mapbox → **Set up Mapbox**.
 4. Paste it and tap **Verify and save**: it is checked with Mapbox's Tokens API
    (`GET https://api.mapbox.com/tokens/v2`, answer `TokenValid`) and stored encrypted like the comma token.
 
-- The app sends the token right after saving (to the selected device) and before a destination to a device
-  that does not have this token yet. Only a SHA-256 fingerprint per device is kept, in the data preferences.
-- **Send token to …** and **Remove token from …** do it by hand; removing sends an empty token, and the
-  device goes back to comma's route service. Removing the token from the phone leaves the device's copy.
+- Nothing to press: the app sends the token right after saving (to the selected car) and before every
+  destination, silently. The device writes it only when it changed. The `MapboxToken` param survives reboots,
+  but `Params::clearAll` deletes it when the device boots a build that does not define it; the next
+  destination brings it back.
+- **Remove** in the app also sends an empty token to the selected car, which goes back to comma's route service.
 - A device without `setMapboxToken` (`-32601`, unmodified openpilot) is not an error: the destination goes
-  out and the feedback is the usual one. Only "Send token to …" shows a short note.
+  out and the feedback is the usual one.
 - The device's map tiles (mapsd) still come from comma (`v1/<dongle_id>/nav/tiles`).
 
 ### sunnylink
@@ -195,7 +200,7 @@ app/src/main/java/com/cristianku/nav2pilot/
   geocode/                   PlaceSearch (Android Geocoder)
   net/                       HttpClient abstraction (HttpURLConnection)
   transport/                 NavigationTransport + comma athena backend + sunnylink stub
-  mapbox/                    Mapbox token check, record of the token sent to each device
+  mapbox/                    Mapbox token check
   security/                  Keystore AES-GCM cipher, encrypted token store, JWT expiry
   data/                      favorites and devices (SharedPreferences + JSON)
   ui/                        Compose screens: Send, Favorites, Devices

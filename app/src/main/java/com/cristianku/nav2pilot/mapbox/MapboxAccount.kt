@@ -3,6 +3,7 @@ package com.cristianku.nav2pilot.mapbox
 import com.cristianku.nav2pilot.net.HttpClient
 import com.cristianku.nav2pilot.net.HttpRequest
 import com.cristianku.nav2pilot.net.HttpResponse
+import com.cristianku.nav2pilot.security.TokenStore
 import com.cristianku.nav2pilot.transport.ErrorText
 import com.cristianku.nav2pilot.transport.TransportError
 import kotlinx.coroutines.CoroutineDispatcher
@@ -77,3 +78,9 @@ class MapboxTokenVerifier(
         return MapboxTokenCheck.Rejected(code)
     }
 }
+
+/** What the Mapbox setup needs: the encrypted token and the token check. */
+class MapboxSetup(
+    val tokenStore: TokenStore,
+    val verifier: MapboxTokenVerifier,
+)
