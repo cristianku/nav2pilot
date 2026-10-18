@@ -6,9 +6,9 @@ Find a place in Google Maps, tap **Share → Nav2Pilot**, pick your car, done: t
 your comma device running openpilot or sunnypilot with Nav Alpha. No typing on the car screen.
 
 <p align="center">
-  <img src="docs/screenshots/send.png" width="270" alt="A place shared from Google Maps, ready to be sent to the car">
+  <img src="docs/screenshots/sent.png" width="270" alt="A place shared from Google Maps and sent to the car, which is online">
   &nbsp;&nbsp;
-  <img src="docs/screenshots/sent.png" width="270" alt="The destination sent to the car">
+  <img src="docs/screenshots/devices.png" width="270" alt="Devices tab: comma account, the car and the Mapbox setup">
 </p>
 
 ## Get the app
