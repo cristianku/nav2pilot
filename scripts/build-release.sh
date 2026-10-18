@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# Builds a signed release APK of Nav2Pilot locally, with the same key as the GitHub releases.
+# Builds a signed release APK of Nav2Pilot locally, with the same key as the GitHub releases,
+# then publishes it: pushes the tag v<version>, and the GitHub workflow creates the Release.
 #
 #   scripts/build-release.sh              next version after the latest tag (v1.0.4 -> 1.0.5)
 #   scripts/build-release.sh 1.0.6        a given version
 #   scripts/build-release.sh 1.0.6 --install   also installs it on the phone connected with adb
+#   scripts/build-release.sh --local      only builds, does not publish
 #
 # Needs keystore.properties and the keystore in .signing/ (both ignored by git, see README).
 # The APK ends up in build/nav2pilot-v<version>.apk.
@@ -17,9 +19,12 @@ EXPECTED_CERT="79be28ef7cc9118c3547a28fbc327f776e8bff7aeb37705be7ff01c6ba5d4164"
 
 VERSION=""
 INSTALL="no"
+PUBLISH="yes"
 for ARG in "$@"; do
   if [ "$ARG" = "--install" ]; then
     INSTALL="yes"
+  elif [ "$ARG" = "--local" ]; then
+    PUBLISH="no"
   else
     VERSION="$ARG"
   fi
@@ -40,6 +45,26 @@ if [ -z "$VERSION" ]; then
   fi
   VERSION="$MAJOR.$MINOR.$((PATCH + 1))"
   echo "Latest tag $LAST_TAG -> building $VERSION"
+fi
+
+TAG="v$VERSION"
+
+if [ "$PUBLISH" = "yes" ]; then
+  # the release is built by GitHub from the tagged commit: it must be committed and pushed
+  if [ -n "$(git status --porcelain)" ]; then
+    echo "Uncommitted changes: commit them first, the release is built from the pushed commit."
+    exit 1
+  fi
+  if git rev-parse -q --verify "refs/tags/$TAG" > /dev/null; then
+    echo "Tag $TAG already exists."
+    exit 1
+  fi
+  BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+  git fetch -q origin "$BRANCH"
+  if [ "$(git rev-parse HEAD)" != "$(git rev-parse "origin/$BRANCH")" ]; then
+    echo "$BRANCH is not in sync with origin/$BRANCH: push (or pull) first."
+    exit 1
+  fi
 fi
 
 if [ ! -f keystore.properties ]; then
@@ -78,3 +103,13 @@ fi
 
 echo
 echo "APK: $REPO/$APK"
+
+if [ "$PUBLISH" = "yes" ]; then
+  echo
+  echo "== publish $TAG"
+  git tag "$TAG"
+  git push origin "$TAG"
+  echo "GitHub is building and publishing the release:"
+  echo "  https://github.com/cristianku/nav2pilot/actions"
+  echo "  https://github.com/cristianku/nav2pilot/releases/tag/$TAG"
+fi
