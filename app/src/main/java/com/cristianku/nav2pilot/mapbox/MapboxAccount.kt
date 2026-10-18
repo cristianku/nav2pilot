@@ -23,6 +23,12 @@ object MapboxEndpoints {
 
     /** Tokens API, "Retrieve a token": answers {"code": "TokenValid" | "TokenInvalid" | "TokenExpired" | ...}. */
     const val TOKEN_CHECK_URL = "https://api.mapbox.com/tokens/v2"
+
+    /** Directions API, same profile as the device's navd; coordinates "lng,lat;lng,lat" follow the slash. */
+    const val DIRECTIONS_URL = "https://api.mapbox.com/directions/v5/mapbox/driving-traffic/"
+
+    /** Static Tiles API: raster tiles of the Mapbox Streets style, for the route map. */
+    const val STREETS_TILES_URL = "https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/"
 }
 
 object MapboxTokenRules {

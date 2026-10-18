@@ -1,5 +1,6 @@
 package com.cristianku.nav2pilot.transport
 
+import com.cristianku.nav2pilot.mapbox.RouteWaypoint
 import com.cristianku.nav2pilot.model.BackendKind
 import com.cristianku.nav2pilot.model.CoordinateRules
 import com.cristianku.nav2pilot.model.Destination
@@ -105,6 +106,41 @@ class CommaAthenaTransport(
         params.put("longitude", destination.longitude)
         val rpcResult = callAthena(device, CommaEndpoints.METHOD_SET_NAV_DESTINATION, params)
         return interpretCommandResult(rpcResult, CommaEndpoints.METHOD_SET_NAV_DESTINATION)
+    }
+
+    override suspend fun setRoute(device: PairedDevice, destination: Destination, waypoints: List<RouteWaypoint>): TransportResult<Delivery> {
+        if (waypoints.isEmpty()) {
+            return setDestination(device, destination)
+        }
+        if (!CoordinateRules.isValid(destination.latitude, destination.longitude)) {
+            return TransportResult.Failed(TransportError.InvalidRequest("Coordinates out of range"))
+        }
+        val waypointParams = JSONArray()
+        for (waypoint in waypoints) {
+            if (!CoordinateRules.isValid(waypoint.latitude, waypoint.longitude)) {
+                return TransportResult.Failed(TransportError.InvalidRequest("Waypoint out of range"))
+            }
+            val item = JSONObject()
+            item.put("latitude", waypoint.latitude)
+            item.put("longitude", waypoint.longitude)
+            item.put("via", waypoint.via)
+            waypointParams.put(item)
+        }
+        val params = JSONObject()
+        params.put("latitude", destination.latitude)
+        params.put("longitude", destination.longitude)
+        params.put("waypoints", waypointParams)
+        val rpcResult = callAthena(device, CommaEndpoints.METHOD_SET_NAV_ROUTE, params)
+        val result = interpretCommandResult(rpcResult, CommaEndpoints.METHOD_SET_NAV_ROUTE)
+        // comma's Nav Alpha has no setNavRoute: send the destination alone, the device picks its own route
+        if (result is TransportResult.Failed && result.error == TransportError.MethodNotAvailable(CommaEndpoints.METHOD_SET_NAV_ROUTE)) {
+            val fallback = setDestination(device, destination)
+            if (fallback is TransportResult.Ok) {
+                return TransportResult.Ok(Delivery(queued = fallback.value.queued, note = NO_WAYPOINTS_NOTE))
+            }
+            return fallback
+        }
+        return result
     }
 
     override suspend fun clearDestination(device: PairedDevice): TransportResult<Delivery> {
@@ -233,6 +269,8 @@ class CommaAthenaTransport(
     }
 
     companion object {
+        const val NO_WAYPOINTS_NOTE = "The device has no waypoint support (setNavRoute): it got the destination only and picks its own route."
+
         fun parseDevices(body: String): List<PairedDevice> {
             val array = JSONArray(body)
             val devices = mutableListOf<PairedDevice>()

@@ -1,5 +1,6 @@
 package com.cristianku.nav2pilot.transport
 
+import com.cristianku.nav2pilot.mapbox.RouteWaypoint
 import com.cristianku.nav2pilot.model.BackendKind
 import com.cristianku.nav2pilot.model.Destination
 import com.cristianku.nav2pilot.model.PairedDevice
@@ -31,6 +32,10 @@ class SunnylinkTransport : NavigationTransport {
     }
 
     override suspend fun setDestination(device: PairedDevice, destination: Destination): TransportResult<Delivery> {
+        return notImplemented()
+    }
+
+    override suspend fun setRoute(device: PairedDevice, destination: Destination, waypoints: List<RouteWaypoint>): TransportResult<Delivery> {
         return notImplemented()
     }
 

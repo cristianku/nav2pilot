@@ -11,16 +11,24 @@ import com.cristianku.nav2pilot.geocode.PlaceSearch
 import com.cristianku.nav2pilot.mapbox.MapboxSetup
 import com.cristianku.nav2pilot.mapbox.MapboxTokenCheck
 import com.cristianku.nav2pilot.mapbox.MapboxTokenRules
+import com.cristianku.nav2pilot.mapbox.RoutePlanning
+import com.cristianku.nav2pilot.mapbox.RoutePreview
+import com.cristianku.nav2pilot.mapbox.RouteShaping
+import com.cristianku.nav2pilot.mapbox.RouteWaypoint
 import com.cristianku.nav2pilot.model.BackendKind
 import com.cristianku.nav2pilot.model.Destination
+import com.cristianku.nav2pilot.model.CoordinateRules
 import com.cristianku.nav2pilot.model.DongleIdRules
+import com.cristianku.nav2pilot.model.LatLng
 import com.cristianku.nav2pilot.model.PairedDevice
 import com.cristianku.nav2pilot.resolve.DestinationResolver
 import com.cristianku.nav2pilot.resolve.ResolveOutcome
 import com.cristianku.nav2pilot.security.JwtInfo
 import com.cristianku.nav2pilot.security.TokenStore
 import com.cristianku.nav2pilot.transport.CommaAthenaTransport
+import com.cristianku.nav2pilot.transport.Delivery
 import com.cristianku.nav2pilot.transport.DeviceStatus
+import com.cristianku.nav2pilot.transport.TransportError
 import com.cristianku.nav2pilot.transport.TransportErrorText
 import com.cristianku.nav2pilot.transport.TransportRegistry
 import com.cristianku.nav2pilot.transport.TransportResult
@@ -67,6 +75,18 @@ data class MainUiState(
     val mapboxBusy: Boolean = false,
     val mapboxMessage: String = "",
     val mapboxDialogVisible: Boolean = false,
+    // route preview on the Mapbox map
+    val routePlanningAvailable: Boolean = false,
+    /** The Mapbox public token for the map tiles; "" without one. */
+    val mapboxMapToken: String = "",
+    val routes: List<RoutePreview> = emptyList(),
+    val selectedRouteIndex: Int = 0,
+    val stops: List<Destination> = emptyList(),
+    val routesLoading: Boolean = false,
+    val routesMessage: String = "",
+    val origin: LatLng? = null,
+    /** True while the preview waits for the location permission, which only the screen can ask for. */
+    val locationPermissionNeeded: Boolean = false,
     /** Incremented when the Send tab should be brought to front (share received, favorite picked). */
     val showSendTabRequest: Int = 0,
 )
@@ -81,6 +101,7 @@ class MainViewModel(
     private val deviceRepository: DeviceRepository,
     private val ioDispatcher: CoroutineDispatcher,
     private val mapbox: MapboxSetup? = null,
+    private val routePlanning: RoutePlanning? = null,
     private val clock: () -> Long = { System.currentTimeMillis() },
 ) : ViewModel() {
 
@@ -93,9 +114,13 @@ class MainViewModel(
 
     private var resolveJob: Job? = null
     private var connectionJob: Job? = null
+    private var routesJob: Job? = null
 
     init {
-        state.value = state.value.copy(geocoderAvailable = placeSearch.isAvailable())
+        state.value = state.value.copy(
+            geocoderAvailable = placeSearch.isAvailable(),
+            routePlanningAvailable = routePlanning != null && mapbox != null,
+        )
         viewModelScope.launch {
             refreshTokenState()
             checkConnection()
@@ -126,6 +151,7 @@ class MainViewModel(
             resolveError = "",
             feedback = null,
         )
+        destinationChanged()
     }
 
     fun selectFavorite(favorite: Favorite) {
@@ -138,6 +164,7 @@ class MainViewModel(
             resolveError = "",
             feedback = null,
         )
+        destinationChanged()
         requestSendTab()
     }
 
@@ -160,6 +187,7 @@ class MainViewModel(
             resolveError = "",
             feedback = null,
         )
+        destinationChanged()
     }
 
     fun toggleFavorite() {
@@ -195,6 +223,7 @@ class MainViewModel(
                 resolveError = "",
                 feedback = null,
             )
+            destinationChanged()
             return
         }
         if (outcome is ResolveOutcome.Choices) {
@@ -261,12 +290,23 @@ class MainViewModel(
             if (mapboxToken != null) {
                 sendMapboxToken(mapboxToken, device)
             }
-            val result = transports.forDevice(device).setDestination(device, destination)
+            val waypoints = plannedWaypoints()
+            val result: TransportResult<Delivery>
+            if (waypoints.isEmpty()) {
+                result = transports.forDevice(device).setDestination(device, destination)
+            } else {
+                result = transports.forDevice(device).setRoute(device, destination, waypoints)
+            }
             val feedback: SendFeedback
             if (result is TransportResult.Ok) {
                 var message = "Destination sent to ${device.displayName()}."
+                if (waypoints.isNotEmpty()) {
+                    message = "Route sent to ${device.displayName()}."
+                }
                 if (result.value.queued) {
                     message = "Queued by athena: ${result.value.note}"
+                } else if (result.value.note.isNotEmpty()) {
+                    message = "Destination sent to ${device.displayName()}. " + result.value.note
                 }
                 feedback = SendFeedback(true, message, clock())
             } else {
@@ -438,12 +478,13 @@ class MainViewModel(
                     state.value = state.value.copy(mapboxBusy = false, mapboxMessage = "Token not saved. " + (error.message ?: "Keystore error"))
                     return@launch
                 }
-                state.value = state.value.copy(mapboxBusy = false, mapboxDialogVisible = false, hasMapboxToken = true)
+                state.value = state.value.copy(mapboxBusy = false, mapboxDialogVisible = false, hasMapboxToken = true, mapboxMapToken = token)
                 // the selected car gets it right away; if it is off, with the next destination
                 val device = deviceRepository.selectedDevice()
                 if (device != null) {
                     sendMapboxToken(token, device)
                 }
+                refreshRoutes()
             } else if (check is MapboxTokenCheck.Rejected) {
                 state.value = state.value.copy(mapboxBusy = false, mapboxMessage = "Token not saved: Mapbox answered ${check.code}.")
             } else if (check is MapboxTokenCheck.Failed) {
@@ -455,7 +496,15 @@ class MainViewModel(
     /** Removes the token from this phone and from the selected car, which goes back to comma's route service. */
     fun removeMapboxToken() {
         mapbox?.tokenStore?.clear()
-        state.value = state.value.copy(hasMapboxToken = false)
+        routesJob?.cancel()
+        state.value = state.value.copy(
+            hasMapboxToken = false,
+            mapboxMapToken = "",
+            routes = emptyList(),
+            routesLoading = false,
+            routesMessage = "",
+            locationPermissionNeeded = false,
+        )
         val device = deviceRepository.selectedDevice() ?: return
         viewModelScope.launch {
             sendMapboxToken("", device)
@@ -476,12 +525,152 @@ class MainViewModel(
         transports.forDevice(device).setMapboxToken(device, token)
     }
 
+    // ---- route preview ----
+
+    /** Route previews from the phone's position to the destination through the stops. */
+    fun refreshRoutes() {
+        routesJob?.cancel()
+        val planning = routePlanning
+        val target = state.value.destination
+        if (planning == null || target == null || !state.value.hasMapboxToken) {
+            state.value = state.value.copy(routes = emptyList(), routesLoading = false, routesMessage = "", locationPermissionNeeded = false)
+            return
+        }
+        if (!planning.location.hasPermission()) {
+            state.value = state.value.copy(
+                routes = emptyList(),
+                routesLoading = false,
+                routesMessage = LOCATION_NEEDED_MESSAGE,
+                locationPermissionNeeded = true,
+            )
+            return
+        }
+        state.value = state.value.copy(routesLoading = true, routesMessage = "", locationPermissionNeeded = false)
+        routesJob = viewModelScope.launch {
+            val position = planning.location.currentLocation()
+            state.value = state.value.copy(origin = position)
+            if (position == null) {
+                state.value = state.value.copy(
+                    routes = emptyList(),
+                    routesLoading = false,
+                    routesMessage = "No position for this phone. Turn location on and try again.",
+                )
+                return@launch
+            }
+
+            val stopPoints = mutableListOf<LatLng>()
+            for (stop in state.value.stops) {
+                stopPoints.add(LatLng(stop.latitude, stop.longitude))
+            }
+            val result = planning.directions.routes(position, stopPoints, LatLng(target.latitude, target.longitude))
+            if (result is TransportResult.Ok) {
+                val found = result.value
+                var selected = state.value.selectedRouteIndex
+                if (selected >= found.size) {
+                    selected = 0
+                }
+                var message = ""
+                if (found.isEmpty()) {
+                    message = "Mapbox found no route."
+                }
+                state.value = state.value.copy(routes = found, selectedRouteIndex = selected, routesLoading = false, routesMessage = message)
+            } else {
+                val error = (result as TransportResult.Failed).error
+                var message = TransportErrorText.describe(error)
+                if (error == TransportError.Unauthorized) {
+                    message = "Mapbox rejected the token (HTTP 401). Check it in Devices."
+                } else if (error is TransportError.DeviceRejected) {
+                    message = "Mapbox: " + error.reason
+                }
+                state.value = state.value.copy(routes = emptyList(), selectedRouteIndex = 0, routesLoading = false, routesMessage = message)
+            }
+        }
+    }
+
+    /** The answer of the permission dialog the screen showed. */
+    fun onLocationPermissionResult(granted: Boolean) {
+        if (granted) {
+            refreshRoutes()
+            return
+        }
+        state.value = state.value.copy(locationPermissionNeeded = false, routesMessage = LOCATION_DENIED_MESSAGE)
+    }
+
+    fun selectRoute(index: Int) {
+        if (index < 0 || index >= state.value.routes.size) {
+            return
+        }
+        state.value = state.value.copy(selectedRouteIndex = index, feedback = null)
+    }
+
+    /** Adds a stop before the destination, in the order they are added. */
+    fun addStop(latitude: Double, longitude: Double) {
+        if (!CoordinateRules.isValid(latitude, longitude)) {
+            return
+        }
+        if (state.value.destination == null || state.value.stops.size >= MAX_STOPS) {
+            return
+        }
+        val stops = state.value.stops.toMutableList()
+        stops.add(Destination(latitude = latitude, longitude = longitude, name = "Stop ${stops.size + 1}"))
+        state.value = state.value.copy(stops = stops, selectedRouteIndex = 0, feedback = null)
+        refreshRoutes()
+    }
+
+    fun removeStop(index: Int) {
+        val current = state.value.stops
+        if (index < 0 || index >= current.size) {
+            return
+        }
+        val renamed = mutableListOf<Destination>()
+        for (position in current.indices) {
+            if (position == index) {
+                continue
+            }
+            renamed.add(current[position].copy(name = "Stop ${renamed.size + 1}"))
+        }
+        state.value = state.value.copy(stops = renamed, selectedRouteIndex = 0, feedback = null)
+        refreshRoutes()
+    }
+
+    /** What the device gets besides the destination: the stops, or via points of the alternative picked on the map. */
+    fun plannedWaypoints(): List<RouteWaypoint> {
+        val current = state.value
+        val waypoints = mutableListOf<RouteWaypoint>()
+        for (stop in current.stops) {
+            waypoints.add(RouteWaypoint(stop.latitude, stop.longitude, via = false))
+        }
+        if (waypoints.isEmpty() && current.selectedRouteIndex > 0 && current.selectedRouteIndex < current.routes.size) {
+            return RouteShaping.viaPoints(current.routes[current.selectedRouteIndex])
+        }
+        return waypoints
+    }
+
+    /** A new destination starts a new plan. */
+    private fun destinationChanged() {
+        routesJob?.cancel()
+        state.value = state.value.copy(
+            stops = emptyList(),
+            selectedRouteIndex = 0,
+            routes = emptyList(),
+            routesLoading = false,
+            routesMessage = "",
+            locationPermissionNeeded = false,
+        )
+        if (state.value.destination != null) {
+            refreshRoutes()
+        }
+    }
+
     private suspend fun refreshTokenState() {
         var mapboxStored = false
         if (mapbox != null) {
             mapboxStored = mapbox.tokenStore.hasToken()
         }
         state.value = state.value.copy(hasMapboxToken = mapboxStored)
+        if (mapboxStored && routePlanning != null) {
+            state.value = state.value.copy(mapboxMapToken = loadMapboxToken() ?: "")
+        }
         val token = withContext(ioDispatcher) { tokenStore.load() }
         if (token == null) {
             state.value = state.value.copy(hasToken = false, tokenExpirySeconds = null)
@@ -491,6 +680,13 @@ class MainViewModel(
     }
 
     companion object {
+        // sunnypilot setNavRoute accepts 20 waypoints; three are left for the via points of an alternative
+        const val MAX_STOPS = 10
+
+        private const val LOCATION_NEEDED_MESSAGE = "The route preview starts from this phone's position: allow location access."
+        private const val LOCATION_DENIED_MESSAGE =
+            "No location access: the route preview starts from this phone's position. Allow it in the app settings."
+
         fun factory(container: AppContainer): ViewModelProvider.Factory {
             return object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
@@ -505,6 +701,7 @@ class MainViewModel(
                         deviceRepository = container.deviceRepository,
                         ioDispatcher = container.ioDispatcher,
                         mapbox = container.mapbox,
+                        routePlanning = container.routePlanning,
                     )
                     return viewModel as T
                 }

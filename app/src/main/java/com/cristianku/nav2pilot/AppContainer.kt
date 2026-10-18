@@ -10,8 +10,11 @@ import com.cristianku.nav2pilot.data.FavoritesRepository
 import com.cristianku.nav2pilot.data.SharedPreferencesStore
 import com.cristianku.nav2pilot.geocode.AndroidGeocoderSearch
 import com.cristianku.nav2pilot.geocode.PlaceSearch
+import com.cristianku.nav2pilot.location.AndroidLocationProvider
+import com.cristianku.nav2pilot.mapbox.MapboxDirections
 import com.cristianku.nav2pilot.mapbox.MapboxSetup
 import com.cristianku.nav2pilot.mapbox.MapboxTokenVerifier
+import com.cristianku.nav2pilot.mapbox.RoutePlanning
 import com.cristianku.nav2pilot.net.UrlConnectionHttpClient
 import com.cristianku.nav2pilot.resolve.DestinationResolver
 import com.cristianku.nav2pilot.resolve.ShortLinkResolver
@@ -40,6 +43,10 @@ class AppContainer(context: Context) {
     val mapbox = MapboxSetup(
         tokenStore = TokenStore(secureStore, KeystoreTokenCipher(), TokenStore.KEY_MAPBOX_TOKEN),
         verifier = MapboxTokenVerifier(httpClient, ioDispatcher),
+    )
+    val routePlanning = RoutePlanning(
+        directions = MapboxDirections(httpClient, { mapbox.tokenStore.load() }, ioDispatcher),
+        location = AndroidLocationProvider(context),
     )
     val favoritesRepository = FavoritesRepository(dataStore)
     val deviceRepository = DeviceRepository(dataStore)

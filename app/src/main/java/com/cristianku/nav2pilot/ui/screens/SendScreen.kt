@@ -4,9 +4,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -76,6 +78,7 @@ import com.cristianku.nav2pilot.ui.MainUiState
 import com.cristianku.nav2pilot.ui.MapIntents
 import com.cristianku.nav2pilot.ui.SendFeedback
 import com.cristianku.nav2pilot.ui.components.BrandCard
+import com.cristianku.nav2pilot.ui.components.EmptyState
 import com.cristianku.nav2pilot.ui.components.IconBadge
 import com.cristianku.nav2pilot.ui.components.ScreenPadding
 import com.cristianku.nav2pilot.ui.components.SectionLabel
@@ -96,6 +99,10 @@ fun SendScreen(
     onSend: () -> Unit,
     onClearOnDevice: () -> Unit,
     onOpenDevices: () -> Unit,
+    routeActions: RouteActions,
+    onSaveMapboxToken: (String) -> Unit,
+    onHideMapboxDialog: () -> Unit,
+    wide: Boolean = false,
 ) {
     var selectedDevice: PairedDevice? = null
     for (device in devices) {
@@ -104,62 +111,144 @@ fun SendScreen(
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = ScreenPadding, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
-        ) {
-            SearchSection(state = state, onSearch = onSearch)
+    val destinationBlock: @Composable () -> Unit = {
+        Column {
+            SectionLabel("Destination")
+            DestinationCard(
+                destination = state.destination,
+                source = state.destinationSource,
+                isFavorite = isFavorite,
+                onToggleFavorite = onToggleFavorite,
+                onClear = onClearSelection,
+            )
+        }
+    }
+    val deviceBlock: @Composable () -> Unit = {
+        Column {
+            SectionLabel("Device")
+            DeviceCard(
+                devices = devices,
+                selectedDevice = selectedDevice,
+                connection = state.connection,
+                hasToken = state.hasToken,
+                sending = state.sending,
+                onSelectDevice = onSelectDevice,
+                onCheckConnection = onCheckConnection,
+                onClearOnDevice = onClearOnDevice,
+                onOpenDevices = onOpenDevices,
+            )
+            Text(
+                "The device must be online. It keeps the destination until the car goes offroad or the device restarts.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 4.dp, top = 8.dp, end = 4.dp, bottom = 8.dp),
+            )
+        }
+    }
 
-            if (state.choices.isNotEmpty()) {
-                ChoicesCard(choices = state.choices, onChoose = onChooseCandidate)
-            }
-
-            Column {
-                SectionLabel("Destination")
-                DestinationCard(
-                    destination = state.destination,
-                    source = state.destinationSource,
-                    isFavorite = isFavorite,
-                    onToggleFavorite = onToggleFavorite,
-                    onClear = onClearSelection,
-                )
-            }
-
-            Column {
-                SectionLabel("Device")
-                DeviceCard(
+    if (wide) {
+        // landscape (car screens, tablets, a phone on its side): the form on the left, the map on the right
+        Row(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = ScreenPadding, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp),
+                ) {
+                    SearchSection(state = state, onSearch = onSearch)
+                    if (state.choices.isNotEmpty()) {
+                        ChoicesCard(choices = state.choices, onChoose = onChooseCandidate)
+                    }
+                    destinationBlock()
+                    deviceBlock()
+                }
+                SendBar(
+                    state = state,
                     devices = devices,
                     selectedDevice = selectedDevice,
-                    connection = state.connection,
-                    hasToken = state.hasToken,
-                    sending = state.sending,
-                    onSelectDevice = onSelectDevice,
-                    onCheckConnection = onCheckConnection,
-                    onClearOnDevice = onClearOnDevice,
-                    onOpenDevices = onOpenDevices,
-                )
-                Text(
-                    "The device must be online. It keeps the destination until the car goes offroad or the device restarts.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp, top = 8.dp, end = 4.dp, bottom = 8.dp),
+                    onSend = onSend,
                 )
             }
+            BoxWithConstraints(
+                modifier = Modifier
+                    .weight(WIDE_ROUTE_PANE_WEIGHT)
+                    .fillMaxHeight(),
+            ) {
+                // the map fills the visible pane; the route list scrolls below it
+                var mapHeight = maxHeight - 56.dp
+                if (mapHeight < 200.dp) {
+                    mapHeight = 200.dp
+                }
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(end = ScreenPadding, top = 8.dp, bottom = 8.dp),
+                ) {
+                    if (state.destination == null || !state.routePlanningAvailable) {
+                        SectionLabel("Route")
+                        BrandCard {
+                            EmptyState(
+                                painter = rememberVectorPainter(Icons.Filled.Place),
+                                title = "No route yet",
+                                message = "Search or share a place: its routes show up here.",
+                                modifier = Modifier.padding(vertical = 32.dp, horizontal = 16.dp),
+                            )
+                        }
+                    } else {
+                        RouteSection(state = state, actions = routeActions, mapHeight = mapHeight)
+                    }
+                }
+            }
         }
+    } else {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = ScreenPadding, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
+            ) {
+                SearchSection(state = state, onSearch = onSearch)
+                if (state.choices.isNotEmpty()) {
+                    ChoicesCard(choices = state.choices, onChoose = onChooseCandidate)
+                }
+                destinationBlock()
+                RouteSection(state = state, actions = routeActions)
+                deviceBlock()
+            }
 
-        SendBar(
-            state = state,
-            devices = devices,
-            selectedDevice = selectedDevice,
-            onSend = onSend,
+            SendBar(
+                state = state,
+                devices = devices,
+                selectedDevice = selectedDevice,
+                onSend = onSend,
+            )
+        }
+    }
+
+    // the route section offers the Mapbox setup too
+    if (state.mapboxDialogVisible) {
+        MapboxTokenDialog(
+            busy = state.mapboxBusy,
+            message = state.mapboxMessage,
+            onSave = onSaveMapboxToken,
+            onDismiss = onHideMapboxDialog,
         )
     }
 }
+
+// the route pane is a bit wider than the form: the map is what a landscape screen is for
+private const val WIDE_ROUTE_PANE_WEIGHT = 1.3f
 
 /** The send button and its result, kept above the tab bar while the content scrolls. */
 @Composable

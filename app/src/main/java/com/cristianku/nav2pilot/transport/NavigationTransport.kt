@@ -1,5 +1,6 @@
 package com.cristianku.nav2pilot.transport
 
+import com.cristianku.nav2pilot.mapbox.RouteWaypoint
 import com.cristianku.nav2pilot.model.BackendKind
 import com.cristianku.nav2pilot.model.Destination
 import com.cristianku.nav2pilot.model.PairedDevice
@@ -58,6 +59,12 @@ interface NavigationTransport {
     suspend fun checkStatus(device: PairedDevice): TransportResult<DeviceStatus>
 
     suspend fun setDestination(device: PairedDevice, destination: Destination): TransportResult<Delivery>
+
+    /**
+     * The destination with waypoints in driving order. Falls back to the destination alone when the device
+     * has no waypoint support; Delivery.note then says so.
+     */
+    suspend fun setRoute(device: PairedDevice, destination: Destination, waypoints: List<RouteWaypoint>): TransportResult<Delivery>
 
     suspend fun clearDestination(device: PairedDevice): TransportResult<Delivery>
 

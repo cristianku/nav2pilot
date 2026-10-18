@@ -132,6 +132,9 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-core")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.1")
+    // Route map: Mapbox raster tiles with the user's own public token. The Mapbox Maps SDK for Android needs a
+    // newer toolchain and a secret token just to download it; osmdroid is on Maven Central.
+    implementation("org.osmdroid:osmdroid-android:6.1.18")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 

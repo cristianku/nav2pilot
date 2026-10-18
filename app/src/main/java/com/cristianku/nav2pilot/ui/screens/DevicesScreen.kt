@@ -528,7 +528,8 @@ private fun MapboxCard(
             } else {
                 Text("Mapbox routes (optional)", style = MaterialTheme.typography.titleSmall)
                 Text(
-                    "With your own free Mapbox account the car computes its routes with Mapbox instead of comma's route service.",
+                    "With your own free Mapbox account the car computes its routes with Mapbox instead of comma's route service, " +
+                        "and the Send tab shows the routes on a map.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -644,7 +645,7 @@ private fun AboutCard() {
 }
 
 @Composable
-private fun MapboxTokenDialog(
+internal fun MapboxTokenDialog(
     busy: Boolean,
     message: String,
     onSave: (String) -> Unit,

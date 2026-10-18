@@ -1,8 +1,11 @@
 package com.cristianku.nav2pilot.ui
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Send
@@ -12,6 +15,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.NavigationRailItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -22,21 +28,29 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cristianku.nav2pilot.R
 import com.cristianku.nav2pilot.data.Favorite
 import com.cristianku.nav2pilot.model.Destination
 import com.cristianku.nav2pilot.model.PairedDevice
+import com.cristianku.nav2pilot.ui.components.BrandLogo
 import com.cristianku.nav2pilot.ui.components.BrandTitle
 import com.cristianku.nav2pilot.ui.screens.DevicesScreen
 import com.cristianku.nav2pilot.ui.screens.FavoritesScreen
+import com.cristianku.nav2pilot.ui.screens.RouteActions
 import com.cristianku.nav2pilot.ui.screens.SendScreen
+
+// narrower than this, or taller than wide, stays the phone layout
+private const val WIDE_MIN_WIDTH_DP = 600
+private const val WIDE_LIST_MAX_WIDTH_DP = 640
 
 enum class Tab(val label: String) {
     SEND("Send"),
@@ -93,6 +107,120 @@ fun Nav2PilotRoot(viewModel: MainViewModel) {
 
     val selectedDevice = findSelectedDevice(devices, selectedDongleId)
 
+    // landscape and large screens (car head units, tablets, a phone on its side)
+    val configuration = LocalConfiguration.current
+    val wide = configuration.screenWidthDp >= WIDE_MIN_WIDTH_DP && configuration.screenWidthDp > configuration.screenHeightDp
+
+    val tabContent: @Composable () -> Unit = {
+        if (currentTab == Tab.SEND) {
+            SendScreen(
+                state = state,
+                devices = devices,
+                selectedDongleId = selectedDongleId,
+                isFavorite = isFavorite(state.destination, favorites),
+                onSearch = { text -> viewModel.search(text) },
+                onChooseCandidate = { destination -> viewModel.chooseCandidate(destination) },
+                onClearSelection = { viewModel.clearSelection() },
+                onToggleFavorite = { viewModel.toggleFavorite() },
+                onSelectDevice = { dongleId -> viewModel.selectDevice(dongleId) },
+                onCheckConnection = { viewModel.checkConnection() },
+                onSend = { viewModel.sendDestination() },
+                onClearOnDevice = { viewModel.clearDestinationOnDevice() },
+                onOpenDevices = { currentTab = Tab.DEVICES },
+                routeActions = RouteActions(
+                    onShowMapboxDialog = { viewModel.showMapboxDialog() },
+                    onRefreshRoutes = { viewModel.refreshRoutes() },
+                    onSelectRoute = { index -> viewModel.selectRoute(index) },
+                    onAddStop = { latitude, longitude -> viewModel.addStop(latitude, longitude) },
+                    onRemoveStop = { index -> viewModel.removeStop(index) },
+                    onLocationPermissionResult = { granted -> viewModel.onLocationPermissionResult(granted) },
+                ),
+                onSaveMapboxToken = { token -> viewModel.saveMapboxToken(token) },
+                onHideMapboxDialog = { viewModel.hideMapboxDialog() },
+                wide = wide,
+            )
+        } else if (currentTab == Tab.FAVORITES) {
+            FavoritesScreen(
+                favorites = favorites,
+                selectedDevice = selectedDevice,
+                sending = state.sending,
+                onSelect = { favorite -> viewModel.selectFavorite(favorite) },
+                onSend = { favorite -> viewModel.sendFavorite(favorite) },
+                onRemove = { favorite -> viewModel.removeFavorite(favorite.id) },
+            )
+        } else {
+            DevicesScreen(
+                state = state,
+                devices = devices,
+                selectedDongleId = selectedDongleId,
+                onShowTokenDialog = { viewModel.showTokenDialog() },
+                onHideTokenDialog = { viewModel.hideTokenDialog() },
+                onSaveToken = { token -> viewModel.saveToken(token) },
+                onRemoveToken = { viewModel.removeToken() },
+                onRefreshDevices = { viewModel.refreshDevices() },
+                onSelectDevice = { dongleId -> viewModel.selectDevice(dongleId) },
+                onRemoveDevice = { dongleId -> viewModel.removeDevice(dongleId) },
+                onShowMapboxDialog = { viewModel.showMapboxDialog() },
+                onHideMapboxDialog = { viewModel.hideMapboxDialog() },
+                onSaveMapboxToken = { token -> viewModel.saveMapboxToken(token) },
+                onRemoveMapboxToken = { viewModel.removeMapboxToken() },
+            )
+        }
+    }
+
+    if (wide) {
+        // no top bar and no bottom tabs: a short screen keeps its height for the content; tabs go in a side rail
+        Scaffold(containerColor = MaterialTheme.colorScheme.background) { innerPadding ->
+            Row(
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .fillMaxSize(),
+            ) {
+                NavigationRail(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    header = {
+                        BrandLogo(size = 40.dp, modifier = Modifier.padding(top = 8.dp, bottom = 16.dp))
+                    },
+                ) {
+                    for (tab in Tab.values()) {
+                        NavigationRailItem(
+                            selected = currentTab == tab,
+                            onClick = { currentTab = tab },
+                            icon = { Icon(iconFor(tab), contentDescription = null) },
+                            label = { Text(tab.label) },
+                            colors = NavigationRailItemDefaults.colors(
+                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                            ),
+                        )
+                    }
+                }
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .padding(top = 8.dp),
+                    contentAlignment = Alignment.TopCenter,
+                ) {
+                    if (currentTab == Tab.SEND) {
+                        tabContent()
+                    } else {
+                        // lists and settings read badly across a whole wide screen
+                        Box(
+                            modifier = Modifier
+                                .widthIn(max = WIDE_LIST_MAX_WIDTH_DP.dp)
+                                .fillMaxHeight(),
+                        ) {
+                            tabContent()
+                        }
+                    }
+                }
+            }
+        }
+        return
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
@@ -137,49 +265,7 @@ fun Nav2PilotRoot(viewModel: MainViewModel) {
                 .padding(innerPadding)
                 .fillMaxSize(),
         ) {
-            if (currentTab == Tab.SEND) {
-                SendScreen(
-                    state = state,
-                    devices = devices,
-                    selectedDongleId = selectedDongleId,
-                    isFavorite = isFavorite(state.destination, favorites),
-                    onSearch = { text -> viewModel.search(text) },
-                    onChooseCandidate = { destination -> viewModel.chooseCandidate(destination) },
-                    onClearSelection = { viewModel.clearSelection() },
-                    onToggleFavorite = { viewModel.toggleFavorite() },
-                    onSelectDevice = { dongleId -> viewModel.selectDevice(dongleId) },
-                    onCheckConnection = { viewModel.checkConnection() },
-                    onSend = { viewModel.sendDestination() },
-                    onClearOnDevice = { viewModel.clearDestinationOnDevice() },
-                    onOpenDevices = { currentTab = Tab.DEVICES },
-                )
-            } else if (currentTab == Tab.FAVORITES) {
-                FavoritesScreen(
-                    favorites = favorites,
-                    selectedDevice = selectedDevice,
-                    sending = state.sending,
-                    onSelect = { favorite -> viewModel.selectFavorite(favorite) },
-                    onSend = { favorite -> viewModel.sendFavorite(favorite) },
-                    onRemove = { favorite -> viewModel.removeFavorite(favorite.id) },
-                )
-            } else {
-                DevicesScreen(
-                    state = state,
-                    devices = devices,
-                    selectedDongleId = selectedDongleId,
-                    onShowTokenDialog = { viewModel.showTokenDialog() },
-                    onHideTokenDialog = { viewModel.hideTokenDialog() },
-                    onSaveToken = { token -> viewModel.saveToken(token) },
-                    onRemoveToken = { viewModel.removeToken() },
-                    onRefreshDevices = { viewModel.refreshDevices() },
-                    onSelectDevice = { dongleId -> viewModel.selectDevice(dongleId) },
-                    onRemoveDevice = { dongleId -> viewModel.removeDevice(dongleId) },
-                    onShowMapboxDialog = { viewModel.showMapboxDialog() },
-                    onHideMapboxDialog = { viewModel.hideMapboxDialog() },
-                    onSaveMapboxToken = { token -> viewModel.saveMapboxToken(token) },
-                    onRemoveMapboxToken = { viewModel.removeMapboxToken() },
-                )
-            }
+            tabContent()
         }
     }
 }

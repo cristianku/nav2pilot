@@ -59,6 +59,62 @@ Set it up in **Devices → Mapbox → Set up Mapbox**, the app walks you through
 2. Copy the **Default public token** (it starts with `pk.`).
 3. Paste it in the app. From then on it goes to the car by itself, with every destination you send.
 
+With the token the Send tab also shows the route on a map, starting from your phone's position (the app asks
+for location access the first time). You see the fastest route and up to two alternatives, and you pick the
+one the car should drive. Long-press the map to add a stop. The car follows the route you picked; this needs
+one of the two builds above, other software gets the destination only and picks its own route.
+
+<p align="center">
+  <img src="docs/screenshots/route.png" width="270" alt="Route preview: the fastest route and an alternative on the Mapbox map">
+</p>
+
+## Car screens: CarlinKit, Android Auto, CarPlay
+
+On a landscape screen (a car head unit, a tablet, a phone on its side) the app switches to two panes: search,
+destination and the send button on the left, the route map on the right, the tabs in a rail on the side.
+
+<p align="center">
+  <img src="docs/screenshots/landscape.png" width="700" alt="Landscape layout: the destination on the left, the route map on the right">
+</p>
+
+### CarlinKit and other Android boxes: compatible
+
+Nav2Pilot runs on CarlinKit boxes that run Android themselves (the "AI Box" / "Tbox" models), like on a phone,
+in the landscape layout above. It does not run on the small CarlinKit adapters that only make CarPlay or
+Android Auto wireless: those cannot install apps.
+
+1. Connect the box to the internet (Wi-Fi or your phone's hotspot).
+2. Open the [latest release](https://github.com/cristianku/nav2pilot/releases/latest) in the box's browser,
+   download the APK and open it. Allow installing apps from the browser when Android asks.
+3. Set up the comma account and Mapbox in Devices, as on a phone.
+
+Good to know:
+
+- Android 8.0 or later.
+- Address search needs Google Play services on the box. Without them, coordinates and map links still work.
+- The route preview starts from the box's position. A box without GPS has no position: the destination can
+  still be sent, without the preview.
+
+### Android Auto: not yet
+
+Android Auto does not show ordinary apps: an app has to provide a dedicated car screen, built from the
+templates of Google's Android for Cars App Library. Nav2Pilot does not have one yet, so it does not appear in
+Android Auto. Until it does, use it on the phone or on a CarlinKit Android box.
+
+When a build with Android Auto support is out, it is not from the Play Store, so Android Auto has to be told
+to show it:
+
+1. On the phone, open the Android Auto settings (Settings → Connected devices → Connection preferences →
+   Android Auto, or the Android Auto app).
+2. Tap **Version** at the bottom about ten times, until it says developer settings are enabled.
+3. Menu (⋮) → **Developer settings** → turn on **Unknown sources**.
+4. Back in the Android Auto settings → **Customize launcher**: enable Nav2Pilot.
+
+### CarPlay
+
+CarPlay is for the [iOS app](https://github.com/cristianku/nav2pilot-ios) and is not supported yet either: a
+CarPlay app needs a dedicated car screen and a CarPlay entitlement that Apple grants on request.
+
 ## If something doesn't work
 
 - **"The comma token was rejected (HTTP 401)"**: the token has expired. Get a new one at
@@ -74,6 +130,7 @@ Set it up in **Devices → Mapbox → Set up Mapbox**, the app walks you through
   and they are never logged.
 - The app only talks to comma (to reach your device), to Google Maps (to open shared links), to the phone's
   address search and, if you set it up, to Mapbox. No analytics, no tracking.
+- Your position is only used for the route preview: it goes to Mapbox, with your own token, and nowhere else.
 
 Nav2Pilot is an independent project, not affiliated with comma.ai or sunnypilot.
 
@@ -98,6 +155,10 @@ APIs, independently of the openpilot / sunnypilot source code.
 - comma token stored encrypted with an Android Keystore key.
 - **Mapbox (optional)**: your own free Mapbox token, sent to the device so that it asks Mapbox for its routes
   instead of comma's route service (see "Mapbox token on the device").
+- **Route map (with the Mapbox token)**: the fastest route and its alternatives from the phone's position,
+  stops added with a long press; the picked route goes to the device as waypoints (see "Route map and
+  waypoints").
+- **Landscape layout** for car head units and tablets: two panes and a navigation rail.
 
 ### comma token
 
@@ -174,6 +235,20 @@ Setup: Devices → Mapbox → **Set up Mapbox**.
 - A device without `setMapboxToken` (`-32601`, unmodified openpilot) is not an error: the destination goes
   out and the feedback is the usual one.
 - The device's map tiles (mapsd) still come from comma (`v1/<dongle_id>/nav/tiles`).
+
+### Route map and waypoints
+
+- Routes: Mapbox Directions API, profile `mapbox/driving-traffic` (the same as the device's navd), from the
+  phone's position (platform `LocationManager`, no Google Play services needed) through the stops to the
+  destination, with up to two alternatives when there are no stops.
+- Map: [osmdroid](https://github.com/osmdroid/osmdroid) with Mapbox Streets raster tiles (Static Tiles API)
+  and the user's public token. The Mapbox Maps SDK for Android is not used: it needs a newer toolchain than
+  the pinned one and a secret token just to download it from Mapbox's Maven repository.
+- What the device gets: `setNavRoute(latitude, longitude, waypoints)` (cristianku/sunnypilot `feature/nav-alpha`,
+  `sunnypilot/navd/athena.py`; cristianku/openpilot `nav-alpha`, `selfdrive/navigation/nav2pilot/athena.py`). Stops go as waypoints with `via: false`; a picked alternative goes as three
+  silent `via: true` points at 25 %, 50 % and 75 % of its length, so the device's own Mapbox request follows
+  the same roads. The fastest route without stops is sent as `setNavDestination`. A device without
+  `setNavRoute` (JSON-RPC -32601) gets `setNavDestination` instead, and the app says so.
 
 ### sunnylink
 
