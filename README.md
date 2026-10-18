@@ -1,15 +1,87 @@
 # Nav2Pilot
 
-Send navigation destinations from your Android phone to a comma device running **openpilot** or
-**sunnypilot** with **Nav Alpha**.
+**Send a destination from your Android phone to your comma device in a couple of taps.**
 
-Share a place from Google Maps (or type an address, coordinates or a map link), pick your device, tap
-**Send**. Nav2Pilot calls the device's `setNavDestination` remote method through comma's athena service.
+Find a place in Google Maps, tap **Share → Nav2Pilot**, pick your car, done: the destination shows up on
+your comma device running openpilot or sunnypilot with Nav Alpha. No typing on the car screen.
 
-Kotlin, Jetpack Compose, Material 3. Package `com.cristianku.nav2pilot`. Independent of the
-openpilot / sunnypilot source code: it only talks to documented network APIs.
+<p align="center">
+  <img src="docs/screenshots/send.png" width="270" alt="A place shared from Google Maps, ready to be sent to the car">
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/sent.png" width="270" alt="The destination sent to the car">
+</p>
 
-## Features
+## Get the app
+
+Download the APK of the [latest release](https://github.com/cristianku/nav2pilot/releases/latest) on your
+phone and open it. Android asks you once to allow installing apps from your browser or file manager.
+
+On iPhone? [Nav2Pilot for iOS](https://github.com/cristianku/nav2pilot-ios) is in beta on TestFlight: write
+to me through [cristianku.com](https://cristianku.com) with the e-mail address of your Apple ID and I'll add
+you as a tester.
+
+## Getting started
+
+1. **Get your comma token.** Open [jwt.comma.ai](https://jwt.comma.ai), sign in with the account your comma
+   device is paired to, and copy the token.
+2. **Add it to the app.** **Devices → Add token**, paste it, **Verify and save**. Your devices show up in the
+   list.
+3. **Send a place.** In Google Maps open a place, tap **Share**, choose **Nav2Pilot**, then **Send to …**.
+   That's it.
+
+You can also type an address, paste a map link or coordinates in the **Send** tab, and keep your favourite
+places one tap away.
+
+## What you need on the car
+
+- openpilot or sunnypilot with **Nav Alpha**, the navigation comma added to openpilot in October 2026. Older
+  software doesn't have it, and the app tells you so.
+- The comma device must be **online** when you send.
+- The car keeps the destination until it goes off-road or the device restarts.
+
+## Optional: your own Mapbox account
+
+Nav Alpha asks comma's route service for the route. In my tests that service refused a device without comma
+prime, and the car stayed on "Waiting for route". With your own free Mapbox account the car computes its
+route with Mapbox instead.
+
+This needs the sunnypilot build from
+[cristianku/sunnypilot `feature/nav-alpha`](https://github.com/cristianku/sunnypilot/tree/feature/nav-alpha).
+On any other software the token simply stays on your phone and everything else works as usual.
+
+Set it up in **Devices → Mapbox → Set up Mapbox**, the app walks you through it:
+
+1. Create a free Mapbox account. Without a payment card Mapbox only gives you a trial token with low limits;
+   with a card you get the free tier, which is plenty for personal use.
+2. Copy the **Default public token** (it starts with `pk.`).
+3. Paste it in the app. The next destination you send takes it to the car as well.
+
+## If something doesn't work
+
+- **"The comma token was rejected (HTTP 401)"**: the token has expired. Get a new one at
+  [jwt.comma.ai](https://jwt.comma.ai) and replace it in Devices.
+- **"Device unreachable"**: the comma device is offline. Try again when it's on and connected.
+- **The car shows "Waiting for route"**: see "Optional: your own Mapbox account" above.
+- **The update doesn't install over v1.0 or v1.0.1**: those two builds were signed with a different key.
+  Uninstall them once, then install the latest release.
+
+## Privacy
+
+- Your comma token and your Mapbox token are encrypted with a key that never leaves the Android Keystore,
+  and they are never logged.
+- The app only talks to comma (to reach your device), to Google Maps (to open shared links), to the phone's
+  address search and, if you set it up, to Mapbox. No analytics, no tracking.
+
+Nav2Pilot is an independent project, not affiliated with comma.ai or sunnypilot.
+
+---
+
+## Technical details
+
+Kotlin, Jetpack Compose, Material 3. Package `com.cristianku.nav2pilot`. It only talks to documented network
+APIs, independently of the openpilot / sunnypilot source code.
+
+### Features in detail
 
 - Android share target for Google Maps (place name, address and `maps.app.goo.gl` link) and "Open with"
   for `geo:` links.
@@ -24,32 +96,13 @@ openpilot / sunnypilot source code: it only talks to documented network APIs.
 - **Mapbox (optional)**: your own free Mapbox token, sent to the device so that it asks Mapbox for its routes
   instead of comma's route service (see "Mapbox token on the device").
 
-## Requirements on the device
-
-- openpilot with Nav Alpha (commaai/openpilot master since "nav alpha" #39066, merged 2026-10-12) or a
-  sunnypilot build that includes Nav Alpha. Older software answers `method not found` and the app says so.
-- The device must be **online** (athena connected) when you send.
-- The destination is kept until the car goes **offroad** or the device **restarts** (see "Verified API").
-
-## Getting a comma token
-
-1. Open <https://jwt.comma.ai> (it redirects to `useradmin.comma.ai`) and sign in with the Google,
-   Apple or GitHub account your device is paired to.
-2. Copy the token.
-3. In Nav2Pilot open **Devices → Add token**, paste it, **Verify and save**.
+### comma token
 
 The token is checked with `GET /v1/me` before it is stored. If the token carries an `exp` claim the app
 shows its expiry date; the token lifetime is not documented in the sources below, so when sending starts
 failing with HTTP 401, generate a new token.
 
-## Usage
-
-1. In Google Maps open a place, tap **Share**, choose **Nav2Pilot** ("Send to comma device").
-2. Check the destination card (use **Show on map** if in doubt; an "approximate" warning means the link
-   only had the map centre).
-3. Pick the device and tap **Send to …**.
-
-## Verified API
+### Verified API
 
 Everything Nav2Pilot sends is taken from source code or official documentation:
 
@@ -80,7 +133,7 @@ Notes:
   status and whatever text the server returns.
 - `clearNavDestination` is in the device code but not in the comma-api schema.
 
-### Google Maps links
+#### Google Maps links
 
 - `maps.app.goo.gl` links are expanded one redirect at a time, reading only the `Location` header and
   only on Google hosts. The EU consent interstitial (`consent.google.com/...?continue=<maps url>`) is not
@@ -90,7 +143,7 @@ Notes:
   be kilometres away from the place. A viewport-only result is marked approximate.
 - When a link has no coordinates, the shared address lines (or the place name) are geocoded.
 
-## Mapbox token on the device
+### Mapbox token on the device
 
 On a device without comma prime (`PrimeType` 0), comma's route service `api.commadotai.com/v1/nav` answered
 **HTTP 403** to every route request (route `0000011a`, 2026-10-17): navd got no route and the map stayed on
@@ -117,7 +170,7 @@ Setup: Devices → Mapbox → **Set up Mapbox**.
   out and the feedback is the usual one. Only "Send token to …" shows a short note.
 - The device's map tiles (mapsd) still come from comma (`v1/<dongle_id>/nav/tiles`).
 
-## sunnylink
+### sunnylink
 
 Investigated, **not implemented** (the `SunnylinkTransport` backend is an explicit stub):
 
@@ -130,7 +183,7 @@ Investigated, **not implemented** (the `SunnylinkTransport` backend is an explic
 - Not available: a documented API contract, and a supported way for a third-party app to obtain a sunnylink
   token (the frontend signs users in through its own Logto OIDC client).
 
-## Architecture
+### Architecture
 
 ```
 app/src/main/java/com/cristianku/nav2pilot/
@@ -152,7 +205,7 @@ app/src/main/java/com/cristianku/nav2pilot/
 `clearDestination`, `setMapboxToken`). Each device records its backend, and `TransportRegistry` picks the implementation, so
 another backend can be added without touching the UI.
 
-## Security and privacy
+### Security and privacy
 
 - The comma JWT is encrypted with AES-256-GCM using a non-exportable key in the Android Keystore; only the
   ciphertext is stored, in app-private preferences. Backups and device transfer are disabled.
@@ -164,7 +217,7 @@ another backend can be added without touching the UI.
   shared links), the phone's Geocoder service (address search) and, only with a Mapbox token,
   `api.mapbox.com`. No analytics.
 
-## Build
+### Build
 
 Toolchain (pinned on purpose, it matches what was available locally when the project was created):
 
@@ -184,7 +237,7 @@ if `ANDROID_HOME` is not set.
 Upgrading to a current AGP / compileSdk is a separate step: it needs a newer Gradle, newer SDK packages and
 newer AndroidX versions together.
 
-## Tests
+### Tests
 
 - JVM unit tests (`app/src/test`): link parsing (including a real `maps.app.goo.gl` redirect and EU consent
   hop captured on 2026-10-17), short-link expansion, resolver fallbacks, the exact athena JSON-RPC requests
@@ -192,13 +245,13 @@ newer AndroidX versions together.
 - Instrumented test (`app/src/androidTest`): Keystore encryption round trip. Needs a device or emulator:
   `./gradlew connectedDebugAndroidTest`.
 
-## CI
+### CI
 
 `.github/workflows/android.yml` runs only when a `v*` tag is pushed. It runs unit tests and release
 lint, builds a signed release APK and the instrumented test APK, and publishes the release APK on
 GitHub Releases. Ordinary pushes to `main` do not start a build.
 
-### Permanent release signing
+#### Permanent release signing
 
 Every release must use the same private signing key. The old `v1.0` and `v1.0.1` APKs used different
 temporary debug keys and cannot update each other. Moving from one of those builds to the permanent
