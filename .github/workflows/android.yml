@@ -55,7 +55,7 @@ jobs:
         run: ./gradlew --no-daemon testDebugUnitTest lintRelease assembleRelease assembleDebugAndroidTest -PreleaseVersion="${GITHUB_REF_NAME#v}"
 
       - name: Verify APK signature
-        run: '"$ANDROID_HOME/build-tools/30.0.3/apksigner" verify --verbose --print-certs app/build/outputs/apk/release/app-release.apk'
+        run: '"$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs app/build/outputs/apk/release/app-release.apk'
 
       - name: Upload signed release APK
         uses: actions/upload-artifact@v7
