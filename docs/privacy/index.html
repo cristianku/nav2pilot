@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nav2Pilot — Privacy Policy</title>
+<meta name="description" content="Privacy Policy of the Nav2Pilot Android app: which data it handles, where it is sent and how to delete it.">
+<style>
+  :root {
+    --bg: #ffffff;
+    --text: #1d232a;
+    --muted: #5a6470;
+    --line: #dde2e7;
+    --link: #0b5cad;
+    --box: #f3f5f7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15191d;
+      --text: #e6e9ec;
+      --muted: #a3acb6;
+      --line: #2e353c;
+      --link: #7cb7f2;
+      --box: #1e2328;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+  main { max-width: 44rem; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 1.75rem; line-height: 1.25; margin: 0 0 8px; }
+  h2 { font-size: 1.3rem; margin: 48px 0 8px; padding-top: 16px; border-top: 1px solid var(--line); }
+  h3 { font-size: 1.05rem; margin: 28px 0 4px; }
+  p, ul { margin: 8px 0 12px; }
+  ul { padding-left: 1.25rem; }
+  li { margin: 4px 0; }
+  a { color: var(--link); overflow-wrap: anywhere; }
+  code { font-size: 0.92em; overflow-wrap: anywhere; }
+  .meta { color: var(--muted); margin: 0 0 16px; }
+  .lang { display: flex; gap: 16px; flex-wrap: wrap; margin: 0 0 8px; }
+  .summary { background: var(--box); border-radius: 8px; padding: 12px 16px; }
+  .summary ul { margin: 4px 0; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Nav2Pilot — Privacy Policy</h1>
+<p class="meta">Last updated / Ultimo aggiornamento: 18 October 2026 / 18 ottobre 2026</p>
+<p class="lang"><a href="#en">English</a> <a href="#it">Italiano</a></p>
+
+<!-- ============================== ENGLISH ============================== -->
+<section id="en" lang="en">
+
+<h2>English</h2>
+
+<h3>Who is responsible</h3>
+<p>Nav2Pilot is an Android app developed by Cristian Zantedeschi, Switzerland, and published on Google Play under the developer name “14 Bodhi”.</p>
+<p>Privacy contact: <a href="mailto:admin@14bodhi.com">admin@14bodhi.com</a></p>
+<p>Nav2Pilot is an independent project. It is not affiliated with, endorsed by or operated by comma.ai or sunnypilot.</p>
+
+<div class="summary">
+<p><strong>In short</strong></p>
+<ul>
+  <li>Nav2Pilot sends destinations from your phone to your own comma device, through comma’s servers, using your comma account token.</li>
+  <li>The developer runs no server for the app and receives none of the data described here.</li>
+  <li>The app contains no analytics, advertising or tracking SDKs.</li>
+  <li>Some data is sent to third-party services (comma, Mapbox if you set it up, your phone’s address search service, Google Maps for shared links). Each of them handles it under its own privacy policy.</li>
+</ul>
+</div>
+
+<h3>Data the app handles</h3>
+<ul>
+  <li><strong>comma access token.</strong> You paste a token of your own comma account. The app checks it with comma’s API, then stores it on the phone, encrypted. It is sent only to comma’s servers, with each request.</li>
+  <li><strong>comma account e-mail.</strong> When you add the token, the app reads the e-mail address of your comma profile and shows it on screen. It is not saved on the phone.</li>
+  <li><strong>Your comma devices.</strong> The app retrieves the devices linked to your comma account: device ID (dongle ID), name, device type, time of the last connection and whether you own the device. It stores this list on the phone, together with devices you add by hand and the device you selected. It also asks the selected device for its software version and branch, to show the connection status.</li>
+  <li><strong>Destinations and routes.</strong> A place you share from Google Maps, open as a map link, type, paste or pick from your favorites. When you tap Send, the app sends the place’s coordinates (latitude and longitude) to your comma device. On compatible devices it can also send waypoints: the stops you added on the map, or intermediate points taken along the route alternative you picked. The place name and address are shown in the app but are not part of what is sent.</li>
+  <li><strong>Favorites.</strong> Places you save as favorites (coordinates, name, address) are stored on the phone.</li>
+  <li><strong>Mapbox public token (optional).</strong> If you set up Mapbox, you paste the public token (<code>pk.…</code>) of your own Mapbox account. The app checks it with Mapbox, stores it on the phone, encrypted, and uses it for the route map. It also sends it to your selected comma device: after you save it and before every destination. Compatible devices use it to compute their own routes with Mapbox.</li>
+  <li><strong>Phone location (optional).</strong> Used only for the route preview, which requires a Mapbox token. See “Location” below.</li>
+  <li><strong>Search text and shared links.</strong> Addresses you type, and text or links you share with the app, are used to find the place. See “Services the app contacts”.</li>
+  <li><strong>Clipboard.</strong> The app reads the clipboard only when you tap a Paste button (for a link or a token).</li>
+  <li><strong>Map tiles.</strong> Map images downloaded for the route map are kept in the app’s cache on the phone.</li>
+  <li><strong>Technical data.</strong> Like any app that goes online, every request reveals your IP address to the service contacted. Requests also identify the app (“Nav2Pilot”, its version, Android).</li>
+</ul>
+
+<h3>Location</h3>
+<ul>
+  <li>The app asks for location access only when it needs to show a route preview, that is, when a Mapbox token is set up and a destination is selected. You can grant approximate or precise location.</li>
+  <li>The app reads the position once per route calculation, only while you use it. It reuses a position the phone already has if it is less than 2 minutes old; otherwise it waits up to 15 seconds for a new one. It does not request background location and does not track you continuously.</li>
+  <li>The position is sent to Mapbox, together with the stops and the destination, to compute the route preview. The app does not save the position and does not send it to comma or to your comma device. However, waypoints taken along a route you picked (see above) follow that route, which starts from your position.</li>
+  <li>Without location access the app keeps working; only the route preview is unavailable.</li>
+</ul>
+
+<h3>Services the app contacts</h3>
+<ul>
+  <li><strong>comma</strong> (<code>api.commadotai.com</code>, <code>athena.comma.ai</code>): checking the token, reading your profile e-mail and device list, and relaying commands to your device (destination, waypoints, clearing the destination, the Mapbox token, the software version check). If your device is offline, comma’s Athena service may keep a command in a queue and deliver it later. Privacy policy: <a href="https://comma.ai/terms#privacy">comma.ai/terms#privacy</a></li>
+  <li><strong>Your comma device</strong> receives the commands listed above. What it then stores or records, such as the destination, the Mapbox token or driving logs, depends on the software installed on it (openpilot, sunnypilot or a modified build) and on its settings. Nav2Pilot does not control it.</li>
+  <li><strong>Mapbox</strong> (<code>api.mapbox.com</code>), only if you set it up: checking the token; computing routes from your position, stops and destination; downloading map images for the area shown on the map. Your token is part of each request. Privacy policy: <a href="https://www.mapbox.com/legal/privacy">mapbox.com/legal/privacy</a></li>
+  <li><strong>Address search</strong>: the app uses the phone’s built-in Android geocoding service. The text you search for is sent to whichever service the phone provides, usually Google through Google Play services. Without such a service, address search is not available. Google privacy policy: <a href="https://policies.google.com/privacy">policies.google.com/privacy</a></li>
+  <li><strong>Google Maps</strong>: to read the location in a shared short link (<code>maps.app.goo.gl</code>), the app opens the link on Google’s servers and follows its redirects. It only contacts Google Maps addresses. Google privacy policy: <a href="https://policies.google.com/privacy">policies.google.com/privacy</a></li>
+</ul>
+<p>Links that open other pages (jwt.comma.ai to get a token, Mapbox sign-up and token pages, Mapbox map attribution) open in your browser and are governed by those websites.</p>
+
+<h3>What the app does not do</h3>
+<ul>
+  <li>It does not send data to servers of the developer: there are none.</li>
+  <li>It does not include analytics, advertising, crash-reporting or tracking SDKs.</li>
+  <li>It does not create a Nav2Pilot account: you use your existing comma and (optionally) Mapbox accounts.</li>
+  <li>It does not sell or share data for advertising.</li>
+</ul>
+
+<h3>Storage on the phone and security</h3>
+<ul>
+  <li>The comma token and the Mapbox token are encrypted with AES-256-GCM. The key is held in the Android Keystore and cannot be exported from it.</li>
+  <li>The other data (device list, selected device, favorites, map tile cache and map settings) is kept in the app’s private storage on the phone, without that additional encryption.</li>
+  <li>Android backup and device-to-device transfer are disabled for the app: its data is not copied to a Google backup or to a new phone.</li>
+  <li>All connections use HTTPS.</li>
+</ul>
+
+<h3>Permissions</h3>
+<ul>
+  <li><strong>Internet</strong> and <strong>network state</strong>: to contact the services above and to check the connection before downloading map images.</li>
+  <li><strong>Approximate / precise location</strong>: only for the route preview, as described above.</li>
+</ul>
+<p>You can revoke location access at any time in Android: Settings → Apps → Nav2Pilot → Permissions.</p>
+
+<h3>Retention and deletion</h3>
+<p><strong>On your phone.</strong> Data stays on the phone until you remove it:</p>
+<ul>
+  <li>In the app: remove the comma token, the Mapbox token, single devices and single favorites. Removing the comma token does not remove the device list or the favorites.</li>
+  <li>To delete everything at once: Android Settings → Apps → Nav2Pilot → Storage → Clear storage, or uninstall the app. This also deletes the map tile cache.</li>
+</ul>
+<p><strong>On your comma device.</strong> Removing data from the phone does not remove what the device already received.</p>
+<ul>
+  <li>When you remove the Mapbox token in the app, the app also tries to remove it from the currently selected device. This only reaches that device. Other devices that received the token keep it. Uninstalling the app does not remove it from any device. To make sure the token can no longer be used, revoke or rotate it in your Mapbox account.</li>
+  <li>The destination and any other data on the device are handled by the device’s software.</li>
+</ul>
+<p><strong>At external services.</strong> Removing a token from the phone does not delete copies held elsewhere, and does not by itself invalidate the token. The validity and revocation of your comma token depend on comma. Data received by comma, Mapbox and Google is kept and deleted under their policies; contact them directly to exercise your rights over it.</p>
+
+<h3>This web page</h3>
+<p>This policy covers the Nav2Pilot app. It does not cover visits to this page, which is hosted on GitHub Pages: GitHub may process technical data, such as your IP address, under its own privacy statement: <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub General Privacy Statement</a></p>
+
+<h3>Changes and contact</h3>
+<p>If the app starts handling data differently, this page will be updated and the date at the top will change.</p>
+<p>For questions or requests about privacy: <a href="mailto:admin@14bodhi.com">admin@14bodhi.com</a></p>
+
+</section>
+
+<!-- ============================== ITALIANO ============================== -->
+<section id="it" lang="it">
+
+<h2>Italiano</h2>
+
+<h3>Chi è il responsabile</h3>
+<p>Nav2Pilot è un’app Android sviluppata da Cristian Zantedeschi, Svizzera, e pubblicata su Google Play con il nome sviluppatore “14 Bodhi”.</p>
+<p>Contatto per la privacy: <a href="mailto:admin@14bodhi.com">admin@14bodhi.com</a></p>
+<p>Nav2Pilot è un progetto indipendente, non affiliato, approvato o gestito da comma.ai o da sunnypilot.</p>
+
+<div class="summary">
+<p><strong>In breve</strong></p>
+<ul>
+  <li>Nav2Pilot invia destinazioni dal telefono al tuo dispositivo comma, attraverso i server di comma, usando il token del tuo account comma.</li>
+  <li>Lo sviluppatore non gestisce alcun server per l’app e non riceve nessuno dei dati descritti qui.</li>
+  <li>L’app non contiene SDK di analisi, pubblicità o tracciamento.</li>
+  <li>Alcuni dati vengono inviati a servizi esterni (comma, Mapbox se lo configuri, il servizio di ricerca indirizzi del telefono, Google Maps per i link condivisi). Ognuno li tratta secondo la propria informativa privacy.</li>
+</ul>
+</div>
+
+<h3>Dati trattati dall’app</h3>
+<ul>
+  <li><strong>Token di accesso comma.</strong> Inserisci un token del tuo account comma. L’app lo verifica con l’API di comma, poi lo memorizza sul telefono, cifrato. Viene inviato solo ai server di comma, con ogni richiesta.</li>
+  <li><strong>E-mail dell’account comma.</strong> Quando aggiungi il token, l’app legge l’indirizzo e-mail del tuo profilo comma e lo mostra sullo schermo. Non viene salvato sul telefono.</li>
+  <li><strong>I tuoi dispositivi comma.</strong> L’app recupera i dispositivi associati al tuo account comma: ID del dispositivo (dongle ID), nome, tipo, ora dell’ultima connessione e se ne sei il proprietario. Memorizza questo elenco sul telefono, insieme ai dispositivi aggiunti a mano e al dispositivo selezionato. Chiede inoltre al dispositivo selezionato la versione e il branch del software, per mostrare lo stato della connessione.</li>
+  <li><strong>Destinazioni e percorsi.</strong> Un luogo che condividi da Google Maps, apri come link, digiti, incolli o scegli tra i preferiti. Quando premi Invia, l’app manda al tuo dispositivo comma le coordinate del luogo (latitudine e longitudine). Sui dispositivi compatibili può inviare anche tappe: quelle aggiunte sulla mappa, oppure punti intermedi presi lungo l’alternativa di percorso che hai scelto. Nome e indirizzo del luogo sono mostrati nell’app ma non fanno parte di ciò che viene inviato.</li>
+  <li><strong>Preferiti.</strong> I luoghi salvati come preferiti (coordinate, nome, indirizzo) sono memorizzati sul telefono.</li>
+  <li><strong>Token pubblico Mapbox (facoltativo).</strong> Se configuri Mapbox, inserisci il token pubblico (<code>pk.…</code>) del tuo account Mapbox. L’app lo verifica con Mapbox, lo memorizza sul telefono, cifrato, e lo usa per la mappa del percorso. Lo invia anche al dispositivo comma selezionato: dopo il salvataggio e prima di ogni destinazione. I dispositivi compatibili lo usano per calcolare i propri percorsi con Mapbox.</li>
+  <li><strong>Posizione del telefono (facoltativa).</strong> Usata solo per l’anteprima del percorso, che richiede un token Mapbox. Vedi “Posizione” più sotto.</li>
+  <li><strong>Testo di ricerca e link condivisi.</strong> Gli indirizzi che digiti e i testi o link che condividi con l’app servono a trovare il luogo. Vedi “Servizi contattati dall’app”.</li>
+  <li><strong>Appunti.</strong> L’app legge gli appunti solo quando premi un pulsante Incolla (per un link o un token).</li>
+  <li><strong>Immagini della mappa.</strong> Le immagini scaricate per la mappa del percorso restano nella cache dell’app sul telefono.</li>
+  <li><strong>Dati tecnici.</strong> Come per ogni app che si collega a Internet, ogni richiesta rivela il tuo indirizzo IP al servizio contattato. Le richieste identificano anche l’app (“Nav2Pilot”, la versione, Android).</li>
+</ul>
+
+<h3>Posizione</h3>
+<ul>
+  <li>L’app chiede l’accesso alla posizione solo quando deve mostrare un’anteprima del percorso, cioè quando è configurato un token Mapbox ed è selezionata una destinazione. Puoi concedere la posizione approssimativa o precisa.</li>
+  <li>L’app legge la posizione una volta per ogni calcolo del percorso, solo mentre la usi. Riutilizza una posizione già nota al telefono se ha meno di 2 minuti; altrimenti ne attende una nuova per al massimo 15 secondi. Non richiede la posizione in background e non ti traccia in modo continuo.</li>
+  <li>La posizione viene inviata a Mapbox, insieme alle tappe e alla destinazione, per calcolare l’anteprima del percorso. L’app non la salva e non la invia a comma né al tuo dispositivo comma. I punti intermedi presi lungo un percorso scelto (vedi sopra) seguono però quel percorso, che parte dalla tua posizione.</li>
+  <li>Senza accesso alla posizione l’app continua a funzionare; manca solo l’anteprima del percorso.</li>
+</ul>
+
+<h3>Servizi contattati dall’app</h3>
+<ul>
+  <li><strong>comma</strong> (<code>api.commadotai.com</code>, <code>athena.comma.ai</code>): verifica del token, lettura dell’e-mail del profilo e dell’elenco dispositivi, inoltro dei comandi al dispositivo (destinazione, tappe, cancellazione della destinazione, token Mapbox, controllo della versione del software). Se il dispositivo è offline, il servizio Athena di comma può tenere un comando in coda e consegnarlo più tardi. Informativa privacy: <a href="https://comma.ai/terms#privacy">comma.ai/terms#privacy</a></li>
+  <li><strong>Il tuo dispositivo comma</strong> riceve i comandi elencati sopra. Ciò che poi memorizza o registra, come la destinazione, il token Mapbox o i log di guida, dipende dal software installato (openpilot, sunnypilot o una versione modificata) e dalle sue impostazioni. Nav2Pilot non lo controlla.</li>
+  <li><strong>Mapbox</strong> (<code>api.mapbox.com</code>), solo se lo configuri: verifica del token; calcolo dei percorsi a partire da posizione, tappe e destinazione; download delle immagini della mappa per l’area visualizzata. Il tuo token fa parte di ogni richiesta. Informativa privacy: <a href="https://www.mapbox.com/legal/privacy">mapbox.com/legal/privacy</a></li>
+  <li><strong>Ricerca indirizzi</strong>: l’app usa il servizio di geocodifica integrato in Android. Il testo cercato viene inviato al servizio fornito dal telefono, di solito Google tramite Google Play Services. Senza un servizio di questo tipo la ricerca indirizzi non è disponibile. Informativa privacy di Google: <a href="https://policies.google.com/privacy">policies.google.com/privacy</a></li>
+  <li><strong>Google Maps</strong>: per leggere la posizione contenuta in un link breve condiviso (<code>maps.app.goo.gl</code>), l’app apre il link sui server di Google e ne segue i reindirizzamenti. Contatta solo indirizzi di Google Maps. Informativa privacy di Google: <a href="https://policies.google.com/privacy">policies.google.com/privacy</a></li>
+</ul>
+<p>I link che aprono altre pagine (jwt.comma.ai per ottenere il token, le pagine di registrazione e dei token di Mapbox, l’attribuzione della mappa Mapbox) si aprono nel browser e sono regolati da quei siti.</p>
+
+<h3>Cosa l’app non fa</h3>
+<ul>
+  <li>Non invia dati a server dello sviluppatore: non ce ne sono.</li>
+  <li>Non include SDK di analisi, pubblicità, segnalazione degli arresti anomali o tracciamento.</li>
+  <li>Non crea un account Nav2Pilot: usi i tuoi account comma e (facoltativamente) Mapbox già esistenti.</li>
+  <li>Non vende né condivide dati a fini pubblicitari.</li>
+</ul>
+
+<h3>Memorizzazione sul telefono e sicurezza</h3>
+<ul>
+  <li>Il token comma e il token Mapbox sono cifrati con AES-256-GCM. La chiave è custodita nell’Android Keystore e non può esserne esportata.</li>
+  <li>Gli altri dati (elenco dispositivi, dispositivo selezionato, preferiti, cache e impostazioni della mappa) restano nella memoria privata dell’app sul telefono, senza quella cifratura aggiuntiva.</li>
+  <li>Il backup Android e il trasferimento tra dispositivi sono disattivati per l’app: i suoi dati non vengono copiati nel backup Google né su un nuovo telefono.</li>
+  <li>Tutte le connessioni usano HTTPS.</li>
+</ul>
+
+<h3>Permessi</h3>
+<ul>
+  <li><strong>Internet</strong> e <strong>stato della rete</strong>: per contattare i servizi indicati sopra e verificare la connessione prima di scaricare le immagini della mappa.</li>
+  <li><strong>Posizione approssimativa / precisa</strong>: solo per l’anteprima del percorso, come descritto sopra.</li>
+</ul>
+<p>Puoi revocare l’accesso alla posizione in qualsiasi momento in Android: Impostazioni → App → Nav2Pilot → Autorizzazioni.</p>
+
+<h3>Conservazione e cancellazione</h3>
+<p><strong>Sul telefono.</strong> I dati restano sul telefono finché non li rimuovi:</p>
+<ul>
+  <li>Nell’app: rimuovi il token comma, il token Mapbox, i singoli dispositivi e i singoli preferiti. La rimozione del token comma non cancella l’elenco dispositivi né i preferiti.</li>
+  <li>Per cancellare tutto in una volta: Impostazioni Android → App → Nav2Pilot → Spazio di archiviazione → Cancella dati, oppure disinstalla l’app. Viene cancellata anche la cache della mappa.</li>
+</ul>
+<p><strong>Sul dispositivo comma.</strong> Cancellare i dati dal telefono non cancella ciò che il dispositivo ha già ricevuto.</p>
+<ul>
+  <li>Quando rimuovi il token Mapbox nell’app, l’app prova a rimuoverlo anche dal dispositivo selezionato in quel momento. La richiesta raggiunge solo quel dispositivo. Gli altri dispositivi che hanno ricevuto il token lo conservano. La disinstallazione dell’app non lo rimuove da nessun dispositivo. Per essere certo che il token non possa più essere usato, revocalo o rigeneralo nel tuo account Mapbox.</li>
+  <li>La destinazione e gli altri dati presenti sul dispositivo sono gestiti dal software del dispositivo.</li>
+</ul>
+<p><strong>Presso i servizi esterni.</strong> La rimozione di un token dal telefono non cancella le copie conservate altrove e non rende di per sé il token invalido. Validità e revoca del token comma dipendono da comma. I dati ricevuti da comma, Mapbox e Google sono conservati e cancellati secondo le loro informative; per esercitare i tuoi diritti su quei dati rivolgiti direttamente a loro.</p>
+
+<h3>Questa pagina web</h3>
+<p>Questa informativa riguarda l’app Nav2Pilot. Non riguarda la visita a questa pagina, ospitata su GitHub Pages: GitHub può trattare dati tecnici, come l’indirizzo IP, secondo la propria informativa: <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub General Privacy Statement</a></p>
+
+<h3>Modifiche e contatto</h3>
+<p>Se l’app cambia il modo in cui tratta i dati, questa pagina verrà aggiornata e la data in alto cambierà.</p>
+<p>Per domande o richieste sulla privacy: <a href="mailto:admin@14bodhi.com">admin@14bodhi.com</a></p>
+
+</section>
+
+</main>
+</body>
+</html>
