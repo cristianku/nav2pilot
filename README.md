@@ -16,13 +16,14 @@ your comma device running openpilot or sunnypilot with Nav Alpha. No typing on t
 To join the **official Google Play tester list** for Android, contact me:
 
 - **Discord:** `cristianku`
-- **Website:** [cristianku.com](https://cristianku.com)
+- **X:** [@cristianvr75](https://x.com/cristianvr75)
+- **Website:** [cristianku.com — Contact](https://cristianku.com/#contact)
 
 Include the **email address of the Google account you use for Google Play**. I'll add that account to the
 official tester list and send you the testing link and installation instructions.
 
 On iPhone? [Nav2Pilot for iOS](https://github.com/cristianku/nav2pilot-ios) is in beta on TestFlight: write
-to me through [cristianku.com](https://cristianku.com) with the e-mail address of your Apple ID and I'll add
+to me through [cristianku.com](https://cristianku.com/#contact) with the e-mail address of your Apple ID and I'll add
 you as a tester.
 
 ## Getting started
