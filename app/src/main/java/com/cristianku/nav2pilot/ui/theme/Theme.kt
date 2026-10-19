@@ -11,57 +11,57 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
-// openpilot primary button blue (system/ui/widgets/button.py: rl.Color(70, 91, 234))
-private val OpenpilotBlue = Color(0xFF465BEA)
-private val OpenpilotBlueLight = Color(0xFF8C9BF7)
-
-// cyan of the road markings in the logo: dark enough for text on white, bright on the dark surfaces
+// The logo's colours: night blue background and the cyan of the road markings.
+private val NightBlue = Color(0xFF010E30)
+private val NightBlueSurface = Color(0xFF0A1A44)
+private val NightBlueRaised = Color(0xFF13275C)
+// cyan dark enough for white text and for text on white (light theme), bright on night blue (dark theme)
 private val BrandCyan = Color(0xFF007C96)
 private val BrandCyanBright = Color(0xFF00D5E8)
 
 // Neutral surfaces: Material's default tonal tint turned the cards and the bars lilac.
 private val LightColors = lightColorScheme(
-    primary = OpenpilotBlue,
+    primary = BrandCyan,
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFE3E7FD),
-    onPrimaryContainer = Color(0xFF162238),
-    secondary = BrandCyan,
+    primaryContainer = Color(0xFFD2F3F8),
+    onPrimaryContainer = NightBlue,
+    secondary = NightBlue,
     onSecondary = Color.White,
-    secondaryContainer = Color(0xFFD7F1F6),
-    onSecondaryContainer = Color(0xFF00394A),
+    secondaryContainer = Color(0xFFDDE4F5),
+    onSecondaryContainer = NightBlue,
     tertiary = BrandCyan,
     onTertiary = Color.White,
-    background = Color(0xFFF5F7FB),
-    onBackground = Color(0xFF162238),
+    background = Color(0xFFF3F6FA),
+    onBackground = NightBlue,
     surface = Color.White,
-    onSurface = Color(0xFF162238),
-    surfaceVariant = Color(0xFFEDF1F7),
-    onSurfaceVariant = Color(0xFF556477),
+    onSurface = NightBlue,
+    surfaceVariant = Color(0xFFEAF0F6),
+    onSurfaceVariant = Color(0xFF4E5D74),
     surfaceTint = Color.White,
     outline = Color(0xFF8592A3),
     outlineVariant = Color(0xFFDCE2EB),
 )
 
 private val DarkColors = darkColorScheme(
-    primary = OpenpilotBlueLight,
-    onPrimary = Color(0xFF10182A),
-    primaryContainer = Color(0xFF26336E),
-    onPrimaryContainer = Color(0xFFDDE2FF),
-    secondary = BrandCyanBright,
-    onSecondary = Color(0xFF00363D),
-    secondaryContainer = Color(0xFF0E3A46),
-    onSecondaryContainer = Color(0xFFBFF4FA),
+    primary = BrandCyanBright,
+    onPrimary = NightBlue,
+    primaryContainer = Color(0xFF00475A),
+    onPrimaryContainer = Color(0xFFC4F7FC),
+    secondary = Color(0xFF9DB4E8),
+    onSecondary = NightBlue,
+    secondaryContainer = NightBlueRaised,
+    onSecondaryContainer = Color(0xFFDDE6FF),
     tertiary = BrandCyanBright,
-    onTertiary = Color(0xFF00363D),
-    background = Color(0xFF0B1220),
+    onTertiary = NightBlue,
+    background = NightBlue,
     onBackground = Color(0xFFF2F6FC),
-    surface = Color(0xFF141F31),
+    surface = NightBlueSurface,
     onSurface = Color(0xFFF2F6FC),
-    surfaceVariant = Color(0xFF1C293E),
-    onSurfaceVariant = Color(0xFFAAB8CC),
-    surfaceTint = Color(0xFF141F31),
-    outline = Color(0xFF6B7A90),
-    outlineVariant = Color(0xFF26344A),
+    surfaceVariant = NightBlueRaised,
+    onSurfaceVariant = Color(0xFFAAB8D4),
+    surfaceTint = NightBlueSurface,
+    outline = Color(0xFF6B7A9A),
+    outlineVariant = Color(0xFF22336A),
 )
 
 private val Nav2PilotShapes = Shapes(
@@ -89,7 +89,7 @@ object StatusColors {
     }
 }
 
-/** Material 3 theme with the openpilot blue and the logo cyan; no dynamic (wallpaper) colours. */
+/** Material 3 theme in the logo colours, night blue and cyan; no dynamic (wallpaper) colours. */
 @Composable
 fun Nav2PilotTheme(content: @Composable () -> Unit) {
     val darkTheme = isSystemInDarkTheme()

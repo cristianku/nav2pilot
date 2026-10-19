@@ -86,6 +86,8 @@ class RepositoriesTest {
     fun deviceJsonRoundTrip() {
         val devices = listOf(
             PairedDevice("1a2b3c4d5e6f7a8b", "Car", "three", 42L, false, BackendKind.SUNNYLINK, true),
+            PairedDevice("1111111111111111", "Prime car", prime = true),
+            PairedDevice("2222222222222222", "No prime", prime = false),
         )
         assertEquals(devices, JsonCodec.devicesFromJson(JsonCodec.devicesToJson(devices)))
     }

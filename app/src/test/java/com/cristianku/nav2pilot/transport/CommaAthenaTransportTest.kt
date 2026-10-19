@@ -197,7 +197,11 @@ class CommaAthenaTransportTest {
         assertEquals("JWT secret.jwt.token", request.headers["Authorization"])
 
         assertEquals(2, devices.size)
-        assertEquals(PairedDevice("1a2b3c4d5e6f7a8b", "Peugeot 3008", "three", 1760700000L, true, BackendKind.COMMA_ATHENA, false), devices[0])
+        assertEquals(PairedDevice("1a2b3c4d5e6f7a8b", "Peugeot 3008", "three", 1760700000L, true, BackendKind.COMMA_ATHENA, false, prime = false), devices[0])
+        assertTrue(devices[0].needsMapboxForRoutes())
+        // no "prime" field: unknown, which also counts as no prime
+        assertEquals(null, devices[1].prime)
+        assertTrue(devices[1].needsMapboxForRoutes())
         assertEquals("", devices[1].alias)
         assertEquals(0L, devices[1].lastAthenaPingSeconds)
         assertFalse(devices[1].isOwner)

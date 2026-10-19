@@ -187,11 +187,12 @@ private fun render(holder: MapHolder, context: Context) {
     val map = holder.map ?: return
     val state = holder.state ?: return
 
+    // next to the favorites button in the bottom left corner, not under it
     map.uiSettings.setAttributionMargins(
-        holder.insets.left + dp(context, 8),
+        holder.insets.left + dp(context, ATTRIBUTION_START_DP),
         0,
         0,
-        holder.insets.bottom + dp(context, 8),
+        holder.insets.bottom + dp(context, 20),
     )
     map.uiSettings.setCompassMargins(0, holder.insets.top + dp(context, 8), holder.insets.right + dp(context, 8), 0)
 
@@ -452,6 +453,8 @@ const val STOP_COLOR = 0xFFF08C00.toInt()
 private const val DESTINATION_COLOR = 0xFFE03131.toInt()
 private const val MY_LOCATION_ZOOM = 14.0
 private const val SINGLE_POINT_SPAN = 0.005
+// favorites button: 12 dp margin + 52 dp + 12 dp
+private const val ATTRIBUTION_START_DP = 76
 // MainViewModel.MAX_STOPS
 private const val MAX_STOP_IMAGES = 10
 
