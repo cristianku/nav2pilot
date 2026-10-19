@@ -141,9 +141,10 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-core")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
-    // Route map: Mapbox raster tiles with the user's own public token. The Mapbox Maps SDK for Android needs a
-    // secret token just to download it from Mapbox's Maven repository; osmdroid is on Maven Central.
-    implementation("org.osmdroid:osmdroid-android:6.1.18")
+    // Full-screen map: MapLibre, the open source fork of the Mapbox map engine, on Maven Central with no token.
+    // Base map from OpenFreeMap (free, no key), or Mapbox Streets raster tiles with the user's own public token,
+    // so that Mapbox routes are shown on a Mapbox map.
+    implementation("org.maplibre.gl:android-sdk:13.6.1")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 

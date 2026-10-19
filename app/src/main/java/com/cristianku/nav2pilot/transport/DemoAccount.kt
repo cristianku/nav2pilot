@@ -30,6 +30,7 @@ object DemoAccount {
             isOwner = true,
             backend = BackendKind.COMMA_ATHENA,
             addedManually = false,
+            prime = true,
         )
     }
 

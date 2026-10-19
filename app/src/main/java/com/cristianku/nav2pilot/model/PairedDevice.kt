@@ -24,7 +24,20 @@ data class PairedDevice(
     val isOwner: Boolean = true,
     val backend: BackendKind = BackendKind.COMMA_ATHENA,
     val addedManually: Boolean = false,
+    /**
+     * comma prime, from `prime` in /v1/me/devices/; null when unknown (added by hand). Without prime comma's
+     * route service refuses the car, which then needs the user's Mapbox token to get a route.
+     */
+    val prime: Boolean? = null,
 ) {
+    /** True when the car can only get routes through the user's Mapbox token. Unknown counts as no prime. */
+    fun needsMapboxForRoutes(): Boolean {
+        if (prime == true) {
+            return false
+        }
+        return true
+    }
+
     fun displayName(): String {
         if (alias.isNotBlank()) {
             return alias

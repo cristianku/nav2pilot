@@ -198,6 +198,7 @@ class DestinationResolver(
         const val SOURCE_LINK = "Map link"
         const val SOURCE_COORDINATES = "Coordinates"
         const val SOURCE_SEARCH = "Search"
+        const val SOURCE_MAP = "Map"
         const val SOURCE_FAVORITE = "Favorite"
 
         private const val EXACT_RANK = 3

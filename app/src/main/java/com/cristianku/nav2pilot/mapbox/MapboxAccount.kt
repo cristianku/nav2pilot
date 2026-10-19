@@ -27,8 +27,17 @@ object MapboxEndpoints {
     /** Directions API, same profile as the device's navd; coordinates "lng,lat;lng,lat" follow the slash. */
     const val DIRECTIONS_URL = "https://api.mapbox.com/directions/v5/mapbox/driving-traffic/"
 
-    /** Static Tiles API: raster tiles of the Mapbox Streets style, for the route map. */
+    /** Static Tiles API: raster tiles of the Mapbox Streets style, the map of users with a Mapbox token. */
     const val STREETS_TILES_URL = "https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/"
+
+    /** The same for the dark theme. */
+    const val DARK_TILES_URL = "https://api.mapbox.com/styles/v1/mapbox/dark-v11/tiles/256/"
+}
+
+/** Free base map for everybody else: OpenFreeMap styles, no key and no account. */
+object OpenFreeMapStyles {
+    const val LIGHT = "https://tiles.openfreemap.org/styles/liberty"
+    const val DARK = "https://tiles.openfreemap.org/styles/dark"
 }
 
 object MapboxTokenRules {

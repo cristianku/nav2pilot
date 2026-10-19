@@ -88,8 +88,10 @@ data class MainUiState(
     val origin: LatLng? = null,
     /** True while the preview waits for the location permission, which only the screen can ask for. */
     val locationPermissionNeeded: Boolean = false,
-    /** Incremented when the Send tab should be brought to front (share received, favorite picked). */
+    /** Incremented when the map should be brought to front (share received, favorite picked). */
     val showSendTabRequest: Int = 0,
+    /** Incremented when the map should move to the phone's position (the recentre button). */
+    val recenterRequest: Int = 0,
 )
 
 class MainViewModel(
@@ -176,6 +178,28 @@ class MainViewModel(
         }
         selectFavorite(favorite)
         sendDestination()
+    }
+
+    /** Long press on the map with no destination yet: that point becomes the destination. */
+    fun pickOnMap(latitude: Double, longitude: Double) {
+        if (!CoordinateRules.isValid(latitude, longitude)) {
+            return
+        }
+        resolveJob?.cancel()
+        state.value = state.value.copy(
+            destination = Destination(latitude = latitude, longitude = longitude, name = "Dropped pin"),
+            destinationSource = DestinationResolver.SOURCE_MAP,
+            choices = emptyList(),
+            resolving = false,
+            resolveError = "",
+            feedback = null,
+        )
+        destinationChanged()
+    }
+
+    /** Closes the search results without choosing one. */
+    fun dismissChoices() {
+        state.value = state.value.copy(choices = emptyList(), resolveError = "")
     }
 
     fun clearSelection() {
@@ -585,6 +609,25 @@ class MainViewModel(
                 }
                 state.value = state.value.copy(routes = emptyList(), selectedRouteIndex = 0, routesLoading = false, routesMessage = message)
             }
+        }
+    }
+
+    /**
+     * The phone's position for the map ("you are here"); [recenter] also moves the map there. Nothing happens
+     * without the location permission, which only the screen can ask for.
+     */
+    fun refreshMyLocation(recenter: Boolean) {
+        val planning = routePlanning ?: return
+        if (!planning.location.hasPermission()) {
+            return
+        }
+        viewModelScope.launch {
+            val position = planning.location.currentLocation() ?: return@launch
+            var request = state.value.recenterRequest
+            if (recenter) {
+                request = request + 1
+            }
+            state.value = state.value.copy(origin = position, recenterRequest = request)
         }
     }
 

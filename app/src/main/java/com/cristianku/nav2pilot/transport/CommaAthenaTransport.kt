@@ -297,6 +297,10 @@ class CommaAthenaTransport(
                 if (!item.isNull("is_owner")) {
                     isOwner = item.optBoolean("is_owner", true)
                 }
+                var prime: Boolean? = null
+                if (item.has("prime") && !item.isNull("prime")) {
+                    prime = item.optBoolean("prime", false)
+                }
                 devices.add(
                     PairedDevice(
                         dongleId = dongleId,
@@ -306,6 +310,7 @@ class CommaAthenaTransport(
                         isOwner = isOwner,
                         backend = BackendKind.COMMA_ATHENA,
                         addedManually = false,
+                        prime = prime,
                     ),
                 )
             }

@@ -87,6 +87,10 @@ object JsonCodec {
             json.put("is_owner", device.isOwner)
             json.put("backend", device.backend.id)
             json.put("added_manually", device.addedManually)
+            val prime = device.prime
+            if (prime != null) {
+                json.put("prime", prime)
+            }
             array.put(json)
         }
         return array.toString()
@@ -106,6 +110,10 @@ object JsonCodec {
             if (dongleId.isEmpty()) {
                 continue
             }
+            var prime: Boolean? = null
+            if (item.has("prime") && !item.isNull("prime")) {
+                prime = item.optBoolean("prime", false)
+            }
             devices.add(
                 PairedDevice(
                     dongleId = dongleId,
@@ -115,6 +123,7 @@ object JsonCodec {
                     isOwner = item.optBoolean("is_owner", true),
                     backend = BackendKind.fromId(stringField(item, "backend")),
                     addedManually = item.optBoolean("added_manually", false),
+                    prime = prime,
                 ),
             )
         }
