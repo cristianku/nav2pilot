@@ -15,6 +15,7 @@ local.properties
 *.jks
 *.keystore
 keystore.properties
+.signing/
 
 # macOS
 .DS_Store
