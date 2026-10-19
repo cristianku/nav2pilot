@@ -40,6 +40,9 @@ class CommaAthenaTransport(
 
     /** Checks a token before it is stored. The token is only used for this request. */
     suspend fun verifyToken(token: String): TransportResult<AccountInfo> {
+        if (DemoAccount.isDemoToken(token)) {
+            return TransportResult.Ok(AccountInfo(DemoAccount.EMAIL))
+        }
         val responseResult = get(apiBaseUrl + CommaEndpoints.PROFILE_PATH, token)
         if (responseResult is TransportResult.Failed) {
             return responseResult
@@ -59,6 +62,9 @@ class CommaAthenaTransport(
 
     override suspend fun listDevices(): TransportResult<List<PairedDevice>> {
         val token = loadToken() ?: return TransportResult.Failed(TransportError.NoToken)
+        if (DemoAccount.isDemoToken(token)) {
+            return TransportResult.Ok(listOf(DemoAccount.device(System.currentTimeMillis() / 1000)))
+        }
         val responseResult = get(apiBaseUrl + CommaEndpoints.DEVICES_PATH, token)
         if (responseResult is TransportResult.Failed) {
             return responseResult
@@ -159,6 +165,9 @@ class CommaAthenaTransport(
         val token = loadToken() ?: return TransportResult.Failed(TransportError.NoToken)
         if (!DongleIdRules.isValid(device.dongleId)) {
             return TransportResult.Failed(TransportError.InvalidRequest("Invalid dongle ID"))
+        }
+        if (DemoAccount.isDemoToken(token)) {
+            return TransportResult.Ok(DemoAccount.rpcAnswer(method))
         }
         val request = HttpRequest(
             method = "POST",

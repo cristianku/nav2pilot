@@ -27,6 +27,7 @@ import com.cristianku.nav2pilot.security.JwtInfo
 import com.cristianku.nav2pilot.security.TokenStore
 import com.cristianku.nav2pilot.transport.CommaAthenaTransport
 import com.cristianku.nav2pilot.transport.Delivery
+import com.cristianku.nav2pilot.transport.DemoAccount
 import com.cristianku.nav2pilot.transport.DeviceStatus
 import com.cristianku.nav2pilot.transport.TransportError
 import com.cristianku.nav2pilot.transport.TransportErrorText
@@ -353,7 +354,7 @@ class MainViewModel(
             state.value = state.value.copy(accountMessage = "Paste a token first.")
             return
         }
-        if (!JwtInfo.looksLikeJwt(token)) {
+        if (!JwtInfo.looksLikeJwt(token) && !DemoAccount.isDemoToken(token)) {
             state.value = state.value.copy(accountMessage = "This does not look like a JWT (three parts separated by dots).")
             return
         }

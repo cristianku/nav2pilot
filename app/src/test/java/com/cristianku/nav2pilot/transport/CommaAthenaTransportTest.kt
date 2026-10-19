@@ -29,6 +29,25 @@ class CommaAthenaTransportTest {
     }
 
     @Test
+    fun demoTokenNeverTouchesTheNetwork() = runTest {
+        token = "demo"
+
+        val account = transport.verifyToken(" DEMO ")
+        val devices = transport.listDevices()
+        val demoCar = (devices as TransportResult.Ok).value.single()
+        val status = transport.checkStatus(demoCar)
+        val sent = transport.setDestination(demoCar, destination)
+        val cleared = transport.clearDestination(demoCar)
+
+        assertEquals(TransportResult.Ok(AccountInfo(DemoAccount.EMAIL)), account)
+        assertEquals(DemoAccount.DONGLE_ID, demoCar.dongleId)
+        assertEquals("demo", (status as TransportResult.Ok).value.version)
+        assertEquals(TransportResult.Ok(Delivery(queued = false, note = "")), sent)
+        assertEquals(TransportResult.Ok(Delivery(queued = false, note = "")), cleared)
+        assertTrue(http.requests.isEmpty())
+    }
+
+    @Test
     fun setDestinationPostsJsonRpcToAthena() = runTest {
         http.respond(200, """{"jsonrpc": "2.0", "id": 0, "result": {"success": 1}}""")
 
