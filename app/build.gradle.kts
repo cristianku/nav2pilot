@@ -5,6 +5,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("com.github.triplet.play")
 }
 
 // A tag v1.2.3 produces versionName 1.2.3 and versionCode 1002003.
@@ -99,6 +100,14 @@ android {
         disable += "GradleDependency"
         disable += "AndroidGradlePluginVersion"
     }
+}
+
+// Google Play upload with the service account key in .signing/ (ignored by git, see README).
+// The track can be changed from the command line: ./gradlew publishReleaseBundle --track alpha
+play {
+    serviceAccountCredentials.set(rootProject.file(".signing/play-service-account.json"))
+    track.set("internal")
+    defaultToAppBundles.set(true)
 }
 
 kotlin {
