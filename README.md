@@ -13,8 +13,13 @@ your comma device running openpilot or sunnypilot with Nav Alpha. No typing on t
 
 ## Get the app
 
-Download the APK of the [latest release](https://github.com/cristianku/nav2pilot/releases/latest) on your
-phone and open it. Android asks you once to allow installing apps from your browser or file manager.
+To join the **official Google Play tester list** for Android, contact me:
+
+- **Discord:** `cristianku`
+- **Website:** [cristianku.com](https://cristianku.com)
+
+Include the **email address of the Google account you use for Google Play**. I'll add that account to the
+official tester list and send you the testing link and installation instructions.
 
 On iPhone? [Nav2Pilot for iOS](https://github.com/cristianku/nav2pilot-ios) is in beta on TestFlight: write
 to me through [cristianku.com](https://cristianku.com) with the e-mail address of your Apple ID and I'll add
@@ -84,8 +89,8 @@ in the landscape layout above. It does not run on the small CarlinKit adapters t
 Android Auto wireless: those cannot install apps.
 
 1. Connect the box to the internet (Wi-Fi or your phone's hotspot).
-2. Open the [latest release](https://github.com/cristianku/nav2pilot/releases/latest) in the box's browser,
-   download the APK and open it. Allow installing apps from the browser when Android asks.
+2. Join the [official tester list](#get-the-app) and follow the installation instructions provided for your
+   device. Use the Google account you supplied when requesting tester access.
 3. Set up the comma account and Mapbox in Devices, as on a phone.
 
 Good to know:
@@ -122,7 +127,8 @@ CarPlay app needs a dedicated car screen and a CarPlay entitlement that Apple gr
 - **"Device unreachable"**: the comma device is offline. Try again when it's on and connected.
 - **The car shows "Waiting for route"**: see "Optional: your own Mapbox account" above.
 - **The update doesn't install over v1.0 or v1.0.1**: those two builds were signed with a different key.
-  Uninstall them once, then install the latest release.
+  Uninstall them once, then install the testing build using the instructions provided when you join the
+  tester list.
 
 ## Privacy
 
