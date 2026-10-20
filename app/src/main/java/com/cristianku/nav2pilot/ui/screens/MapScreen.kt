@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -25,12 +26,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -91,6 +95,7 @@ import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -160,6 +165,7 @@ fun MapScreen(
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
     val focusManager = LocalFocusManager.current
     val darkTheme = isSystemInDarkTheme()
 
@@ -184,6 +190,9 @@ fun MapScreen(
 
     val statusBarPx = WindowInsets.statusBars.getTop(density)
     val navigationBarPx = WindowInsets.navigationBars.getBottom(density)
+    // side system bars: the Carlinkit dock on the left, the 3-button bar of a phone in landscape
+    val sideBarLeftPx = WindowInsets.safeDrawing.getLeft(density, layoutDirection)
+    val sideBarRightPx = WindowInsets.safeDrawing.getRight(density, layoutDirection)
     // with the search shown the car sits on a second row
     var topBarHeight = TOP_BAR_HEIGHT
     if (searchVisible && !searchEditing) {
@@ -192,11 +201,26 @@ fun MapScreen(
     val topBarPx = with(density) { topBarHeight.roundToPx() }
     val insets: MapInsets
     if (wide && hasDestination) {
-        insets = MapInsets(left = panelSizePx, top = statusBarPx + topBarPx, right = 0, bottom = navigationBarPx)
+        insets = MapInsets(
+            left = sideBarLeftPx + panelSizePx,
+            top = statusBarPx + topBarPx,
+            right = sideBarRightPx,
+            bottom = navigationBarPx,
+        )
     } else if (hasDestination) {
-        insets = MapInsets(left = 0, top = statusBarPx + topBarPx, right = 0, bottom = panelSizePx)
+        insets = MapInsets(
+            left = sideBarLeftPx,
+            top = statusBarPx + topBarPx,
+            right = sideBarRightPx,
+            bottom = panelSizePx,
+        )
     } else {
-        insets = MapInsets(left = 0, top = statusBarPx + topBarPx, right = 0, bottom = navigationBarPx)
+        insets = MapInsets(
+            left = sideBarLeftPx,
+            top = statusBarPx + topBarPx,
+            right = sideBarRightPx,
+            bottom = navigationBarPx,
+        )
     }
 
     val mapColors = MapColors(
@@ -231,141 +255,148 @@ fun MapScreen(
             modifier = Modifier.fillMaxSize(),
         )
 
-        // the destination panel: a column on the left in landscape, a sheet at the bottom on a phone
-        val destination = state.destination
-        if (destination != null) {
-            if (wide) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.CenterStart)
-                        .fillMaxHeight()
-                        .width(WIDE_PANEL_WIDTH)
-                        .onSizeChanged { size -> panelSizePx = size.width },
-                ) {
-                    DestinationPanel(
-                        state = state,
-                        destination = destination,
-                        devices = devices,
-                        selectedDevice = selectedDevice,
-                        isFavorite = isFavorite,
-                        wide = true,
-                        actions = actions,
-                    )
-                }
-            } else {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .onSizeChanged { size -> panelSizePx = size.height },
-                ) {
-                    DestinationPanel(
-                        state = state,
-                        destination = destination,
-                        devices = devices,
-                        selectedDevice = selectedDevice,
-                        isFavorite = isFavorite,
-                        wide = false,
-                        actions = actions,
-                    )
-                }
-            }
-        }
-
-        // top: the search and the settings; the car under the search (in its place when the search is hidden)
-        var topRowStart = 0.dp
-        if (wide && hasDestination) {
-            topRowStart = WIDE_PANEL_WIDTH
-        }
-        val carButton: @Composable () -> Unit = {
-            CarButton(
-                devices = devices,
-                selectedDevice = selectedDevice,
-                connection = state.connection,
-                hasToken = state.hasToken,
-                sending = state.sending,
-                actions = actions,
-            )
-        }
-        Column(
+        // the controls stay clear of side system bars (the Carlinkit dock sits on the left); the map goes under them
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding()
-                .padding(start = topRowStart + 12.dp, end = 12.dp, top = 8.dp),
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)),
         ) {
-            Row(verticalAlignment = Alignment.Top) {
-                Box(modifier = Modifier.weight(1f)) {
-                    if (searchVisible) {
-                        SearchBox(
+            // the destination panel: a column on the left in landscape, a sheet at the bottom on a phone
+            val destination = state.destination
+            if (destination != null) {
+                if (wide) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .fillMaxHeight()
+                            .width(WIDE_PANEL_WIDTH)
+                            .onSizeChanged { size -> panelSizePx = size.width },
+                    ) {
+                        DestinationPanel(
                             state = state,
-                            editing = searchEditing,
-                            onStartEditing = { searchEditing = true },
-                            onStopEditing = {
-                                searchEditing = false
-                                focusManager.clearFocus()
-                                actions.onDismissChoices()
-                            },
+                            destination = destination,
+                            devices = devices,
+                            selectedDevice = selectedDevice,
+                            isFavorite = isFavorite,
+                            wide = true,
                             actions = actions,
                         )
-                    } else {
-                        carButton()
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .onSizeChanged { size -> panelSizePx = size.height },
+                    ) {
+                        DestinationPanel(
+                            state = state,
+                            destination = destination,
+                            devices = devices,
+                            selectedDevice = selectedDevice,
+                            isFavorite = isFavorite,
+                            wide = false,
+                            actions = actions,
+                        )
                     }
                 }
-                // while typing the search gets the whole row, as in Google Maps
-                if (!searchEditing) {
-                    Spacer(Modifier.width(8.dp))
-                    MapButton(
-                        painter = rememberVectorPainter(Icons.Filled.Settings),
-                        description = "Settings",
-                        onClick = actions.onOpenSettings,
-                    )
-                }
             }
-            if (searchVisible && !searchEditing) {
-                Spacer(Modifier.height(10.dp))
-                carButton()
-            }
-        }
 
-        // favorites bottom left, recentre bottom right, just above the panel
-        val bottomOffset: Dp
-        if (hasDestination && !wide) {
-            bottomOffset = with(density) { panelSizePx.toDp() } + 12.dp
-        } else {
-            bottomOffset = 16.dp
-        }
-        var favoritesStart = 12.dp
-        if (wide && hasDestination) {
-            favoritesStart = WIDE_PANEL_WIDTH + 12.dp
-        }
-        var buttonsModifier = Modifier.padding(bottom = bottomOffset)
-        if (!(hasDestination && !wide)) {
-            buttonsModifier = buttonsModifier.navigationBarsPadding()
-        }
-        MapButton(
-            painter = rememberVectorPainter(Icons.Filled.Favorite),
-            description = "Favorites",
-            onClick = actions.onOpenFavorites,
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .then(buttonsModifier)
-                .padding(start = favoritesStart),
-        )
-        MapButton(
-            painter = painterResource(R.drawable.ic_my_location),
-            description = "Show my position",
-            onClick = {
-                if (hasLocationPermission(context)) {
-                    actions.onRefreshMyLocation(true)
-                } else {
-                    requestLocation()
+            // top: the search and the settings; the car under the search (in its place when the search is hidden)
+            var topRowStart = 0.dp
+            if (wide && hasDestination) {
+                topRowStart = WIDE_PANEL_WIDTH
+            }
+            val carButton: @Composable () -> Unit = {
+                CarButton(
+                    devices = devices,
+                    selectedDevice = selectedDevice,
+                    connection = state.connection,
+                    hasToken = state.hasToken,
+                    sending = state.sending,
+                    actions = actions,
+                )
+            }
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(start = topRowStart + 12.dp, end = 12.dp, top = 8.dp),
+            ) {
+                Row(verticalAlignment = Alignment.Top) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        if (searchVisible) {
+                            SearchBox(
+                                state = state,
+                                editing = searchEditing,
+                                onStartEditing = { searchEditing = true },
+                                onStopEditing = {
+                                    searchEditing = false
+                                    focusManager.clearFocus()
+                                    actions.onDismissChoices()
+                                },
+                                actions = actions,
+                            )
+                        } else {
+                            carButton()
+                        }
+                    }
+                    // while typing the search gets the whole row, as in Google Maps
+                    if (!searchEditing) {
+                        Spacer(Modifier.width(8.dp))
+                        MapButton(
+                            painter = rememberVectorPainter(Icons.Filled.Settings),
+                            description = "Settings",
+                            onClick = actions.onOpenSettings,
+                        )
+                    }
                 }
-            },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .then(buttonsModifier)
-                .padding(end = 12.dp),
-        )
+                if (searchVisible && !searchEditing) {
+                    Spacer(Modifier.height(10.dp))
+                    carButton()
+                }
+            }
+
+            // favorites bottom left, recentre bottom right, just above the panel
+            val bottomOffset: Dp
+            if (hasDestination && !wide) {
+                bottomOffset = with(density) { panelSizePx.toDp() } + 12.dp
+            } else {
+                bottomOffset = 16.dp
+            }
+            var favoritesStart = 12.dp
+            if (wide && hasDestination) {
+                favoritesStart = WIDE_PANEL_WIDTH + 12.dp
+            }
+            var buttonsModifier = Modifier.padding(bottom = bottomOffset)
+            if (!(hasDestination && !wide)) {
+                buttonsModifier = buttonsModifier.navigationBarsPadding()
+            }
+            MapButton(
+                painter = rememberVectorPainter(Icons.Filled.Favorite),
+                description = "Favorites",
+                onClick = actions.onOpenFavorites,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .then(buttonsModifier)
+                    .padding(start = favoritesStart),
+            )
+            MapButton(
+                painter = painterResource(R.drawable.ic_my_location),
+                description = "Show my position",
+                onClick = {
+                    if (hasLocationPermission(context)) {
+                        actions.onRefreshMyLocation(true)
+                    } else {
+                        requestLocation()
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .then(buttonsModifier)
+                    .padding(end = 12.dp),
+            )
+        }
     }
 
     // the panel and the settings offer the Mapbox setup
