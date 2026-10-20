@@ -51,28 +51,90 @@ Nav Alpha asks comma's route service for the route. In my tests that service ref
 prime, and the car stayed on "Waiting for route". With your own free Mapbox account the car computes its
 route with Mapbox instead.
 
-This needs one of these two builds, with Nav Alpha and the token support:
-
-- sunnypilot: [cristianku/sunnypilot `feature/nav-alpha`](https://github.com/cristianku/sunnypilot/tree/feature/nav-alpha)
-- openpilot: [cristianku/openpilot `nav-alpha`](https://github.com/cristianku/openpilot/tree/nav-alpha)
-
-On any other software the token simply stays on your phone and everything else works as usual.
+You can keep official openpilot / sunnypilot and configure `MAPBOX_TOKEN` manually, or install a compatible
+build for automatic token transfer. Follow [Configure Mapbox on the comma](#configure-mapbox-on-the-comma)
+below. The guide links `cristianku/openpilot:nav-alpha` and `cristianku/openpilot:sunny-nav-alpha`;
+the latter is not yet published.
 
 Set it up in **Devices → Mapbox → Set up Mapbox**, the app walks you through it:
 
 1. Create a free Mapbox account. Without a payment card Mapbox only gives you a trial token with low limits;
    with a card you get the free tier, which is plenty for personal use.
 2. Copy the **Default public token** (it starts with `pk.`).
-3. Paste it in the app. From then on it goes to the car by itself, with every destination you send.
+3. Paste it in the app. Compatible builds receive it automatically with every destination; official
+   software needs the manual setup below.
 
 With the token the Send tab also shows the route on a map, starting from your phone's position (the app asks
 for location access the first time). You see the fastest route and up to two alternatives, and you pick the
 one the car should drive. Long-press the map to add a stop. The car follows the route you picked; this needs
-one of the two builds above, other software gets the destination only and picks its own route.
+a build with waypoint support. Other software gets the destination only and picks its own route.
 
 <p align="center">
   <img src="docs/screenshots/route.png" width="270" alt="Route preview: the fastest route and an alternative on the Mapbox map">
 </p>
+
+### Configure Mapbox on the comma
+
+Choose either manual setup on official software or automatic setup with a compatible build. Nav2Pilot
+shows both options in its Mapbox settings. It does not connect to the comma over SSH or change startup files.
+
+#### Option 1: keep official openpilot or sunnypilot
+
+This requires a version with **Nav Alpha** that reads `MAPBOX_TOKEN`. Configure your public token on the
+comma once; saving it in Nav2Pilot alone does not configure official software.
+
+1. Enable **SSH** in the comma's settings and add your GitHub account with its SSH public key.
+   Connect from a computer on the same network, replacing `COMMA_IP` with the device's IP address:
+
+   ```bash
+   ssh comma@COMMA_IP
+   ```
+
+2. Back up the existing startup file, then edit it:
+
+   ```bash
+   cp -p /data/continue.sh /data/continue.sh.nav2pilot-backup
+   vi /data/continue.sh
+   ```
+
+3. Add the following line **before the command that launches openpilot** (usually
+   `exec ./launch_openpilot.sh`). Replace the entire placeholder with your own Mapbox public token.
+   Keep the existing directory changes and launch commands; do not replace the whole file:
+
+   ```bash
+   export MAPBOX_TOKEN='pk.REPLACE_WITH_YOUR_PUBLIC_TOKEN'
+   ```
+
+4. Save the file. Check its shell syntax, and reboot only if the check succeeds, while parked:
+
+   ```bash
+   bash -n /data/continue.sh && sudo reboot
+   ```
+
+The token reaches navigation at its next startup. Running `export` only in an SSH session does not update
+the already running navigation process and does not survive reboot. Keep the token saved in Nav2Pilot too
+if you want route previews on the phone.
+
+If you rotate or remove the token, update or delete the export line yourself and reboot. Removing it in
+Nav2Pilot cannot remove a token configured in the startup file. This file is outside the openpilot checkout;
+a normal code update does not replace it, but reinstalling software can, so check it after a reinstall.
+
+Manual token setup enables Mapbox routing. It does **not** add `setNavRoute`: without that method, the
+comma receives the destination only and computes its own route, without the phone's chosen alternatives
+or intermediate stops.
+
+#### Option 2: install a compatible build
+
+For automatic token transfer and waypoint support, use the following packaged branches:
+
+| Software | Repository and branch | Custom-software installer URL | Availability |
+|----------|-----------------------|-------------------------------|--------------|
+| openpilot | [`cristianku/openpilot:nav-alpha`](https://github.com/cristianku/openpilot/tree/nav-alpha) | `installer.comma.ai/cristianku/nav-alpha` | Published |
+| sunnypilot | [`cristianku/openpilot:sunny-nav-alpha`](https://github.com/cristianku/openpilot/tree/sunny-nav-alpha) | `installer.comma.ai/cristianku/sunny-nav-alpha` | Not yet published; do not install until available |
+
+Enter the installer URL on the comma's custom-software installation screen. Then save your public token
+in **Devices → Mapbox** in Nav2Pilot: the app sends it to the selected comma when saved and before sending
+destinations. No manual environment setup is needed for these builds.
 
 ## Car screens: CarlinKit, Android Auto, CarPlay
 
@@ -184,9 +246,9 @@ Everything Nav2Pilot sends is taken from source code or official documentation:
 | API host `https://api.commadotai.com` | openpilot `common/api/comma_connect.py`, `tools/lib/api.py` |
 | `GET /v1/me/devices/`: `dongle_id`, `alias`, `device_type`, `last_athena_ping`, `is_owner` | <https://api.comma.ai> ("List devices"), `openapi.yaml` `Device` schema |
 | `GET /v1/me` validates a token | openpilot `tools/lib/auth.py` |
-| `setNavDestination(latitude: float, longitude: float)` returns `{"success": 1}`, or `{"success": 0, "error": "Invalid destination coordinates"}` out of range | commaai/openpilot `openpilot/system/athena/athenad.py`; sunnypilot `feature/nav-alpha` same file |
+| `setNavDestination(latitude: float, longitude: float)` returns `{"success": 1}`, or `{"success": 0, "error": "Invalid destination coordinates"}` out of range | commaai/openpilot `openpilot/system/athena/athenad.py`; sunnypilot `nav-alpha` same file |
 | `clearNavDestination()` returns `{"success": 1}` | same file |
-| `setMapboxToken(token: str)` returns `{"success": 1}`, or `{"success": 0, "error": ...}` for anything but a public `pk.` token; `""` removes it | cristianku/sunnypilot `feature/nav-alpha` `openpilot/sunnypilot/navd/athena.py`; cristianku/openpilot `nav-alpha` `openpilot/selfdrive/navigation/nav2pilot/athena.py` (not in commaai/openpilot) |
+| `setMapboxToken(token: str)` returns `{"success": 1}`, or `{"success": 0, "error": ...}` for anything but a public `pk.` token; `""` removes it | cristianku/sunnypilot `nav-alpha` `openpilot/sunnypilot/navd/athena.py`; cristianku/openpilot `nav-alpha` `openpilot/selfdrive/navigation/nav2pilot/athena.py` (not in commaai/openpilot) |
 | Both write/remove the `NavDestination` param (JSON `{"latitude", "longitude"}`) that `navd` routes to | `openpilot/selfdrive/navigation/navd.py` |
 | `NavDestination` flags `CLEAR_ON_MANAGER_START \| CLEAR_ON_OFFROAD_TRANSITION` | `openpilot/common/params_keys.h`, applied in `openpilot/system/manager/manager.py` |
 | JSON-RPC errors: `-32601` method not found, `-32602` invalid params, `-32000` server error | `openpilot/system/athena/rpc.py` |
@@ -219,9 +281,9 @@ Notes:
 On a device without comma prime (`PrimeType` 0), comma's route service `api.commadotai.com/v1/nav` answered
 **HTTP 403** to every route request (route `0000011a`, 2026-10-17): navd got no route and the map stayed on
 "Waiting for route". The method `setMapboxToken(token)` stores the user's public token in the `MapboxToken`
-param, and navd then asks `api.mapbox.com` directly. It is in two builds:
+param, and navd then asks `api.mapbox.com` directly. It is implemented in these source branches (see the packaged installation options above):
 
-- sunnypilot: [cristianku/sunnypilot `feature/nav-alpha`](https://github.com/cristianku/sunnypilot/tree/feature/nav-alpha) (`sunnypilot/navd/athena.py`)
+- sunnypilot: [cristianku/sunnypilot `nav-alpha`](https://github.com/cristianku/sunnypilot/tree/nav-alpha) (`sunnypilot/navd/athena.py`)
 - openpilot: [cristianku/openpilot `nav-alpha`](https://github.com/cristianku/openpilot/tree/nav-alpha) (`selfdrive/navigation/nav2pilot/athena.py`)
 
 Setup: Devices → Mapbox → **Set up Mapbox**.
@@ -234,13 +296,14 @@ Setup: Devices → Mapbox → **Set up Mapbox**.
 4. Paste it and tap **Verify and save**: it is checked with Mapbox's Tokens API
    (`GET https://api.mapbox.com/tokens/v2`, answer `TokenValid`) and stored encrypted like the comma token.
 
-- Nothing to press: the app sends the token right after saving (to the selected car) and before every
+- **With a build supporting `setMapboxToken`:** the app sends the token right after saving (to the selected car) and before every
   destination, silently. The device writes it only when it changed. The `MapboxToken` param survives reboots,
   but `Params::clearAll` deletes it when the device boots a build that does not define it; the next
   destination brings it back.
-- **Remove** in the app also sends an empty token to the selected car, which goes back to comma's route service.
-- A device without `setMapboxToken` (`-32601`, unmodified openpilot) is not an error: the destination goes
-  out and the feedback is the usual one.
+- **Remove** in the app also sends an empty token to a compatible selected car. It does not remove
+  a manually configured `MAPBOX_TOKEN`; that must be removed from the startup file separately.
+- A device without `setMapboxToken` (`-32601`, official openpilot / sunnypilot) still receives the destination.
+  The app's Mapbox settings link the manual setup guide; token transfer itself is not available on that build.
 - The device's map tiles (mapsd) still come from comma (`v1/<dongle_id>/nav/tiles`).
 
 ### Route map and waypoints
@@ -251,7 +314,7 @@ Setup: Devices → Mapbox → **Set up Mapbox**.
 - Map: [osmdroid](https://github.com/osmdroid/osmdroid) with Mapbox Streets raster tiles (Static Tiles API)
   and the user's public token. The Mapbox Maps SDK for Android is not used: it needs a secret token just to
   download it from Mapbox's Maven repository, which every contributor and the CI would need.
-- What the device gets: `setNavRoute(latitude, longitude, waypoints)` (cristianku/sunnypilot `feature/nav-alpha`,
+- What the device gets: `setNavRoute(latitude, longitude, waypoints)` (cristianku/sunnypilot `nav-alpha`,
   `sunnypilot/navd/athena.py`; cristianku/openpilot `nav-alpha`, `selfdrive/navigation/nav2pilot/athena.py`). Stops go as waypoints with `via: false`; a picked alternative goes as three
   silent `via: true` points at 25 %, 50 % and 75 % of its length, so the device's own Mapbox request follows
   the same roads. The fastest route without stops is sent as `setNavDestination`. A device without

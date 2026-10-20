@@ -496,6 +496,7 @@ private fun MapboxCard(
     onShowMapboxDialog: () -> Unit,
     onRemoveMapboxToken: () -> Unit,
 ) {
+    val uriHandler = LocalUriHandler.current
     BrandCard {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             if (state.hasMapboxToken) {
@@ -510,8 +511,8 @@ private fun MapboxCard(
                     Text("Mapbox token saved", style = MaterialTheme.typography.titleSmall)
                 }
                 Text(
-                    "Your car gets the token automatically with every destination you send. " +
-                        "Removing it here also removes it from the selected car.",
+                    "Compatible builds receive the token automatically with every destination. " +
+                        "Official builds need the manual setup below. Removing the token here does not remove a manually configured token.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -539,6 +540,11 @@ private fun MapboxCard(
                 OutlinedButton(onClick = onShowMapboxDialog, shape = RoundedCornerShape(12.dp)) {
                     Text("Set up Mapbox")
                 }
+            }
+            TextButton(onClick = {
+                uriHandler.openUri("https://github.com/cristianku/nav2pilot#configure-mapbox-on-the-comma")
+            }) {
+                Text("Comma setup: manual instructions or compatible builds")
             }
         }
     }
@@ -590,7 +596,7 @@ private fun ConnectionCard(selectedDevice: PairedDevice?, connection: Connection
                     }
                 }
                 Text(
-                    "comma athena: available. Sends setNavDestination / clearNavDestination, and setMapboxToken to sunnypilot Nav Alpha.",
+                    "comma athena: available. Sends destinations to Nav Alpha and Mapbox tokens to compatible builds.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -712,10 +718,56 @@ internal fun MapboxTokenDialog(
                     Text("Paste")
                 }
                 Text(
-                    "The token is checked with Mapbox, then stored encrypted on this phone and sent to your comma device, " +
-                        "which asks Mapbox for its routes with it.",
+                    "The token is checked with Mapbox and stored encrypted on this phone. " +
+                        "Automatic transfer to the comma needs a compatible build; official builds need manual configuration.",
                     style = MaterialTheme.typography.bodySmall,
                 )
+                HorizontalDivider()
+                Text("Configure Mapbox on the comma", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    "Option 1: keep official openpilot / sunnypilot with Nav Alpha and configure the token yourself.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                Text(
+                    "1. Enable SSH on the comma and add your GitHub SSH key. From a computer on the same network, connect with ssh comma@COMMA_IP.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                Text(
+                    "2. Back up /data/continue.sh, then edit it. Add this line before the command that starts openpilot, replacing the placeholder with your public token. Keep the existing startup commands.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                Text(
+                    "export MAPBOX_TOKEN='pk.REPLACE_WITH_YOUR_PUBLIC_TOKEN'",
+                    fontFamily = FontFamily.Monospace,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                Text(
+                    "3. Save, check with bash -n /data/continue.sh, then reboot the comma while parked. An export in the SSH session alone is not persistent.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                Text(
+                    "Update or remove this line yourself when changing or removing the token. Manual setup enables Mapbox routing; selected alternatives and stops still need a compatible build.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                TextButton(onClick = {
+                    uriHandler.openUri("https://github.com/cristianku/nav2pilot#configure-mapbox-on-the-comma")
+                }) {
+                    Text("Open the complete manual setup guide")
+                }
+                Text(
+                    "Option 2: install a compatible build on the comma for automatic token transfer and waypoint support.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                TextButton(onClick = { uriHandler.openUri("https://github.com/cristianku/openpilot/tree/nav-alpha") }) {
+                    Text("cristianku/openpilot:nav-alpha")
+                }
+                Text(
+                    "Installer URL: installer.comma.ai/cristianku/nav-alpha",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                TextButton(onClick = { uriHandler.openUri("https://github.com/cristianku/openpilot/tree/sunny-nav-alpha") }) {
+                    Text("cristianku/openpilot:sunny-nav-alpha (not yet published)")
+                }
                 if (message.isNotEmpty()) {
                     Text(message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
