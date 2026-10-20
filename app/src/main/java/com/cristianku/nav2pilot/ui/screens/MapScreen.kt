@@ -14,6 +14,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -100,8 +101,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -256,11 +257,20 @@ fun MapScreen(
         )
 
         // the controls stay clear of side system bars (the Carlinkit dock sits on the left); the map goes under them
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)),
         ) {
+            // the column in landscape takes a share of the width left by the side bars, within limits
+            var widePanelWidth = maxWidth * WIDE_PANEL_FRACTION
+            if (widePanelWidth < WIDE_PANEL_MIN_WIDTH) {
+                widePanelWidth = WIDE_PANEL_MIN_WIDTH
+            }
+            if (widePanelWidth > WIDE_PANEL_MAX_WIDTH) {
+                widePanelWidth = WIDE_PANEL_MAX_WIDTH
+            }
+
             // the destination panel: a column on the left in landscape, a sheet at the bottom on a phone
             val destination = state.destination
             if (destination != null) {
@@ -269,7 +279,7 @@ fun MapScreen(
                         modifier = Modifier
                             .align(Alignment.CenterStart)
                             .fillMaxHeight()
-                            .width(WIDE_PANEL_WIDTH)
+                            .width(widePanelWidth)
                             .onSizeChanged { size -> panelSizePx = size.width },
                     ) {
                         DestinationPanel(
@@ -305,7 +315,7 @@ fun MapScreen(
             // top: the search and the settings; the car under the search (in its place when the search is hidden)
             var topRowStart = 0.dp
             if (wide && hasDestination) {
-                topRowStart = WIDE_PANEL_WIDTH
+                topRowStart = widePanelWidth
             }
             val carButton: @Composable () -> Unit = {
                 CarButton(
@@ -357,45 +367,36 @@ fun MapScreen(
                 }
             }
 
-            // favorites bottom left, recentre bottom right, just above the panel
-            val bottomOffset: Dp
-            if (hasDestination && !wide) {
-                bottomOffset = with(density) { panelSizePx.toDp() } + 12.dp
-            } else {
-                bottomOffset = 16.dp
+            // favorites bottom left, recentre bottom right; hidden with a destination, the panel is enough
+            if (!hasDestination) {
+                val buttonsModifier = Modifier
+                    .padding(bottom = 16.dp)
+                    .navigationBarsPadding()
+                MapButton(
+                    painter = rememberVectorPainter(Icons.Filled.Favorite),
+                    description = "Favorites",
+                    onClick = actions.onOpenFavorites,
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .then(buttonsModifier)
+                        .padding(start = 12.dp),
+                )
+                MapButton(
+                    painter = painterResource(R.drawable.ic_my_location),
+                    description = "Show my position",
+                    onClick = {
+                        if (hasLocationPermission(context)) {
+                            actions.onRefreshMyLocation(true)
+                        } else {
+                            requestLocation()
+                        }
+                    },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .then(buttonsModifier)
+                        .padding(end = 12.dp),
+                )
             }
-            var favoritesStart = 12.dp
-            if (wide && hasDestination) {
-                favoritesStart = WIDE_PANEL_WIDTH + 12.dp
-            }
-            var buttonsModifier = Modifier.padding(bottom = bottomOffset)
-            if (!(hasDestination && !wide)) {
-                buttonsModifier = buttonsModifier.navigationBarsPadding()
-            }
-            MapButton(
-                painter = rememberVectorPainter(Icons.Filled.Favorite),
-                description = "Favorites",
-                onClick = actions.onOpenFavorites,
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .then(buttonsModifier)
-                    .padding(start = favoritesStart),
-            )
-            MapButton(
-                painter = painterResource(R.drawable.ic_my_location),
-                description = "Show my position",
-                onClick = {
-                    if (hasLocationPermission(context)) {
-                        actions.onRefreshMyLocation(true)
-                    } else {
-                        requestLocation()
-                    }
-                },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .then(buttonsModifier)
-                    .padding(end = 12.dp),
-            )
         }
     }
 
@@ -1084,9 +1085,10 @@ private fun SendButton(
             shape = RoundedCornerShape(16.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .height(SEND_BUTTON_HEIGHT),
+                .heightIn(min = SEND_BUTTON_HEIGHT),
         ) {
-            Text(text, style = MaterialTheme.typography.titleMedium)
+            // on two lines in the narrow landscape panel: centred like the one-line labels
+            Text(text, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
         }
         return
     }
@@ -1209,7 +1211,9 @@ object RouteFormatting {
 
 private val MAP_BUTTON_SIZE = 52.dp
 private val TOP_BAR_HEIGHT = 68.dp
-private val WIDE_PANEL_WIDTH = 380.dp
+private const val WIDE_PANEL_FRACTION = 0.32f
+private val WIDE_PANEL_MIN_WIDTH = 270.dp
+private val WIDE_PANEL_MAX_WIDTH = 360.dp
 private val SEARCH_MAX_WIDTH = 520.dp
 private val RESULTS_MAX_HEIGHT = 320.dp
 private val CAR_LABEL_MAX_WIDTH = 140.dp

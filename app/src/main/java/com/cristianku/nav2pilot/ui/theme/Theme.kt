@@ -11,22 +11,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
-// The logo's colours: night blue background, the blue of the swoosh and the cyan of the road markings.
+// The logo's colours: night blue background and the cyan of the road markings.
 private val NightBlue = Color(0xFF010E30)
 private val NightBlueSurface = Color(0xFF0A1A44)
 private val NightBlueRaised = Color(0xFF13275C)
-// the swoosh blue: dark enough for white text and for text on white (light theme), bright on night blue (dark theme)
-private val BrandBlue = Color(0xFF1A5CE0)
-private val BrandBlueBright = Color(0xFF5B9BFF)
-// the cyan only as an accent: as the main colour it looked green on the car screen
+// cyan dark enough for white text and for text on white (light theme), bright on night blue (dark theme)
 private val BrandCyan = Color(0xFF007C96)
 private val BrandCyanBright = Color(0xFF00D5E8)
 
 // Neutral surfaces: Material's default tonal tint turned the cards and the bars lilac.
 private val LightColors = lightColorScheme(
-    primary = BrandBlue,
+    primary = BrandCyan,
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFDCE7FF),
+    primaryContainer = Color(0xFFD2F3F8),
     onPrimaryContainer = NightBlue,
     secondary = NightBlue,
     onSecondary = Color.White,
@@ -46,10 +43,10 @@ private val LightColors = lightColorScheme(
 )
 
 private val DarkColors = darkColorScheme(
-    primary = BrandBlueBright,
+    primary = BrandCyanBright,
     onPrimary = NightBlue,
-    primaryContainer = Color(0xFF0E3A8C),
-    onPrimaryContainer = Color(0xFFDCE7FF),
+    primaryContainer = Color(0xFF00475A),
+    onPrimaryContainer = Color(0xFFC4F7FC),
     secondary = Color(0xFF9DB4E8),
     onSecondary = NightBlue,
     secondaryContainer = NightBlueRaised,
@@ -92,7 +89,7 @@ object StatusColors {
     }
 }
 
-/** Material 3 theme in the logo colours, night blue, blue and cyan; no dynamic (wallpaper) colours. */
+/** Material 3 theme in the logo colours, night blue and cyan; no dynamic (wallpaper) colours. */
 @Composable
 fun Nav2PilotTheme(content: @Composable () -> Unit) {
     val darkTheme = isSystemInDarkTheme()
