@@ -556,8 +556,9 @@ private fun SearchBox(
             .widthIn(max = SEARCH_MAX_WIDTH),
     ) {
         Column {
+            // at least the pill's height, but free to grow: the TextField needs 56 dp, more with a large system font
             Row(
-                modifier = Modifier.height(MAP_BUTTON_SIZE),
+                modifier = Modifier.heightIn(min = MAP_BUTTON_SIZE),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = onStopEditing) {
