@@ -21,6 +21,10 @@ import com.cristianku.nav2pilot.model.CoordinateRules
 import com.cristianku.nav2pilot.model.DongleIdRules
 import com.cristianku.nav2pilot.model.LatLng
 import com.cristianku.nav2pilot.model.PairedDevice
+import com.cristianku.nav2pilot.places.MapArea
+import com.cristianku.nav2pilot.places.OverpassPlaces
+import com.cristianku.nav2pilot.places.Place
+import com.cristianku.nav2pilot.places.PlaceCategory
 import com.cristianku.nav2pilot.resolve.DestinationResolver
 import com.cristianku.nav2pilot.resolve.ResolveOutcome
 import com.cristianku.nav2pilot.security.JwtInfo
@@ -92,6 +96,15 @@ data class MainUiState(
     val showSendTabRequest: Int = 0,
     /** Incremented when the map should move to the phone's position (the recentre button). */
     val recenterRequest: Int = 0,
+    // points of interest from OpenStreetMap on the map
+    /** The category shown (or being looked up), null when the places are hidden. */
+    val placesCategory: PlaceCategory? = null,
+    val places: List<Place> = emptyList(),
+    val placesLoading: Boolean = false,
+    /** Why no places are shown: none found, or OpenStreetMap could not answer. */
+    val placesMessage: String = "",
+    /** Incremented with each new placesMessage, so that the screen shows it once. */
+    val placesMessageRequest: Int = 0,
 )
 
 class MainViewModel(
@@ -105,6 +118,7 @@ class MainViewModel(
     private val ioDispatcher: CoroutineDispatcher,
     private val mapbox: MapboxSetup? = null,
     private val routePlanning: RoutePlanning? = null,
+    private val places: OverpassPlaces? = null,
     private val clock: () -> Long = { System.currentTimeMillis() },
 ) : ViewModel() {
 
@@ -118,6 +132,7 @@ class MainViewModel(
     private var resolveJob: Job? = null
     private var connectionJob: Job? = null
     private var routesJob: Job? = null
+    private var placesJob: Job? = null
 
     init {
         state.value = state.value.copy(
@@ -677,6 +692,76 @@ class MainViewModel(
         refreshRoutes()
     }
 
+    // ---- points of interest ----
+
+    /**
+     * The places of [category] in [area], the part of the map the user sees (null until the map has reported it).
+     * They stay on the map until hidden or replaced by another category.
+     */
+    fun showPlaces(category: PlaceCategory, area: MapArea?) {
+        val source = places ?: return
+        placesJob?.cancel()
+        if (area == null) {
+            hidePlaces()
+            placesNotice("The map is not ready yet. Try again in a moment.")
+            return
+        }
+        val limited = area.limitedTo(PLACES_MAX_HALF_METERS)
+        state.value = state.value.copy(placesCategory = category, places = emptyList(), placesLoading = true)
+        placesJob = viewModelScope.launch {
+            val result = source.search(category, limited)
+            if (result is TransportResult.Ok) {
+                val found = result.value
+                if (found.isEmpty()) {
+                    state.value = state.value.copy(placesCategory = null, places = emptyList(), placesLoading = false)
+                    placesNotice(category.label + ": none in this part of the map.")
+                    return@launch
+                }
+                state.value = state.value.copy(places = found, placesLoading = false)
+            } else {
+                val error = (result as TransportResult.Failed).error
+                state.value = state.value.copy(placesCategory = null, places = emptyList(), placesLoading = false)
+                placesNotice(placesErrorText(error))
+            }
+        }
+    }
+
+    fun hidePlaces() {
+        placesJob?.cancel()
+        state.value = state.value.copy(placesCategory = null, places = emptyList(), placesLoading = false)
+    }
+
+    /** A place tapped on the map becomes the destination; the places stay, to compare or add one as a stop. */
+    fun choosePlace(place: Place) {
+        resolveJob?.cancel()
+        state.value = state.value.copy(
+            destination = place.toDestination(),
+            destinationSource = DestinationResolver.SOURCE_PLACES,
+            choices = emptyList(),
+            resolving = false,
+            resolveError = "",
+            feedback = null,
+        )
+        destinationChanged()
+    }
+
+    private fun placesNotice(message: String) {
+        state.value = state.value.copy(placesMessage = message, placesMessageRequest = state.value.placesMessageRequest + 1)
+    }
+
+    private fun placesErrorText(error: TransportError): String {
+        if (error == TransportError.RateLimited) {
+            return "OpenStreetMap is busy (HTTP 429). Try again in a moment."
+        }
+        if (error is TransportError.HttpFailure) {
+            return "OpenStreetMap did not answer (HTTP ${error.code}). Try again in a moment."
+        }
+        if (error is TransportError.DeviceRejected) {
+            return "OpenStreetMap: " + error.reason
+        }
+        return TransportErrorText.describe(error)
+    }
+
     /** What the device gets besides the destination: the stops, or via points of the alternative picked on the map. */
     fun plannedWaypoints(): List<RouteWaypoint> {
         val current = state.value
@@ -729,6 +814,9 @@ class MainViewModel(
         // sunnypilot setNavRoute accepts 20 waypoints; three are left for the via points of an alternative
         const val MAX_STOPS = 10
 
+        // places are looked up at most this far from the middle of the map: 50 x 50 km
+        private const val PLACES_MAX_HALF_METERS = 25_000.0
+
         private const val LOCATION_NEEDED_MESSAGE = "The route preview starts from this phone's position: allow location access."
         private const val LOCATION_DENIED_MESSAGE =
             "No location access: the route preview starts from this phone's position. Allow it in the app settings."
@@ -748,6 +836,7 @@ class MainViewModel(
                         ioDispatcher = container.ioDispatcher,
                         mapbox = container.mapbox,
                         routePlanning = container.routePlanning,
+                        places = container.places,
                     )
                     return viewModel as T
                 }

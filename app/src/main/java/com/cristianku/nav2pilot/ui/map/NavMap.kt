@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.PointF
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.net.Uri
@@ -16,14 +17,18 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.cristianku.nav2pilot.R
 import com.cristianku.nav2pilot.mapbox.MapboxEndpoints
 import com.cristianku.nav2pilot.mapbox.OpenFreeMapStyles
 import com.cristianku.nav2pilot.mapbox.RoutePreview
 import com.cristianku.nav2pilot.model.Destination
 import com.cristianku.nav2pilot.model.LatLng
+import com.cristianku.nav2pilot.places.MapArea
+import com.cristianku.nav2pilot.places.PlaceCategory
 import com.cristianku.nav2pilot.ui.MainUiState
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraUpdateFactory
@@ -60,7 +65,8 @@ data class MapColors(
 )
 
 /**
- * The full-screen map (MapLibre): the phone's position, the destination, the stops and the routes.
+ * The full-screen map (MapLibre): the phone's position, the destination, the stops, the routes and the points of
+ * interest.
  *
  * Base map: Mapbox Streets raster tiles when the user has a Mapbox token (their routes are Mapbox routes, shown on
  * a Mapbox map), otherwise OpenFreeMap, free and without a key. Dark style with the dark theme.
@@ -74,6 +80,8 @@ fun NavMap(
     onTap: () -> Unit,
     onLongPress: (Double, Double) -> Unit,
     onSelectRoute: (Int) -> Unit,
+    onTapPlace: (Int) -> Unit,
+    onAreaChange: (MapArea) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -81,6 +89,8 @@ fun NavMap(
     val currentOnTap by rememberUpdatedState(onTap)
     val currentOnLongPress by rememberUpdatedState(onLongPress)
     val currentOnSelectRoute by rememberUpdatedState(onSelectRoute)
+    val currentOnTapPlace by rememberUpdatedState(onTapPlace)
+    val currentOnAreaChange by rememberUpdatedState(onAreaChange)
 
     val holder = remember { MapHolder() }
     val mapView = remember {
@@ -95,13 +105,26 @@ fun NavMap(
             map.uiSettings.setAttributionGravity(Gravity.BOTTOM or Gravity.START)
             map.uiSettings.setCompassGravity(Gravity.TOP or Gravity.END)
             map.addOnMapClickListener { point ->
-                val index = routeAt(map, point, context)
-                if (index >= 0) {
-                    currentOnSelectRoute(index)
+                // the places are drawn over the routes
+                val place = indexAt(map, point, context, LAYER_PLACES, PROPERTY_PLACE_INDEX)
+                if (place >= 0) {
+                    currentOnTapPlace(place)
                 } else {
-                    currentOnTap()
+                    val route = indexAt(map, point, context, LAYER_OTHER_ROUTES, PROPERTY_ROUTE_INDEX)
+                    if (route >= 0) {
+                        currentOnSelectRoute(route)
+                    } else {
+                        currentOnTap()
+                    }
                 }
                 true
+            }
+            // where the places menu looks: the part of the map that panels and buttons leave visible
+            map.addOnCameraIdleListener {
+                val area = visibleArea(map, view, holder.insets)
+                if (area != null) {
+                    currentOnAreaChange(area)
+                }
             }
             map.addOnMapLongClickListener { point ->
                 currentOnLongPress(point.latitude, point.longitude)
@@ -234,16 +257,20 @@ private fun styleBuilder(key: String, mapboxToken: String): Style.Builder {
     return Style.Builder().fromUri(OpenFreeMapStyles.LIGHT)
 }
 
-/** Our sources and layers, on top of the base map: other routes, picked route, position, pins. */
+/** Our sources and layers, on top of the base map: other routes, picked route, places, position, pins. */
 private fun addOverlayLayers(style: Style, context: Context, colors: MapColors) {
     style.addSource(GeoJsonSource(SOURCE_OTHER_ROUTES))
     style.addSource(GeoJsonSource(SOURCE_SELECTED_ROUTE))
+    style.addSource(GeoJsonSource(SOURCE_PLACES))
     style.addSource(GeoJsonSource(SOURCE_MY_LOCATION))
     style.addSource(GeoJsonSource(SOURCE_PINS))
 
     style.addImage(IMAGE_DESTINATION, circleIcon(context, DESTINATION_COLOR, ""))
     for (number in 1..MAX_STOP_IMAGES) {
         style.addImage(IMAGE_STOP_PREFIX + number, circleIcon(context, STOP_COLOR, number.toString()))
+    }
+    for (category in PlaceCategory.entries) {
+        style.addImage(IMAGE_PLACE_PREFIX + category.name, placeIcon(context, PLACE_COLOR, placeSymbol(category)))
     }
 
     // MapLibre widths and radii are already in dp
@@ -261,6 +288,13 @@ private fun addOverlayLayers(style: Style, context: Context, colors: MapColors) 
             PropertyFactory.lineWidth(7f),
             PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
             PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
+        ),
+    )
+    style.addLayer(
+        SymbolLayer(LAYER_PLACES, SOURCE_PLACES).withProperties(
+            PropertyFactory.iconImage(Expression.get(PROPERTY_ICON)),
+            // all of them, even when they touch: a hidden place could not be tapped
+            PropertyFactory.iconAllowOverlap(true),
         ),
     )
     style.addLayer(
@@ -294,6 +328,16 @@ private fun drawData(style: Style, state: MainUiState) {
     }
     setFeatures(style, SOURCE_OTHER_ROUTES, others)
     setFeatures(style, SOURCE_SELECTED_ROUTE, selected)
+
+    val places = mutableListOf<Feature>()
+    for (index in state.places.indices) {
+        val place = state.places[index]
+        val feature = Feature.fromGeometry(Point.fromLngLat(place.longitude, place.latitude))
+        feature.addStringProperty(PROPERTY_ICON, IMAGE_PLACE_PREFIX + place.category.name)
+        feature.addNumberProperty(PROPERTY_PLACE_INDEX, index)
+        places.add(feature)
+    }
+    setFeatures(style, SOURCE_PLACES, places)
 
     val position = mutableListOf<Feature>()
     val origin = state.origin
@@ -393,18 +437,46 @@ private fun fitPlan(holder: MapHolder, map: MapLibreMap, state: MainUiState, con
     )
 }
 
-/** The index of the route drawn under a tap, or -1: unpicked routes can be picked on the map. */
-private fun routeAt(map: MapLibreMap, point: MapLatLng, context: Context): Int {
+/**
+ * The index ([property]) of what [layer] draws under a tap, or -1: unpicked routes can be picked on the map, places
+ * tapped.
+ */
+private fun indexAt(map: MapLibreMap, point: MapLatLng, context: Context, layer: String, property: String): Int {
     val screen = map.projection.toScreenLocation(point)
     val reach = dp(context, 14).toFloat()
     val area = RectF(screen.x - reach, screen.y - reach, screen.x + reach, screen.y + reach)
-    val features = map.queryRenderedFeatures(area, LAYER_OTHER_ROUTES)
+    val features = map.queryRenderedFeatures(area, layer)
     for (feature in features) {
-        if (feature.hasProperty(PROPERTY_ROUTE_INDEX)) {
-            return feature.getNumberProperty(PROPERTY_ROUTE_INDEX).toInt()
+        if (feature.hasProperty(property)) {
+            return feature.getNumberProperty(property).toInt()
         }
     }
     return -1
+}
+
+/** The latitudes and longitudes under the part of [view] that [insets] leave uncovered; null before layout. */
+private fun visibleArea(map: MapLibreMap, view: MapView, insets: MapInsets): MapArea? {
+    val left = insets.left.toFloat()
+    val top = insets.top.toFloat()
+    val right = (view.width - insets.right).toFloat()
+    val bottom = (view.height - insets.bottom).toFloat()
+    if (right <= left || bottom <= top) {
+        return null
+    }
+    // all four corners: the map may be rotated
+    val corners = listOf(PointF(left, top), PointF(right, top), PointF(left, bottom), PointF(right, bottom))
+    var south = 90.0
+    var west = 180.0
+    var north = -90.0
+    var east = -180.0
+    for (corner in corners) {
+        val point = map.projection.fromScreenLocation(corner)
+        south = minOf(south, point.latitude)
+        west = minOf(west, point.longitude)
+        north = maxOf(north, point.latitude)
+        east = maxOf(east, point.longitude)
+    }
+    return MapArea(south = south, west = west, north = north, east = east)
 }
 
 private fun points(coordinates: List<LatLng>): List<Point> {
@@ -445,12 +517,56 @@ private fun circleIcon(context: Context, color: Int, label: String): Bitmap {
     return bitmap
 }
 
+/** The white symbol of a place's category on a small coloured disc, like the points of interest of map apps. */
+private fun placeIcon(context: Context, color: Int, symbol: Int): Bitmap {
+    val density = context.resources.displayMetrics.density
+    val size = (26 * density).toInt()
+    val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val center = size / 2f
+
+    val ring = Paint(Paint.ANTI_ALIAS_FLAG)
+    ring.color = android.graphics.Color.WHITE
+    canvas.drawCircle(center, center, center, ring)
+
+    val fill = Paint(Paint.ANTI_ALIAS_FLAG)
+    fill.color = color
+    canvas.drawCircle(center, center, center - 2 * density, fill)
+
+    // mutate(): the white tint stays on this copy of the icon
+    val drawable = ContextCompat.getDrawable(context, symbol)?.mutate()
+    if (drawable != null) {
+        val inset = (6 * density).toInt()
+        drawable.setBounds(inset, inset, size - inset, size - inset)
+        drawable.setTint(android.graphics.Color.WHITE)
+        drawable.draw(canvas)
+    }
+    return bitmap
+}
+
+/** The symbol of a category, on the map and in the places menu. */
+fun placeSymbol(category: PlaceCategory): Int {
+    return when (category) {
+        PlaceCategory.FUEL -> R.drawable.ic_place_fuel
+        PlaceCategory.CHARGING -> R.drawable.ic_place_charging
+        PlaceCategory.PARKING -> R.drawable.ic_place_parking
+        PlaceCategory.REST_AREA -> R.drawable.ic_place_rest_area
+        PlaceCategory.RESTAURANT -> R.drawable.ic_place_restaurant
+        PlaceCategory.CAFE -> R.drawable.ic_place_cafe
+        PlaceCategory.SUPERMARKET -> R.drawable.ic_place_supermarket
+        PlaceCategory.HOTEL -> R.drawable.ic_place_hotel
+        PlaceCategory.PHARMACY -> R.drawable.ic_place_pharmacy
+    }
+}
+
 private fun dp(context: Context, value: Int): Int {
     return (value * context.resources.displayMetrics.density).toInt()
 }
 
 const val STOP_COLOR = 0xFFF08C00.toInt()
 private const val DESTINATION_COLOR = 0xFFE03131.toInt()
+// apart from the route, the destination, the stops and the position
+private const val PLACE_COLOR = 0xFF5F3DC4.toInt()
 private const val MY_LOCATION_ZOOM = 14.0
 private const val SINGLE_POINT_SPAN = 0.005
 // favorites button: 12 dp margin + 52 dp + 12 dp
@@ -462,11 +578,15 @@ private const val SOURCE_OTHER_ROUTES = "nav2pilot-other-routes"
 private const val SOURCE_SELECTED_ROUTE = "nav2pilot-selected-route"
 private const val SOURCE_MY_LOCATION = "nav2pilot-my-location"
 private const val SOURCE_PINS = "nav2pilot-pins"
+private const val SOURCE_PLACES = "nav2pilot-places"
 private const val LAYER_OTHER_ROUTES = "nav2pilot-other-routes"
 private const val LAYER_SELECTED_ROUTE = "nav2pilot-selected-route"
 private const val LAYER_MY_LOCATION = "nav2pilot-my-location"
 private const val LAYER_PINS = "nav2pilot-pins"
+private const val LAYER_PLACES = "nav2pilot-places"
 private const val IMAGE_DESTINATION = "nav2pilot-destination"
 private const val IMAGE_STOP_PREFIX = "nav2pilot-stop-"
+private const val IMAGE_PLACE_PREFIX = "nav2pilot-place-"
 private const val PROPERTY_ICON = "icon"
 private const val PROPERTY_ROUTE_INDEX = "route"
+private const val PROPERTY_PLACE_INDEX = "place"

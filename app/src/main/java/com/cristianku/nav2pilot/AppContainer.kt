@@ -16,6 +16,7 @@ import com.cristianku.nav2pilot.mapbox.MapboxSetup
 import com.cristianku.nav2pilot.mapbox.MapboxTokenVerifier
 import com.cristianku.nav2pilot.mapbox.RoutePlanning
 import com.cristianku.nav2pilot.net.UrlConnectionHttpClient
+import com.cristianku.nav2pilot.places.OverpassPlaces
 import com.cristianku.nav2pilot.resolve.DestinationResolver
 import com.cristianku.nav2pilot.resolve.ShortLinkResolver
 import com.cristianku.nav2pilot.security.KeystoreTokenCipher
@@ -48,6 +49,8 @@ class AppContainer(context: Context) {
         directions = MapboxDirections(httpClient, { mapbox.tokenStore.load() }, ioDispatcher),
         location = AndroidLocationProvider(context),
     )
+    // points of interest on the map, from OpenStreetMap (Overpass API, no key)
+    val places = OverpassPlaces(httpClient, ioDispatcher)
     val favoritesRepository = FavoritesRepository(dataStore)
     val deviceRepository = DeviceRepository(dataStore)
 

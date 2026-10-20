@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -40,6 +41,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
@@ -51,6 +53,7 @@ import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -105,9 +108,13 @@ import com.cristianku.nav2pilot.R
 import com.cristianku.nav2pilot.mapbox.RoutePreview
 import com.cristianku.nav2pilot.model.Destination
 import com.cristianku.nav2pilot.model.PairedDevice
+import com.cristianku.nav2pilot.places.MapArea
+import com.cristianku.nav2pilot.places.Place
+import com.cristianku.nav2pilot.places.PlaceCategory
 import com.cristianku.nav2pilot.ui.ConnectionState
 import com.cristianku.nav2pilot.ui.Formatting
 import com.cristianku.nav2pilot.ui.MainUiState
+import com.cristianku.nav2pilot.ui.MainViewModel
 import com.cristianku.nav2pilot.ui.MapIntents
 import com.cristianku.nav2pilot.ui.SendFeedback
 import com.cristianku.nav2pilot.ui.components.readClipboardText
@@ -115,6 +122,7 @@ import com.cristianku.nav2pilot.ui.map.MapColors
 import com.cristianku.nav2pilot.ui.map.MapInsets
 import com.cristianku.nav2pilot.ui.map.NavMap
 import com.cristianku.nav2pilot.ui.map.STOP_COLOR
+import com.cristianku.nav2pilot.ui.map.placeSymbol
 import com.cristianku.nav2pilot.ui.theme.StatusColors
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -142,12 +150,16 @@ class MapActions(
     val onHideMapboxDialog: () -> Unit,
     val onOpenSettings: () -> Unit,
     val onOpenFavorites: () -> Unit,
+    /** The area is the part of the map in view, null before the map has reported it. */
+    val onShowPlaces: (PlaceCategory, MapArea?) -> Unit,
+    val onHidePlaces: () -> Unit,
+    val onChoosePlace: (Place) -> Unit,
 )
 
 /**
- * The only screen: the map fills it. Search, car, settings and favorites float on top; the destination panel
- * comes up from the bottom (phone) or sits in a column on the left (landscape: the driver's side in
- * left-hand-drive cars) once there is a destination.
+ * The only screen: the map fills it. Search, car, settings, points of interest and favorites float on top; the
+ * destination panel comes up from the bottom (phone) or sits in a column on the left (landscape: the driver's side
+ * in left-hand-drive cars) once there is a destination.
  */
 @Composable
 fun MapScreen(
@@ -167,6 +179,10 @@ fun MapScreen(
     var searchShown by rememberSaveable { mutableStateOf(false) }
     var searchEditing by rememberSaveable { mutableStateOf(false) }
     var panelSizePx by remember { mutableIntStateOf(0) }
+    // read only when a category is picked, so a moving map does not recompose the screen
+    var mapArea by remember { mutableStateOf<MapArea?>(null) }
+    // a place tapped while there is a destination: as a stop, or instead of it
+    var tappedPlace by remember { mutableStateOf<Place?>(null) }
 
     val hasDestination = state.destination != null
     val searchVisible = !hasDestination || searchShown || searchEditing
@@ -184,9 +200,9 @@ fun MapScreen(
 
     val statusBarPx = WindowInsets.statusBars.getTop(density)
     val navigationBarPx = WindowInsets.navigationBars.getBottom(density)
-    // with the search shown the car sits on a second row
+    // a second row: the car under the search when it is shown, the places under the settings
     var topBarHeight = TOP_BAR_HEIGHT
-    if (searchVisible && !searchEditing) {
+    if (!searchEditing) {
         topBarHeight = TOP_BAR_HEIGHT + MAP_BUTTON_SIZE + 10.dp
     }
     val topBarPx = with(density) { topBarHeight.roundToPx() }
@@ -228,6 +244,18 @@ fun MapScreen(
                 }
             },
             onSelectRoute = actions.onSelectRoute,
+            onTapPlace = { index ->
+                if (index < state.places.size) {
+                    val place = state.places[index]
+                    val current = state.destination
+                    if (current == null) {
+                        actions.onChoosePlace(place)
+                    } else if (!place.toDestination().sameLocationAs(current)) {
+                        tappedPlace = place
+                    }
+                }
+            },
+            onAreaChange = { area -> mapArea = area },
             modifier = Modifier.fillMaxSize(),
         )
 
@@ -272,7 +300,8 @@ fun MapScreen(
             }
         }
 
-        // top: the search and the settings; the car under the search (in its place when the search is hidden)
+        // top: the search and the settings; the car under the search (in its place when the search is hidden), the
+        // points of interest under the settings
         var topRowStart = 0.dp
         if (wide && hasDestination) {
             topRowStart = WIDE_PANEL_WIDTH
@@ -321,9 +350,22 @@ fun MapScreen(
                     )
                 }
             }
-            if (searchVisible && !searchEditing) {
+            if (!searchEditing) {
                 Spacer(Modifier.height(10.dp))
-                carButton()
+                Row(verticalAlignment = Alignment.Top) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        if (searchVisible) {
+                            carButton()
+                        }
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    PlacesButton(
+                        category = state.placesCategory,
+                        loading = state.placesLoading,
+                        onShow = { category -> actions.onShowPlaces(category, mapArea) },
+                        onHide = actions.onHidePlaces,
+                    )
+                }
             }
         }
 
@@ -366,6 +408,32 @@ fun MapScreen(
                 .then(buttonsModifier)
                 .padding(end = 12.dp),
         )
+    }
+
+    val place = tappedPlace
+    if (place != null) {
+        PlaceDialog(
+            place = place,
+            canAddStop = state.destination != null && state.stops.size < MainViewModel.MAX_STOPS,
+            onAddStop = {
+                tappedPlace = null
+                actions.onAddStop(place.latitude, place.longitude)
+            },
+            onGoHere = {
+                tappedPlace = null
+                actions.onChoosePlace(place)
+            },
+            onDismiss = { tappedPlace = null },
+        )
+    }
+
+    // "none found" and the errors of the places menu, once each (not again when the screen rotates)
+    var placesMessageShown by rememberSaveable { mutableIntStateOf(0) }
+    LaunchedEffect(state.placesMessageRequest) {
+        if (state.placesMessageRequest != placesMessageShown) {
+            placesMessageShown = state.placesMessageRequest
+            Toast.makeText(context, state.placesMessage, Toast.LENGTH_LONG).show()
+        }
     }
 
     // the panel and the settings offer the Mapbox setup
@@ -444,26 +512,146 @@ private fun locationPermission(state: MainUiState, actions: MapActions): () -> U
     }
 }
 
-/** Round floating button on the map, at least 48 dp for use in the car. */
+/**
+ * Round floating button on the map, at least 48 dp for use in the car. [active]: filled while what it shows is on
+ * the map; [busy]: a spinner in place of the icon.
+ */
 @Composable
 private fun MapButton(
     painter: Painter,
     description: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    active: Boolean = false,
+    busy: Boolean = false,
 ) {
+    var background = MaterialTheme.colorScheme.surface
+    var foreground = MaterialTheme.colorScheme.primary
+    if (active) {
+        background = MaterialTheme.colorScheme.primary
+        foreground = MaterialTheme.colorScheme.onPrimary
+    }
     Surface(
         onClick = onClick,
         shape = CircleShape,
-        color = MaterialTheme.colorScheme.surface,
-        contentColor = MaterialTheme.colorScheme.primary,
+        color = background,
+        contentColor = foreground,
         shadowElevation = 6.dp,
         modifier = modifier.size(MAP_BUTTON_SIZE),
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Icon(painter, contentDescription = description, modifier = Modifier.size(24.dp))
+            if (busy) {
+                CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp, color = foreground)
+            } else {
+                Icon(painter, contentDescription = description, modifier = Modifier.size(24.dp))
+            }
         }
     }
+}
+
+/** Points of interest: the categories in a menu; the one picked is looked up in the part of the map in view. */
+@Composable
+private fun PlacesButton(
+    category: PlaceCategory?,
+    loading: Boolean,
+    onShow: (PlaceCategory) -> Unit,
+    onHide: () -> Unit,
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    Box {
+        MapButton(
+            painter = painterResource(R.drawable.ic_places),
+            description = "Points of interest",
+            onClick = { menuExpanded = true },
+            active = category != null,
+            busy = loading,
+        )
+        DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+            for (entry in PlaceCategory.entries) {
+                var shownMark: (@Composable () -> Unit)? = null
+                if (entry == category) {
+                    shownMark = { Icon(Icons.Filled.Check, contentDescription = "Shown") }
+                }
+                DropdownMenuItem(
+                    text = { Text(entry.label) },
+                    leadingIcon = {
+                        Icon(
+                            painterResource(placeSymbol(entry)),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    },
+                    trailingIcon = shownMark,
+                    onClick = {
+                        menuExpanded = false
+                        onShow(entry)
+                    },
+                )
+            }
+            HorizontalDivider()
+            DropdownMenuItem(
+                text = { Text("Hide places") },
+                leadingIcon = { Icon(Icons.Filled.Close, contentDescription = null, modifier = Modifier.size(22.dp)) },
+                enabled = category != null,
+                onClick = {
+                    menuExpanded = false
+                    onHide()
+                },
+            )
+            Text(
+                "From OpenStreetMap, in the part of the map you see. Tap a place on the map to go there.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .widthIn(max = PLACES_NOTE_MAX_WIDTH),
+            )
+        }
+    }
+}
+
+/** A place tapped while there is already a destination: a stop on the way, or the destination instead. */
+@Composable
+private fun PlaceDialog(
+    place: Place,
+    canAddStop: Boolean,
+    onAddStop: () -> Unit,
+    onGoHere: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(painterResource(placeSymbol(place.category)), contentDescription = null) },
+        title = { Text(place.name, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+        text = {
+            Column {
+                if (place.details.isNotEmpty()) {
+                    Text(place.details, style = MaterialTheme.typography.bodyMedium)
+                }
+                // an unnamed place is already called by its category
+                if (place.name != place.category.singular) {
+                    Text(
+                        place.category.singular,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            if (canAddStop) {
+                TextButton(onClick = onAddStop) {
+                    Text("Add as stop")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onGoHere) {
+                Text("Go here instead")
+            }
+        },
+    )
 }
 
 /** The pill "Where to?"; tapped, it becomes the search field with the results under it. */
@@ -1181,6 +1369,7 @@ private val WIDE_PANEL_WIDTH = 380.dp
 private val SEARCH_MAX_WIDTH = 520.dp
 private val RESULTS_MAX_HEIGHT = 320.dp
 private val CAR_LABEL_MAX_WIDTH = 140.dp
+private val PLACES_NOTE_MAX_WIDTH = 240.dp
 private val PANEL_MAX_HEIGHT = 440.dp
 private val SEND_BUTTON_HEIGHT = 56.dp
 private const val UNPICKED_ROUTE_COLOR = 0xFF9AA5B1.toInt()

@@ -200,6 +200,7 @@ class DestinationResolver(
         const val SOURCE_SEARCH = "Search"
         const val SOURCE_MAP = "Map"
         const val SOURCE_FAVORITE = "Favorite"
+        const val SOURCE_PLACES = "OpenStreetMap"
 
         private const val EXACT_RANK = 3
         private const val MAX_RESULTS = 5

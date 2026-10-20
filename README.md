@@ -74,6 +74,19 @@ one of the two builds above, other software gets the destination only and picks 
   <img src="docs/screenshots/route.png" width="270" alt="Route preview: the fastest route and an alternative on the Mapbox map">
 </p>
 
+## Points of interest
+
+The small button under the settings, at the top right of the map, opens a menu of places: fuel stations, EV
+charging, parking, rest areas, restaurants, cafés, supermarkets, hotels and pharmacies. Pick one and they show
+up on the part of the map you see (when the map shows a whole region, its middle, about 50 × 50 km). The
+button stays filled while they are on the map; **Hide places** in the same menu takes them away.
+
+Tap a place to make it your destination. If you already have one, the app asks whether to add the place as a
+stop on the way (a fuel station on a long drive) or to go there instead.
+
+The places come from OpenStreetMap, through a public Overpass server: free, no account, with or without a
+Mapbox token.
+
 ## Car screens: CarlinKit, Android Auto, CarPlay
 
 On a landscape screen (a car head unit, a tablet, a phone on its side) the app switches to two panes: search,
@@ -136,7 +149,8 @@ CarPlay app needs a dedicated car screen and a CarPlay entitlement that Apple gr
 - Your comma token and your Mapbox token are encrypted with a key that never leaves the Android Keystore,
   and they are never logged.
 - The app only talks to comma (to reach your device), to Google Maps (to open shared links), to the phone's
-  address search and, if you set it up, to Mapbox. No analytics, no tracking.
+  address search, to OpenStreetMap's Overpass servers (when you ask for points of interest: the category and
+  the part of the map you see) and, if you set it up, to Mapbox. No analytics, no tracking.
 - Your position is only used for the route preview: it goes to Mapbox, with your own token, and nowhere else.
 
 Nav2Pilot is an independent project, not affiliated with comma.ai or sunnypilot.
@@ -165,6 +179,8 @@ APIs, independently of the openpilot / sunnypilot source code.
 - **Route map (with the Mapbox token)**: the fastest route and its alternatives from the phone's position,
   stops added with a long press; the picked route goes to the device as waypoints (see "Route map and
   waypoints").
+- **Points of interest**: nine categories from OpenStreetMap (Overpass API) in the part of the map in view; a
+  place becomes the destination or a stop (see "Points of interest").
 - **Landscape layout** for car head units and tablets: two panes and a navigation rail.
 
 ### comma token
@@ -257,6 +273,21 @@ Setup: Devices → Mapbox → **Set up Mapbox**.
   the same roads. The fastest route without stops is sent as `setNavDestination`. A device without
   `setNavRoute` (JSON-RPC -32601) gets `setNavDestination` instead, and the app says so.
 
+### Points of interest
+
+- Source: OpenStreetMap through the public Overpass API (`overpass-api.de`, then `overpass.private.coffee` when
+  the first answers 429, 5xx or not at all). No key; the requests carry the app's `User-Agent`.
+- Query: one `POST` (`data=` form field) per category picked: `nwr<tag filter>(south,west,north,east); out
+  center 200;`, so ways and relations (a fuel station drawn as an area) come back as their centre. The box is
+  the part of the map left visible by the panel and the buttons, cut to 25 km around its middle when the map is
+  zoomed out. Of the answer, the 50 places nearest to the middle are drawn.
+- Tags: `amenity=fuel`, `amenity=charging_station`, `amenity=parking` (not `access=private|no`),
+  `highway=services|rest_area`, `amenity=restaurant|fast_food`, `amenity=cafe`, `shop=supermarket`,
+  `tourism=hotel|motel`, `amenity=pharmacy` (`places/Places.kt`). A place without a `name` takes its
+  `brand`, then its `operator`, then the category's name; the address comes from the `addr:*` tags.
+- A tapped place goes to the device like any destination: its coordinates only, or as a stop
+  (`setNavRoute` waypoint with `via: false`).
+
 ### sunnylink
 
 Investigated, **not implemented** (the `SunnylinkTransport` backend is an explicit stub):
@@ -301,8 +332,8 @@ another backend can be added without touching the UI.
 - The Mapbox public token is encrypted the same way, and is sent only to `api.mapbox.com` (token check) and,
   through athena, to your own device.
 - Network access is limited to `api.commadotai.com`, `athena.comma.ai`, Google Maps hosts (only to expand
-  shared links), the phone's Geocoder service (address search) and, only with a Mapbox token,
-  `api.mapbox.com`. No analytics.
+  shared links), the phone's Geocoder service (address search), the Overpass API servers (points of interest,
+  only when a category is picked) and, only with a Mapbox token, `api.mapbox.com`. No analytics.
 
 ### Build
 
@@ -330,7 +361,8 @@ newer AndroidX versions together.
 
 - JVM unit tests (`app/src/test`): link parsing (including a real `maps.app.goo.gl` redirect and EU consent
   hop captured on 2026-10-17), short-link expansion, resolver fallbacks, the exact athena JSON-RPC requests
-  and response handling, token storage, repositories and the ViewModel flow. No network access.
+  and response handling, token storage, repositories, the Overpass query and answer for points of interest
+  and the ViewModel flow. No network access.
 - Instrumented test (`app/src/androidTest`): Keystore encryption round trip. Needs a device or emulator:
   `./gradlew connectedDebugAndroidTest`.
 
