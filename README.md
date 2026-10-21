@@ -398,9 +398,10 @@ newer AndroidX versions together.
 
 ### CI
 
-`.github/workflows/android.yml` runs only when a `v*` tag is pushed. It runs unit tests and release
-lint, builds a signed release APK and the instrumented test APK, and publishes the release APK on
-GitHub Releases. Ordinary pushes to `main` do not start a build.
+Releases are built and published only on the Mac with `scripts/build-release.sh`. `.github/workflows/android.yml`
+never starts on its own (no push or tag trigger): it runs only when started by hand from the Actions tab
+(`workflow_dispatch`). It runs unit tests and release lint and builds a signed release APK and the
+instrumented test APK.
 
 #### Permanent release signing
 
@@ -409,7 +410,7 @@ temporary debug keys and cannot update each other. Moving from one of those buil
 release key requires uninstalling the old app once, which removes its token, devices and favorites.
 Subsequent releases signed with the permanent key can update in place.
 
-Configure these repository **Actions secrets** before pushing the next release tag:
+Configure these repository **Actions secrets** before starting the workflow by hand:
 
 | Secret | Value |
 | --- | --- |

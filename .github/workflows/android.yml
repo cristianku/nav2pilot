@@ -1,10 +1,9 @@
 name: Android build
 
 on:
-  push:
-    # Pushing a tag like v1.0 runs tests, lint and the signed build. No GitHub Release is published:
-    # the app is distributed only through Google Play (scripts/build-release.sh).
-    tags: ["v*"]
+  # Manual only: releases are built and published from the Mac with scripts/build-release.sh,
+  # which pushes the tag v<version>. Pushing a tag must not start a build here.
+  workflow_dispatch:
 
 permissions:
   contents: read

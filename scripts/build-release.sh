@@ -59,7 +59,7 @@ fi
 TAG="v$VERSION"
 
 if [ "$PUBLISH" = "yes" ]; then
-  # the release is built by GitHub from the tagged commit: it must be committed and pushed
+  # the tag marks the released commit: it must be committed and pushed
   if [ -n "$(git status --porcelain)" ]; then
     echo "Uncommitted changes: commit them first, the release is built from the pushed commit."
     exit 1
