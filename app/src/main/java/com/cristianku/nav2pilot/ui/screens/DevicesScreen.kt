@@ -766,7 +766,7 @@ internal fun MapboxTokenDialog(
                     style = MaterialTheme.typography.bodySmall,
                 )
                 TextButton(onClick = { uriHandler.openUri("https://github.com/cristianku/openpilot/tree/sunny-nav-alpha") }) {
-                    Text("cristianku/openpilot:sunny-nav-alpha (not yet published)")
+                    Text("cristianku/openpilot:sunny-nav-alpha")
                 }
                 if (message.isNotEmpty()) {
                     Text(message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
