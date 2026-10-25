@@ -136,7 +136,10 @@ if [ "$AAB_CERT" != "$EXPECTED_CERT" ]; then
   exit 1
 fi
 echo "signed with the release key: ok"
-"$BUILD_TOOLS/aapt" dump badging "$APK" | head -1 | grep -o "versionCode='[0-9]*' versionName='[^']*'"
+# first line without head in a pipe: head closing early kills aapt (SIGPIPE, exit 141) under pipefail
+BADGING="$("$BUILD_TOOLS/aapt" dump badging "$APK")"
+FIRST_LINE="${BADGING%%$'\n'*}"
+echo "$FIRST_LINE" | grep -o "versionCode='[0-9]*' versionName='[^']*'"
 
 if [ "$INSTALL" = "yes" ]; then
   echo "== install on the phone"
