@@ -32,16 +32,22 @@ val machineSecretsDir = File(
     providers.environmentVariable("NAV2PILOT_SECRETS").orNull
         ?: (System.getProperty("user.home") + "/.secrets/nav2pilot")
 )
-fun secretFile(repoPath: String, machineName: String): File {
+// Secrets used by every app of the account (Play service account) live in the shared folder
+// SHARED_SECRETS (default ~/.secrets/shared).
+val sharedSecretsDir = File(
+    providers.environmentVariable("SHARED_SECRETS").orNull
+        ?: (System.getProperty("user.home") + "/.secrets/shared")
+)
+fun secretFile(repoPath: String, machineDir: File, machineName: String): File {
     val repoFile = rootProject.file(repoPath)
     if (repoFile.isFile) {
         return repoFile
     }
-    return File(machineSecretsDir, machineName)
+    return File(machineDir, machineName)
 }
 
 val localSigning = Properties().apply {
-    val propertiesFile = secretFile("keystore.properties", "keystore.properties")
+    val propertiesFile = secretFile("keystore.properties", machineSecretsDir, "keystore.properties")
     if (propertiesFile.isFile) propertiesFile.inputStream().use { load(it) }
 }
 fun signingValue(environmentName: String, propertyName: String): String? =
@@ -119,10 +125,12 @@ android {
 }
 
 // Google Play upload with the service account key in .signing/ (ignored by git, see README)
-// or in the machine-level secrets folder.
+// or in the shared secrets folder.
 // The track can be changed from the command line: ./gradlew publishReleaseBundle --track alpha
 play {
-    serviceAccountCredentials.set(secretFile(".signing/play-service-account.json", "play-service-account.json"))
+    serviceAccountCredentials.set(
+        secretFile(".signing/play-service-account.json", sharedSecretsDir, "play-service-account.json")
+    )
     track.set("internal")
     defaultToAppBundles.set(true)
 }

@@ -10,8 +10,9 @@
 #   scripts/build-release.sh --local      only builds, does not publish
 #
 # Needs keystore.properties, the keystore and the Play service account key
-# (.signing/play-service-account.json), all ignored by git, see README; or the same files in the
-# machine-level folder $NAV2PILOT_SECRETS (default ~/.secrets/nav2pilot), e.g. on a build server.
+# (.signing/play-service-account.json), all ignored by git, see README; or, e.g. on a build server,
+# keystore.properties + keystore in $NAV2PILOT_SECRETS (default ~/.secrets/nav2pilot) and the
+# service account, shared by all the apps, in $SHARED_SECRETS (default ~/.secrets/shared).
 # The first version of the app must have been uploaded by hand in Play Console.
 # APK and AAB end up in build/nav2pilot-v<version>.apk and .aab.
 set -euo pipefail
@@ -24,9 +25,10 @@ EXPECTED_CERT="79be28ef7cc9118c3547a28fbc327f776e8bff7aeb37705be7ff01c6ba5d4164"
 
 # secrets: in the repo (ignored by git) or in the machine-level folder, same rule as app/build.gradle.kts
 SECRETS="${NAV2PILOT_SECRETS:-$HOME/.secrets/nav2pilot}"
+SHARED="${SHARED_SECRETS:-$HOME/.secrets/shared}"
 PLAY_KEY=".signing/play-service-account.json"
 if [ ! -f "$PLAY_KEY" ]; then
-  PLAY_KEY="$SECRETS/play-service-account.json"
+  PLAY_KEY="$SHARED/play-service-account.json"
 fi
 KEYSTORE_PROPERTIES="keystore.properties"
 if [ ! -f "$KEYSTORE_PROPERTIES" ]; then
