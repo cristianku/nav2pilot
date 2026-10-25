@@ -10,7 +10,8 @@
 #   scripts/build-release.sh --local      only builds, does not publish
 #
 # Needs keystore.properties, the keystore and the Play service account key
-# (.signing/play-service-account.json), all ignored by git, see README.
+# (.signing/play-service-account.json), all ignored by git, see README; or the same files in the
+# machine-level folder $NAV2PILOT_SECRETS (default ~/.secrets/nav2pilot), e.g. on a build server.
 # The first version of the app must have been uploaded by hand in Play Console.
 # APK and AAB end up in build/nav2pilot-v<version>.apk and .aab.
 set -euo pipefail
@@ -21,7 +22,16 @@ cd "$REPO"
 # certificate of the permanent release key (v1.0.3 and later)
 EXPECTED_CERT="79be28ef7cc9118c3547a28fbc327f776e8bff7aeb37705be7ff01c6ba5d4164"
 
+# secrets: in the repo (ignored by git) or in the machine-level folder, same rule as app/build.gradle.kts
+SECRETS="${NAV2PILOT_SECRETS:-$HOME/.secrets/nav2pilot}"
 PLAY_KEY=".signing/play-service-account.json"
+if [ ! -f "$PLAY_KEY" ]; then
+  PLAY_KEY="$SECRETS/play-service-account.json"
+fi
+KEYSTORE_PROPERTIES="keystore.properties"
+if [ ! -f "$KEYSTORE_PROPERTIES" ]; then
+  KEYSTORE_PROPERTIES="$SECRETS/keystore.properties"
+fi
 
 VERSION=""
 INSTALL="no"
@@ -80,16 +90,24 @@ if [ "$PUBLISH" = "yes" ]; then
   fi
 fi
 
-if [ ! -f keystore.properties ]; then
-  echo "keystore.properties is missing: without it the APK cannot be signed with the release key."
+if [ ! -f "$KEYSTORE_PROPERTIES" ]; then
+  echo "keystore.properties is missing (repo or $SECRETS): without it the APK cannot be signed with the release key."
   exit 1
 fi
 
 # the pinned Android Gradle Plugin 8.0 needs JDK 17
-JAVA_HOME="$(/usr/libexec/java_home -v 17)"
+if [ -x /usr/libexec/java_home ]; then
+  JAVA_HOME="$(/usr/libexec/java_home -v 17)"
+elif [ -d /usr/lib/jvm/java-17-openjdk-amd64 ]; then
+  JAVA_HOME="/usr/lib/jvm/java-17-openjdk-amd64"
+fi
 export JAVA_HOME
 
-SDK="$HOME/Library/Android/sdk"
+if [ -n "${ANDROID_HOME:-}" ]; then
+  SDK="$ANDROID_HOME"
+else
+  SDK="$HOME/Library/Android/sdk"
+fi
 BUILD_TOOLS="$(ls -d "$SDK"/build-tools/* | sort -V | tail -1)"
 
 echo "== tests and signed release build ($VERSION)"

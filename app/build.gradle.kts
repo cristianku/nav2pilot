@@ -26,8 +26,22 @@ val releaseVersionCode = releaseVersion?.let { version ->
     code.toInt()
 }
 
+// Secrets are read from the repo first, then from the machine-level folder
+// NAV2PILOT_SECRETS (default ~/.secrets/nav2pilot), so a fresh clone needs nothing copied into it.
+val machineSecretsDir = File(
+    providers.environmentVariable("NAV2PILOT_SECRETS").orNull
+        ?: (System.getProperty("user.home") + "/.secrets/nav2pilot")
+)
+fun secretFile(repoPath: String, machineName: String): File {
+    val repoFile = rootProject.file(repoPath)
+    if (repoFile.isFile) {
+        return repoFile
+    }
+    return File(machineSecretsDir, machineName)
+}
+
 val localSigning = Properties().apply {
-    val propertiesFile = rootProject.file("keystore.properties")
+    val propertiesFile = secretFile("keystore.properties", "keystore.properties")
     if (propertiesFile.isFile) propertiesFile.inputStream().use { load(it) }
 }
 fun signingValue(environmentName: String, propertyName: String): String? =
@@ -104,10 +118,11 @@ android {
     }
 }
 
-// Google Play upload with the service account key in .signing/ (ignored by git, see README).
+// Google Play upload with the service account key in .signing/ (ignored by git, see README)
+// or in the machine-level secrets folder.
 // The track can be changed from the command line: ./gradlew publishReleaseBundle --track alpha
 play {
-    serviceAccountCredentials.set(rootProject.file(".signing/play-service-account.json"))
+    serviceAccountCredentials.set(secretFile(".signing/play-service-account.json", "play-service-account.json"))
     track.set("internal")
     defaultToAppBundles.set(true)
 }
