@@ -100,16 +100,22 @@ fi
 # the pinned Android Gradle Plugin 8.0 needs JDK 17
 if [ -x /usr/libexec/java_home ]; then
   JAVA_HOME="$(/usr/libexec/java_home -v 17)"
+elif [ -d /usr/lib/jvm/temurin-17-jdk-amd64 ]; then
+  JAVA_HOME="/usr/lib/jvm/temurin-17-jdk-amd64"
 elif [ -d /usr/lib/jvm/java-17-openjdk-amd64 ]; then
   JAVA_HOME="/usr/lib/jvm/java-17-openjdk-amd64"
 fi
 export JAVA_HOME
 
+# Android SDK: $ANDROID_HOME, else the Mac default, else the build server one (/opt/android-sdk)
 if [ -n "${ANDROID_HOME:-}" ]; then
   SDK="$ANDROID_HOME"
-else
+elif [ -d "$HOME/Library/Android/sdk" ]; then
   SDK="$HOME/Library/Android/sdk"
+else
+  SDK="/opt/android-sdk"
 fi
+export ANDROID_HOME="$SDK"
 BUILD_TOOLS="$(ls -d "$SDK"/build-tools/* | sort -V | tail -1)"
 
 echo "== tests and signed release build ($VERSION)"
