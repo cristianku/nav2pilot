@@ -12,12 +12,13 @@ import re
 from pathlib import Path
 
 DOCS = Path(__file__).resolve().parent.parent / "docs"
-UPDATED = "25 October 2026"
+UPDATED = "26 October 2026"
 SITE_POLICY = "https://cristianku.com/privacy-policy/"
 MAIL = '<a href="mailto:admin@14bodhi.com">admin@14bodhi.com</a>'
 
 # Alphabetical: (anchor, name, source page)
 APPS = [
+    ("cubomi", "Cubomi", DOCS / "cubomi/privacy/index.html"),
     ("groovejam", "GrooveJam", DOCS / "groovejam/privacy/index.html"),
     ("nav2pilot", "Nav2Pilot", DOCS / "privacy/index.html"),
     ("risono", "Risono", DOCS / "risono/privacy/index.html"),
@@ -89,7 +90,7 @@ def main():
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Apps by 14 Bodhi — Privacy Policy</title>
-<meta name="description" content="Privacy policies of the apps by 14 Bodhi: GrooveJam, Nav2Pilot, Risono.">
+<meta name="description" content="Privacy policies of the apps by 14 Bodhi: Cubomi, GrooveJam, Nav2Pilot, Risono.">
 {style}
 <body>
 <main>
