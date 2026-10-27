@@ -215,8 +215,16 @@ private fun render(holder: MapHolder, context: Context) {
 }
 
 private fun styleBuilder(key: String, mapboxToken: String): Style.Builder {
-    val dark = key.endsWith(":dark")
+    var token = ""
     if (key.startsWith("mapbox:")) {
+        token = mapboxToken
+    }
+    return baseMapStyle(token, key.endsWith(":dark"))
+}
+
+/** The base map alone, without our layers ("" for OpenFreeMap). The car screen draws on it too. */
+internal fun baseMapStyle(mapboxToken: String, dark: Boolean): Style.Builder {
+    if (mapboxToken.isNotEmpty()) {
         var tiles = MapboxEndpoints.STREETS_TILES_URL
         if (dark) {
             tiles = MapboxEndpoints.DARK_TILES_URL

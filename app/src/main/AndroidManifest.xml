@@ -8,6 +8,9 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <!-- osmdroid checks the connection before downloading map tiles -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Android Auto: the favorites on Android Auto's map, and the route map the app draws on the car screen -->
+    <uses-permission android:name="androidx.car.app.MAP_TEMPLATES" />
+    <uses-permission android:name="androidx.car.app.ACCESS_SURFACE" />
 
     <!-- Backups are disabled: the token key lives in the Android Keystore and cannot be restored anyway. -->
     <application
@@ -48,5 +51,23 @@
                 <data android:scheme="geo" />
             </intent-filter>
         </activity>
+
+        <!-- Android Auto: a point-of-interest app of the Car App Library (car/) -->
+        <service
+            android:name=".car.Nav2PilotCarAppService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="androidx.car.app.CarAppService" />
+                <category android:name="androidx.car.app.category.POI" />
+            </intent-filter>
+        </service>
+
+        <meta-data
+            android:name="com.google.android.gms.car.application"
+            android:resource="@xml/automotive_app_desc" />
+        <!-- MapWithContentTemplate, the route screen, needs car API level 7 -->
+        <meta-data
+            android:name="androidx.car.app.minCarApiLevel"
+            android:value="7" />
     </application>
 </manifest>

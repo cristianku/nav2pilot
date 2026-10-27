@@ -26,8 +26,8 @@ import com.cristianku.nav2pilot.resolve.ResolveOutcome
 import com.cristianku.nav2pilot.security.JwtInfo
 import com.cristianku.nav2pilot.security.TokenStore
 import com.cristianku.nav2pilot.transport.CommaAthenaTransport
-import com.cristianku.nav2pilot.transport.Delivery
 import com.cristianku.nav2pilot.transport.DemoAccount
+import com.cristianku.nav2pilot.transport.DestinationSender
 import com.cristianku.nav2pilot.transport.DeviceStatus
 import com.cristianku.nav2pilot.transport.TransportError
 import com.cristianku.nav2pilot.transport.TransportErrorText
@@ -114,6 +114,9 @@ class MainViewModel(
     val favorites: StateFlow<List<Favorite>> = favoritesRepository.favorites
     val devices: StateFlow<List<PairedDevice>> = deviceRepository.devices
     val selectedDongleId: StateFlow<String> = deviceRepository.selectedDongleId
+
+    // the Mapbox token goes with every destination, before it, so the first route request of the car already uses it
+    private val sender = DestinationSender(transports) { loadMapboxToken() }
 
     private var resolveJob: Job? = null
     private var connectionJob: Job? = null
@@ -309,36 +312,10 @@ class MainViewModel(
             return
         }
         state.value = state.value.copy(sending = true, feedback = null)
+        val waypoints = plannedWaypoints()
         viewModelScope.launch {
-            // the Mapbox token goes with every destination, before it, so the first route request of the car already uses it
-            val mapboxToken = loadMapboxToken()
-            if (mapboxToken != null) {
-                sendMapboxToken(mapboxToken, device)
-            }
-            val waypoints = plannedWaypoints()
-            val result: TransportResult<Delivery>
-            if (waypoints.isEmpty()) {
-                result = transports.forDevice(device).setDestination(device, destination)
-            } else {
-                result = transports.forDevice(device).setRoute(device, destination, waypoints)
-            }
-            val feedback: SendFeedback
-            if (result is TransportResult.Ok) {
-                var message = "Destination sent to ${device.displayName()}."
-                if (waypoints.isNotEmpty()) {
-                    message = "Route sent to ${device.displayName()}."
-                }
-                if (result.value.queued) {
-                    message = "Queued by athena: ${result.value.note}"
-                } else if (result.value.note.isNotEmpty()) {
-                    message = "Destination sent to ${device.displayName()}. " + result.value.note
-                }
-                feedback = SendFeedback(true, message, clock())
-            } else {
-                val error = (result as TransportResult.Failed).error
-                feedback = SendFeedback(false, TransportErrorText.describe(error), clock())
-            }
-            state.value = state.value.copy(sending = false, feedback = feedback)
+            val outcome = sender.send(device, destination, waypoints)
+            state.value = state.value.copy(sending = false, feedback = SendFeedback(outcome.success, outcome.message, clock()))
         }
     }
 

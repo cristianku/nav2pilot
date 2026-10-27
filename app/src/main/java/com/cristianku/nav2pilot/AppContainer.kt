@@ -21,10 +21,12 @@ import com.cristianku.nav2pilot.resolve.ShortLinkResolver
 import com.cristianku.nav2pilot.security.KeystoreTokenCipher
 import com.cristianku.nav2pilot.security.TokenStore
 import com.cristianku.nav2pilot.transport.CommaAthenaTransport
+import com.cristianku.nav2pilot.transport.DestinationSender
 import com.cristianku.nav2pilot.transport.SunnylinkTransport
 import com.cristianku.nav2pilot.transport.TransportRegistry
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /** Manual dependency wiring: one instance of each service for the whole app. */
 class AppContainer(context: Context) {
@@ -57,6 +59,8 @@ class AppContainer(context: Context) {
         ioDispatcher = ioDispatcher,
     )
     val transports = TransportRegistry(commaTransport, SunnylinkTransport())
+    /** The car screen's sends; the phone's go through MainViewModel, with the same sender. */
+    val sender = DestinationSender(transports) { withContext(ioDispatcher) { mapbox.tokenStore.load() } }
 
     val placeSearch: PlaceSearch = AndroidGeocoderSearch(context.applicationContext, ioDispatcher)
     val destinationResolver = DestinationResolver(ShortLinkResolver(httpClient), placeSearch, ioDispatcher)

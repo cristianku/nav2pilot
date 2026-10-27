@@ -113,6 +113,8 @@ android {
 
     testOptions {
         unitTests.isReturnDefaultValues = false
+        // Robolectric (car screen tests) reads the app's resources and manifest
+        unitTests.isIncludeAndroidResources = true
     }
 
     lint {
@@ -170,6 +172,8 @@ dependencies {
     // Base map from OpenFreeMap (free, no key), or Mapbox Streets raster tiles with the user's own public token,
     // so that Mapbox routes are shown on a Mapbox map.
     implementation("org.maplibre.gl:android-sdk:13.6.1")
+    // Android Auto screen (car/): templates drawn by Android Auto
+    implementation("androidx.car.app:app:1.7.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 
@@ -177,6 +181,10 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
     // Real org.json for JVM unit tests (android.jar only ships stubs).
     testImplementation("org.json:json:20230618")
+    // The car screens' templates, built and checked by the Car App Library on the JVM
+    testImplementation("androidx.car.app:app-testing:1.7.0")
+    testImplementation("androidx.test:core:1.7.0")
+    testImplementation("org.robolectric:robolectric:4.16.1")
 
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test:runner:1.7.0")

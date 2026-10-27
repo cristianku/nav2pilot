@@ -162,25 +162,34 @@ Good to know:
 - The route preview starts from the box's position. A box without GPS has no position: the destination can
   still be sent, without the preview.
 
-### Android Auto: not yet
+### Android Auto
 
-Android Auto does not show ordinary apps: an app has to provide a dedicated car screen, built from the
-templates of Google's Android for Cars App Library. Nav2Pilot does not have one yet, so it does not appear in
-Android Auto. Until it does, use it on the phone or on a CarlinKit Android box.
+Nav2Pilot has its own Android Auto screen. Connect the phone to the car and open Nav2Pilot from the Android
+Auto launcher:
 
-When a build with Android Auto support is out, it is not from the Play Store, so Android Auto has to be told
-to show it:
+- **Favorites** on the map, nearest first, with their distance. Tap one to open it.
+- **The route**: the destination on a map with, if you set up Mapbox, the fastest route and up to two
+  alternatives from the phone's position. Pick one and tap **Send**: the car follows it.
+- **Search** an address, a place or coordinates. The car shows the keyboard only when it allows it, usually
+  when parked.
+- **Car**: your cars with their status (online, software version). Pick the one to send to, or clear its
+  destination.
 
-1. On the phone, open the Android Auto settings (Settings → Connected devices → Connection preferences →
-   Android Auto, or the Android Auto app).
-2. Tap **Version** at the bottom about ten times, until it says developer settings are enabled.
-3. Menu (⋮) → **Developer settings** → turn on **Unknown sources**.
-4. Back in the Android Auto settings → **Customize launcher**: enable Nav2Pilot.
+Everything that is setup stays on the phone: the comma token, Mapbox, adding cars and favorites. If something
+is missing, the car screen says so. What you change on the phone shows up in the car at once.
+
+If Nav2Pilot does not show up in the Android Auto launcher:
+
+1. In the Android Auto settings → **Customize launcher**, check that Nav2Pilot is enabled.
+2. Still missing (for example with an APK installed by hand, not from Google Play): open the Android Auto
+   settings (Settings → Connected devices → Connection preferences → Android Auto, or the Android Auto app),
+   tap **Version** at the bottom about ten times until developer settings are enabled, then Menu (⋮) →
+   **Developer settings** → turn on **Unknown sources**.
 
 ### CarPlay
 
-CarPlay is for the [iOS app](https://github.com/cristianku/nav2pilot-ios) and is not supported yet either: a
-CarPlay app needs a dedicated car screen and a CarPlay entitlement that Apple grants on request.
+CarPlay is for the [iOS app](https://github.com/cristianku/nav2pilot-ios) and is not supported yet: a
+CarPlay app needs a CarPlay entitlement that Apple grants on request.
 
 ## If something doesn't work
 
@@ -227,6 +236,8 @@ APIs, independently of the openpilot / sunnypilot source code.
   stops added with a long press; the picked route goes to the device as waypoints (see "Route map and
   waypoints").
 - **Landscape layout** for car head units and tablets: two panes and a navigation rail.
+- **Android Auto**: favorites on the map, route preview and alternatives, search, the cars' status and
+  clearing the destination (see "Android Auto screen").
 
 ### comma token
 
@@ -310,9 +321,10 @@ Setup: Devices → Mapbox → **Set up Mapbox**.
 - Routes: Mapbox Directions API, profile `mapbox/driving-traffic` (the same as the device's navd), from the
   phone's position (platform `LocationManager`, no Google Play services needed) through the stops to the
   destination, with up to two alternatives when there are no stops.
-- Map: [osmdroid](https://github.com/osmdroid/osmdroid) with Mapbox Streets raster tiles (Static Tiles API)
-  and the user's public token. The Mapbox Maps SDK for Android is not used: it needs a secret token just to
-  download it from Mapbox's Maven repository, which every contributor and the CI would need.
+- Map: [MapLibre](https://github.com/maplibre/maplibre-native) with Mapbox Streets raster tiles (Static
+  Tiles API) and the user's public token, or [OpenFreeMap](https://openfreemap.org) without one. The Mapbox
+  Maps SDK for Android is not used: it needs a secret token just to download it from Mapbox's Maven
+  repository, which every contributor and the CI would need.
 - What the device gets: `setNavRoute(latitude, longitude, waypoints)` (cristianku/sunnypilot `nav-alpha`,
   `sunnypilot/navd/athena.py`; cristianku/openpilot `nav-alpha`, `selfdrive/navigation/nav2pilot/athena.py`). Stops go as waypoints with `via: false`; a picked alternative goes as three
   silent `via: true` points at 25 %, 50 % and 75 % of its length, so the device's own Mapbox request follows
@@ -332,6 +344,32 @@ Investigated, **not implemented** (the `SunnylinkTransport` backend is an explic
 - Not available: a documented API contract, and a supported way for a third-party app to obtain a sunnylink
   token (the frontend signs users in through its own Logto OIDC client).
 
+### Android Auto screen
+
+- Car App Library 1.7 (`androidx.car.app`), category **POI** (point of interest apps "let the user discover
+  and navigate to points of interest and take relevant actions"), minimum car API level 7.
+- Favorites: `PlaceListMapTemplate`, on the map Android Auto draws itself. The rows are browsable (they open
+  the route) and carry a `DistanceSpan` when the phone's position is known; nearest first, up to the car's
+  place-list limit (usually 6).
+- Route: `MapWithContentTemplate` with a selectable list of routes. Android Auto has no map view for apps, so
+  the app draws on the surface it gets for map templates (`androidx.car.app.ACCESS_SURFACE`): a still MapLibre
+  snapshot (`MapSnapshotter`) in the phone map's style, with the routes and pins drawn on top with the same
+  Web Mercator camera (`CarMapCamera`). A new snapshot is taken only when the plan, the size or the day/night
+  theme change; without a network the routes stay on a plain background.
+- Sending goes through `DestinationSender`, the same code as the Send tab: the Mapbox token first, then
+  `setNavDestination`, or `setNavRoute` for an alternative.
+- Setup (tokens, cars, favorites) stays on the phone. When something is missing the car screen says where to
+  add it and to look at the phone only when it is safe (Car App Quality guideline VI-1).
+- Host validation: release builds accept only Android Auto and the Android Automotive OS templates host
+  (Google's sample allowlist, copied in `res/values/car_hosts.xml`), debug builds any host, for the Desktop
+  Head Unit.
+- Try it with the Desktop Head Unit (SDK Manager → Android Auto Desktop Head Unit Emulator): Android Auto
+  developer settings → **Start head unit server** on the phone, then `adb forward tcp:5277 tcp:5277` and
+  `$ANDROID_HOME/extras/google/auto/desktop-head-unit`.
+- Google Play: the Android Auto form factor is added in Play Console (Test and release → Advanced settings →
+  Form factors). Its review does not apply to internal testing, does not block closed testing and blocks
+  production releases.
+
 ### Architecture
 
 ```
@@ -343,11 +381,12 @@ app/src/main/java/com/cristianku/nav2pilot/
   resolve/                   short-link expansion, link -> search fallback
   geocode/                   PlaceSearch (Android Geocoder)
   net/                       HttpClient abstraction (HttpURLConnection)
-  transport/                 NavigationTransport + comma athena backend + sunnylink stub
+  transport/                 NavigationTransport + comma athena backend + sunnylink stub, DestinationSender
   mapbox/                    Mapbox token check
   security/                  Keystore AES-GCM cipher, encrypted token store, JWT expiry
   data/                      favorites and devices (SharedPreferences + JSON)
   ui/                        Compose screens: Send, Favorites, Devices
+  car/                       Android Auto: CarAppService, car screens, car map
 ```
 
 `NavigationTransport` is the backend abstraction (`listDevices`, `checkStatus`, `setDestination`,
@@ -363,8 +402,9 @@ another backend can be added without touching the UI.
 - The Mapbox public token is encrypted the same way, and is sent only to `api.mapbox.com` (token check) and,
   through athena, to your own device.
 - Network access is limited to `api.commadotai.com`, `athena.comma.ai`, Google Maps hosts (only to expand
-  shared links), the phone's Geocoder service (address search) and, only with a Mapbox token,
-  `api.mapbox.com`. No analytics.
+  shared links), the phone's Geocoder service (address search), `tiles.openfreemap.org` (map without a
+  Mapbox token) and, only with a Mapbox token, `api.mapbox.com`. Android Auto adds nothing: the car screen
+  uses the same services. No analytics.
 
 ### Build
 
@@ -393,6 +433,9 @@ newer AndroidX versions together.
 - JVM unit tests (`app/src/test`): link parsing (including a real `maps.app.goo.gl` redirect and EU consent
   hop captured on 2026-10-17), short-link expansion, resolver fallbacks, the exact athena JSON-RPC requests
   and response handling, token storage, repositories and the ViewModel flow. No network access.
+- Android Auto screens (`app/src/test/.../car`): every template is built with the Car App Library's test host
+  under Robolectric, so the library's own checks run on them; plus the car map's camera. Robolectric runs
+  them on SDK 35, because SDK 36 needs Java 21.
 - Instrumented test (`app/src/androidTest`): Keystore encryption round trip. Needs a device or emulator:
   `./gradlew connectedDebugAndroidTest`.
 
