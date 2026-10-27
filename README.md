@@ -178,13 +178,10 @@ Auto launcher:
 Everything that is setup stays on the phone: the comma token, Mapbox, adding cars and favorites. If something
 is missing, the car screen says so. What you change on the phone shows up in the car at once.
 
-If Nav2Pilot does not show up in the Android Auto launcher:
-
-1. In the Android Auto settings → **Customize launcher**, check that Nav2Pilot is enabled.
-2. Still missing (for example with an APK installed by hand, not from Google Play): open the Android Auto
-   settings (Settings → Connected devices → Connection preferences → Android Auto, or the Android Auto app),
-   tap **Version** at the bottom about ten times until developer settings are enabled, then Menu (⋮) →
-   **Developer settings** → turn on **Unknown sources**.
+Android Auto shows Nav2Pilot only when it is installed from Google Play, as a tester or from the store. An
+APK installed by hand does not appear in the car: Android Auto's "Unknown sources" developer option does not
+apply to apps like this one, built with the Android for Cars App Library. If Nav2Pilot is missing from the
+launcher, check the Android Auto settings → **Customize launcher**.
 
 ### CarPlay
 
@@ -365,7 +362,9 @@ Investigated, **not implemented** (the `SunnylinkTransport` backend is an explic
   Head Unit.
 - Try it with the Desktop Head Unit (SDK Manager → Android Auto Desktop Head Unit Emulator): Android Auto
   developer settings → **Start head unit server** on the phone, then `adb forward tcp:5277 tcp:5277` and
-  `$ANDROID_HOME/extras/google/auto/desktop-head-unit`.
+  `$ANDROID_HOME/extras/google/auto/desktop-head-unit`. In a real car the app must come from Google Play (the
+  internal testing track is enough): Android Auto's "Unknown sources" option does not cover Car App Library
+  apps.
 - Google Play: the Android Auto form factor is added in Play Console (Test and release → Advanced settings →
   Form factors). Its review does not apply to internal testing, does not block closed testing and blocks
   production releases.
