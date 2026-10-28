@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Risono — Privacy Policy</title>
-<meta name="description" content="Privacy Policy of the Risono app: it talks only to your devices on the local network, no data is collected.">
+<meta name="description" content="Privacy Policy of the Risono app: it talks to your devices on the local network, and sends a report to the developer only when you choose to send feedback.">
 <style>
   :root {
     --bg: #ffffff;
@@ -50,7 +50,7 @@
 <main>
 
 <h1>Risono — Privacy Policy</h1>
-<p class="meta">Last updated / Ultimo aggiornamento / Stand / Ostatnia aktualizacja: 27 October 2026</p>
+<p class="meta">Last updated / Ultimo aggiornamento / Stand / Ostatnia aktualizacja: 28 October 2026</p>
 <p class="lang"><a href="#en">English</a> <a href="#it">Italiano</a> <a href="#de">Deutsch</a> <a href="#pl">Polski</a></p>
 
 <section id="en" lang="en">
@@ -65,7 +65,8 @@
 <p><strong>In short</strong></p>
 <ul>
   <li>Risono controls your receivers and speakers (Denon, Marantz, HEOS and more) over your home network.</li>
-  <li>Everything happens directly between your phone and your devices on the local network. The app collects no data and sends nothing to the developer or to third parties.</li>
+  <li>Everything happens directly between your phone and your devices on the local network. The app sends nothing by itself and does not share your data with third parties.</li>
+  <li>Only if you choose “Send feedback” and tap Send, the app sends a report to the developer, to fix problems and answer you.</li>
   <li>No account, no advertising, no analytics.</li>
 </ul>
 </div>
@@ -77,15 +78,18 @@
   <li><strong>What is playing.</strong> Title, artist and cover come from your devices. A cover may be loaded from the address your device provides, which can be on the internet (for example the server of a streaming service): only the image is requested.</li>
   <li><strong>Apple TV app icons.</strong> To show the icons of your Apple TV’s apps, Risono asks Apple’s App Store for each app’s icon, once and then every 30 days, sending only the app’s public identifier (its bundle id, such as com.netflix.Netflix) and the store’s country. The icons stay on your phone. The keys that pair Risono with your Apple TV are stored only on your phone.</li>
   <li><strong>Settings.</strong> They are stored on the device.</li>
-  <li><strong>Microphone.</strong> Only if you switch on “Automatic volume”: the phone’s microphone measures how loud the room is, so that the app can keep the receiver’s volume steady. Only the sound level is calculated, on the phone, several times a second. Nothing is recorded, stored or sent anywhere. The microphone is used only while the remote is open and the setting is on.</li>
-  <li><strong>Permissions.</strong> On iPhone the system asks for access to the local network: it is used only to find and control your devices. The system asks for the microphone only when you switch on “Automatic volume”. The app does not use your location, camera or contacts.</li>
+  <li><strong>Microphone.</strong> Only if you switch on “Automatic volume”: the phone’s microphone measures how loud the room is, so that the app can keep the receiver’s volume steady. Only the sound level is calculated, on the phone, several times a second. Nothing is recorded, stored or sent anywhere. The microphone is used only while the remote is open and the setting is on. On the “Who’s nearby” page it is used only if you switch it on there (see below).</li>
+  <li><strong>Feedback and logs.</strong> Only when you tap Send (or “Send logs”) in “Send feedback”, Risono sends a report to the developer’s own server (feedback.14bodhi.com, run by the developer in Switzerland, not by a third party). The report contains the message you write, the app version, the phone model, the system version and the phone’s language. If “Include a technical report” is on (it is by default), it also contains the models and firmware of your receivers and speakers and the app’s latest events. If “Include the technical log” is on (it is by default, and you can turn it off), it also contains the latest messages exchanged with your devices. Network addresses, serial numbers and identifiers are masked; the names of your devices, accounts and song titles are left out. Before sending, “Show what will be sent” shows you the whole text. Your e-mail address is included only if you write it in the message. Nothing is sent automatically or in the background. The report is used only to fix problems and to answer you. The server does not store your IP address. If the server cannot be reached, the app offers to send the same report by e-mail from your mail app: in that case the developer also receives your e-mail address.</li>
+  <li><strong>“Who’s nearby”.</strong> This is a hidden test page. Only when you open it, Risono listens to the Bluetooth signals of nearby speakers and reads which Wi-Fi access point the phone is connected to, to tell which room you are in. If you switch on the microphone there, only the sound level is measured, as for “Automatic volume”. The rooms you measure are stored only on your phone, and you can delete them on the page. The location is not used to find where you are on a map: it is not stored and never sent. The name of your Wi-Fi network is never sent. The measured rooms leave the phone only if you choose “Send with feedback” and then send the report: they contain the room name you typed, the signal strengths, the names of your speakers and identifiers shortened to their last 4 characters.</li>
+  <li><strong>Permissions.</strong> On iPhone the system asks for access to the local network: it is used only to find and control your devices. The system asks for the microphone only when you switch on “Automatic volume” or the microphone in “Who’s nearby”. Bluetooth and location are asked only when you open “Who’s nearby”: on Android the system requires the location permission to scan for Bluetooth devices and to read the Wi-Fi access point; on iPhone location is needed to read the Wi-Fi network. They are used only to tell which room you are in, as described above. The app does not use your camera or contacts.</li>
 </ul>
 
 <h3>Deleting your data</h3>
-<p>All data stays on your device. Uninstalling the app or clearing its data deletes it.</p>
+<p>The data of the app stays on your device. Uninstalling the app or clearing its data deletes it. The measurements of “Who’s nearby” can also be deleted on that page.</p>
+<p>Reports you have sent are kept on the developer’s server. To have them deleted, write to <a href="mailto:admin@14bodhi.com">admin@14bodhi.com</a>, if possible with the reference number shown after sending.</p>
 
 <h3>Children</h3>
-<p>The app is not directed at children and collects no personal data from anyone.</p>
+<p>The app is not directed at children. It collects no personal data, except what you choose to send with a feedback report.</p>
 
 <h3>This web page</h3>
 <p>This policy covers the Risono app, not your visit to this page, which is hosted on GitHub Pages. GitHub may process technical data, such as your IP address, under its own policy: <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub General Privacy Statement</a></p>
@@ -107,7 +111,8 @@
 <p><strong>In breve</strong></p>
 <ul>
   <li>Risono comanda i tuoi ampli e le tue casse (Denon, Marantz, HEOS e altri) attraverso la rete di casa.</li>
-  <li>Tutto avviene direttamente tra il telefono e i tuoi dispositivi in rete locale. L’app non raccoglie dati e non invia nulla allo sviluppatore o a terzi.</li>
+  <li>Tutto avviene direttamente tra il telefono e i tuoi dispositivi in rete locale. Da sola l’app non invia nulla, e non condivide i tuoi dati con terzi.</li>
+  <li>Solo se scegli “Invia un feedback” e tocchi Invia, l’app manda un rapporto allo sviluppatore, per correggere problemi e risponderti.</li>
   <li>Nessun account, nessuna pubblicità, nessuna statistica d’uso.</li>
 </ul>
 </div>
@@ -119,15 +124,18 @@
   <li><strong>Riproduzione.</strong> Titolo, artista e copertina arrivano dai tuoi dispositivi. Una copertina può essere caricata dall’indirizzo indicato dal dispositivo, che può trovarsi su internet (per esempio sul server di un servizio di streaming): viene richiesta solo l’immagine.</li>
   <li><strong>Icone delle app dell’Apple TV.</strong> Per mostrare le icone delle app della tua Apple TV, Risono chiede all’App Store di Apple l’icona di ciascuna app, una volta e poi ogni 30 giorni, mandando solo il suo identificativo pubblico (il bundle id, per esempio com.netflix.Netflix) e il paese dello store. Le icone restano sul telefono. Le chiavi che abbinano Risono alla tua Apple TV sono salvate solo sul telefono.</li>
   <li><strong>Impostazioni.</strong> Sono salvate sul dispositivo.</li>
-  <li><strong>Microfono.</strong> Solo se accendi “Volume automatico”: il microfono del telefono misura quanto è forte il suono nella stanza, così l’app può tenere costante il volume dell’ampli. Viene calcolato solo il livello del suono, sul telefono, più volte al secondo. Niente viene registrato, salvato o inviato. Il microfono è usato solo con il telecomando aperto e l’impostazione accesa.</li>
-  <li><strong>Permessi.</strong> Su iPhone il sistema chiede l’accesso alla rete locale: serve solo a trovare e comandare i tuoi dispositivi. Il microfono viene chiesto solo quando accendi “Volume automatico”. L’app non usa posizione, fotocamera o contatti.</li>
+  <li><strong>Microfono.</strong> Solo se accendi “Volume automatico”: il microfono del telefono misura quanto è forte il suono nella stanza, così l’app può tenere costante il volume dell’ampli. Viene calcolato solo il livello del suono, sul telefono, più volte al secondo. Niente viene registrato, salvato o inviato. Il microfono è usato solo con il telecomando aperto e l’impostazione accesa. Nella pagina “Chi è vicino” è usato solo se lo accendi lì (vedi sotto).</li>
+  <li><strong>Feedback e log.</strong> Solo quando tocchi Invia (o “Invia i log”) in “Invia un feedback”, Risono manda un rapporto al server dello sviluppatore (feedback.14bodhi.com, gestito dallo sviluppatore in Svizzera, non da terzi). Il rapporto contiene il messaggio che scrivi, la versione dell’app, il modello del telefono, la versione del sistema e la lingua del telefono. Se “Includi un rapporto tecnico” è acceso (lo è di serie), contiene anche modelli e firmware dei tuoi ampli e delle tue casse e gli ultimi eventi dell’app. Se “Includi il registro tecnico” è acceso (lo è di serie, e puoi spegnerlo), contiene anche gli ultimi messaggi scambiati con i tuoi dispositivi. Indirizzi di rete, numeri di serie e identificativi sono mascherati; i nomi dei tuoi dispositivi, gli account e i titoli dei brani restano fuori. Prima di inviare, “Mostra cosa verrà inviato” ti fa leggere tutto il testo. Il tuo indirizzo e-mail c’è solo se lo scrivi nel messaggio. Niente parte da solo o in background. Il rapporto serve solo a correggere problemi e a risponderti. Il server non salva il tuo indirizzo IP. Se il server non risponde, l’app propone di inviare lo stesso rapporto per e-mail dalla tua app di posta: in quel caso lo sviluppatore riceve anche il tuo indirizzo e-mail.</li>
+  <li><strong>“Chi è vicino”.</strong> È una pagina di prova nascosta. Solo quando la apri, Risono ascolta i segnali Bluetooth delle casse vicine e legge a quale access point Wi-Fi è collegato il telefono, per capire in quale stanza sei. Se lì accendi il microfono, viene misurato solo il livello del suono, come per “Volume automatico”. Le stanze che misuri sono salvate solo sul telefono, e puoi cancellarle dalla pagina. La posizione non serve a trovarti su una mappa: non viene salvata e non viene mai inviata. Il nome della rete Wi-Fi non viene mai inviato. Le stanze misurate escono dal telefono solo se scegli “Invia con un feedback” e poi invii il rapporto: contengono il nome che hai scritto per la stanza, la forza dei segnali, i nomi delle tue casse e gli identificativi accorciati agli ultimi 4 caratteri.</li>
+  <li><strong>Permessi.</strong> Su iPhone il sistema chiede l’accesso alla rete locale: serve solo a trovare e comandare i tuoi dispositivi. Il microfono viene chiesto solo quando accendi “Volume automatico” o il microfono in “Chi è vicino”. Bluetooth e posizione vengono chiesti solo quando apri “Chi è vicino”: su Android il sistema vuole il permesso di posizione per cercare i dispositivi Bluetooth e per leggere l’access point Wi-Fi; su iPhone la posizione serve a leggere la rete Wi-Fi. Servono solo a capire in quale stanza sei, come spiegato sopra. L’app non usa fotocamera o contatti.</li>
 </ul>
 
 <h3>Cancellare i dati</h3>
-<p>Tutti i dati restano sul dispositivo. Disinstallando l’app o cancellandone i dati vengono eliminati.</p>
+<p>I dati dell’app restano sul dispositivo. Disinstallando l’app o cancellandone i dati vengono eliminati. Le misure di “Chi è vicino” si possono cancellare anche dalla pagina stessa.</p>
+<p>I rapporti che hai inviato restano sul server dello sviluppatore. Per farli cancellare scrivi a <a href="mailto:admin@14bodhi.com">admin@14bodhi.com</a>, se puoi con il numero di riferimento mostrato dopo l’invio.</p>
 
 <h3>Minori</h3>
-<p>L’app non è rivolta ai bambini e non raccoglie dati personali di nessuno.</p>
+<p>L’app non è rivolta ai bambini. Non raccoglie dati personali, tranne quelli che scegli di inviare con un feedback.</p>
 
 <h3>Questa pagina web</h3>
 <p>Questa informativa riguarda l’app Risono. Non riguarda la visita a questa pagina, ospitata su GitHub Pages: GitHub può trattare dati tecnici, come l’indirizzo IP, secondo la propria informativa: <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub General Privacy Statement</a></p>
@@ -149,7 +157,8 @@
 <p><strong>Kurz gesagt</strong></p>
 <ul>
   <li>Risono steuert deine Receiver und Lautsprecher (Denon, Marantz, HEOS und weitere) über dein Heimnetz.</li>
-  <li>Alles läuft direkt zwischen deinem Telefon und deinen Geräten im lokalen Netzwerk. Die App sammelt keine Daten und sendet nichts an den Entwickler oder an Dritte.</li>
+  <li>Alles läuft direkt zwischen deinem Telefon und deinen Geräten im lokalen Netzwerk. Von sich aus sendet die App nichts, und sie gibt deine Daten nicht an Dritte weiter.</li>
+  <li>Nur wenn du „Feedback senden“ wählst und auf Senden tippst, schickt die App dem Entwickler einen Bericht, um Probleme zu beheben und dir zu antworten.</li>
   <li>Kein Konto, keine Werbung, keine Nutzungsstatistiken.</li>
 </ul>
 </div>
@@ -161,15 +170,18 @@
   <li><strong>Wiedergabe.</strong> Titel, Interpret und Cover kommen von deinen Geräten. Ein Cover kann von der Adresse geladen werden, die dein Gerät angibt, und diese kann im Internet liegen (zum Beispiel beim Server eines Streamingdienstes): Abgerufen wird nur das Bild.</li>
   <li><strong>App-Symbole des Apple TV.</strong> Um die Symbole der Apps deines Apple TV zu zeigen, fragt Risono den App Store von Apple nach dem Symbol jeder App, einmal und danach alle 30 Tage, und sendet dabei nur die öffentliche Kennung der App (die Bundle-ID, zum Beispiel com.netflix.Netflix) und das Land des Stores. Die Symbole bleiben auf deinem Telefon. Die Schlüssel, mit denen Risono mit deinem Apple TV gekoppelt ist, werden nur auf deinem Telefon gespeichert.</li>
   <li><strong>Einstellungen.</strong> Sie werden auf dem Gerät gespeichert.</li>
-  <li><strong>Mikrofon.</strong> Nur wenn du „Automatische Lautstärke“ einschaltest: Das Mikrofon des Telefons misst, wie laut es im Raum ist, damit die App die Lautstärke des Receivers gleich halten kann. Berechnet wird nur der Schallpegel, auf dem Telefon, mehrmals pro Sekunde. Nichts wird aufgenommen, gespeichert oder gesendet. Das Mikrofon wird nur genutzt, solange die Fernbedienung offen und die Einstellung eingeschaltet ist.</li>
-  <li><strong>Berechtigungen.</strong> Auf dem iPhone fragt das System nach dem Zugriff auf das lokale Netzwerk: Er wird nur genutzt, um deine Geräte zu finden und zu steuern. Nach dem Mikrofon wird erst gefragt, wenn du „Automatische Lautstärke“ einschaltest. Die App nutzt weder Standort noch Kamera oder Kontakte.</li>
+  <li><strong>Mikrofon.</strong> Nur wenn du „Automatische Lautstärke“ einschaltest: Das Mikrofon des Telefons misst, wie laut es im Raum ist, damit die App die Lautstärke des Receivers gleich halten kann. Berechnet wird nur der Schallpegel, auf dem Telefon, mehrmals pro Sekunde. Nichts wird aufgenommen, gespeichert oder gesendet. Das Mikrofon wird nur genutzt, solange die Fernbedienung offen und die Einstellung eingeschaltet ist. Auf der Seite „Wer ist in der Nähe“ wird es nur genutzt, wenn du es dort einschaltest (siehe unten).</li>
+  <li><strong>Feedback und Logs.</strong> Nur wenn du in „Feedback senden“ auf Senden (oder „Logs senden“) tippst, schickt Risono einen Bericht an den eigenen Server des Entwicklers (feedback.14bodhi.com, vom Entwickler in der Schweiz betrieben, nicht von Dritten). Der Bericht enthält deine Nachricht, die App-Version, das Telefonmodell, die Systemversion und die Sprache des Telefons. Ist „Technischen Bericht beifügen“ eingeschaltet (das ist die Voreinstellung), enthält er auch Modelle und Firmware deiner Receiver und Lautsprecher und die letzten Ereignisse der App. Ist „Technisches Protokoll beifügen“ eingeschaltet (ebenfalls die Voreinstellung, du kannst es ausschalten), enthält er auch die letzten Nachrichten zwischen Risono und deinen Geräten. Netzwerkadressen, Seriennummern und Kennungen werden maskiert; die Namen deiner Geräte, Konten und Songtitel bleiben draußen. Vor dem Senden zeigt dir „Zeigen, was gesendet wird“ den ganzen Text. Deine E-Mail-Adresse ist nur dabei, wenn du sie in die Nachricht schreibst. Nichts wird automatisch oder im Hintergrund gesendet. Der Bericht dient nur dazu, Probleme zu beheben und dir zu antworten. Der Server speichert deine IP-Adresse nicht. Ist der Server nicht erreichbar, bietet die App an, denselben Bericht per E-Mail aus deiner Mail-App zu senden: Dann erhält der Entwickler auch deine E-Mail-Adresse.</li>
+  <li><strong>„Wer ist in der Nähe“.</strong> Das ist eine versteckte Testseite. Nur wenn du sie öffnest, empfängt Risono die Bluetooth-Signale der Lautsprecher in der Nähe und liest, mit welchem WLAN-Zugangspunkt das Telefon verbunden ist, um zu erkennen, in welchem Raum du bist. Schaltest du dort das Mikrofon ein, wird nur der Schallpegel gemessen, wie bei „Automatische Lautstärke“. Die Räume, die du misst, werden nur auf deinem Telefon gespeichert, und du kannst sie auf der Seite löschen. Der Standort dient nicht dazu, dich auf einer Karte zu finden: Er wird weder gespeichert noch jemals gesendet. Der Name deines WLANs wird nie gesendet. Die gemessenen Räume verlassen das Telefon nur, wenn du „Mit Feedback senden“ wählst und den Bericht dann sendest: Sie enthalten den Raumnamen, den du eingegeben hast, die Signalstärken, die Namen deiner Lautsprecher und Kennungen, gekürzt auf ihre letzten 4 Zeichen.</li>
+  <li><strong>Berechtigungen.</strong> Auf dem iPhone fragt das System nach dem Zugriff auf das lokale Netzwerk: Er wird nur genutzt, um deine Geräte zu finden und zu steuern. Nach dem Mikrofon wird erst gefragt, wenn du „Automatische Lautstärke“ oder das Mikrofon in „Wer ist in der Nähe“ einschaltest. Nach Bluetooth und Standort wird nur gefragt, wenn du „Wer ist in der Nähe“ öffnest: Auf Android verlangt das System die Standortberechtigung, um nach Bluetooth-Geräten zu suchen und den WLAN-Zugangspunkt zu lesen; auf dem iPhone wird der Standort gebraucht, um das WLAN zu lesen. Sie dienen nur dazu, den Raum zu erkennen, wie oben beschrieben. Die App nutzt weder Kamera noch Kontakte.</li>
 </ul>
 
 <h3>Daten löschen</h3>
-<p>Alle Daten bleiben auf deinem Gerät. Wenn du die App deinstallierst oder ihre Daten löschst, werden sie entfernt.</p>
+<p>Die Daten der App bleiben auf deinem Gerät. Wenn du die App deinstallierst oder ihre Daten löschst, werden sie entfernt. Die Messungen von „Wer ist in der Nähe“ kannst du auch auf der Seite selbst löschen.</p>
+<p>Gesendete Berichte bleiben auf dem Server des Entwicklers. Um sie löschen zu lassen, schreib an <a href="mailto:admin@14bodhi.com">admin@14bodhi.com</a>, wenn möglich mit der Referenznummer, die nach dem Senden angezeigt wird.</p>
 
 <h3>Kinder</h3>
-<p>Die App richtet sich nicht an Kinder und sammelt von niemandem personenbezogene Daten.</p>
+<p>Die App richtet sich nicht an Kinder. Sie sammelt keine personenbezogenen Daten, außer denen, die du selbst mit einem Feedback sendest.</p>
 
 <h3>Diese Webseite</h3>
 <p>Diese Datenschutzerklärung gilt für die App Risono, nicht für den Besuch dieser Seite, die auf GitHub Pages gehostet wird. GitHub kann technische Daten wie deine IP-Adresse nach eigener Richtlinie verarbeiten: <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub General Privacy Statement</a></p>
@@ -191,7 +203,8 @@
 <p><strong>W skrócie</strong></p>
 <ul>
   <li>Risono steruje Twoimi amplitunerami i głośnikami (Denon, Marantz, HEOS i inne) przez sieć domową.</li>
-  <li>Wszystko odbywa się bezpośrednio między Twoim telefonem a urządzeniami w sieci lokalnej. Aplikacja nie zbiera danych i nie wysyła niczego do dewelopera ani do podmiotów trzecich.</li>
+  <li>Wszystko odbywa się bezpośrednio między Twoim telefonem a urządzeniami w sieci lokalnej. Sama z siebie aplikacja niczego nie wysyła i nie przekazuje Twoich danych podmiotom trzecim.</li>
+  <li>Tylko jeśli wybierzesz „Wyślij opinię” i stukniesz Wyślij, aplikacja wysyła raport do dewelopera, aby naprawić problemy i Ci odpowiedzieć.</li>
   <li>Bez konta, bez reklam, bez statystyk użycia.</li>
 </ul>
 </div>
@@ -203,15 +216,18 @@
   <li><strong>Odtwarzanie.</strong> Tytuł, wykonawca i okładka pochodzą z Twoich urządzeń. Okładka może być pobierana z adresu podanego przez urządzenie, który może znajdować się w internecie (na przykład na serwerze serwisu streamingowego): pobierany jest tylko obraz.</li>
   <li><strong>Ikony aplikacji Apple TV.</strong> Aby pokazać ikony aplikacji Twojego Apple TV, Risono pyta App Store firmy Apple o ikonę każdej aplikacji, raz, a potem co 30 dni, wysyłając tylko jej publiczny identyfikator (bundle id, na przykład com.netflix.Netflix) i kraj sklepu. Ikony pozostają na Twoim telefonie. Klucze, które parują Risono z Twoim Apple TV, są przechowywane tylko na telefonie.</li>
   <li><strong>Ustawienia.</strong> Są zapisywane na urządzeniu.</li>
-  <li><strong>Mikrofon.</strong> Tylko jeśli włączysz „Automatyczną głośność”: mikrofon telefonu mierzy, jak głośno jest w pokoju, aby aplikacja mogła utrzymywać stałą głośność amplitunera. Obliczany jest tylko poziom dźwięku, na telefonie, kilka razy na sekundę. Nic nie jest nagrywane, zapisywane ani wysyłane. Mikrofon jest używany tylko wtedy, gdy pilot jest otwarty, a ustawienie włączone.</li>
-  <li><strong>Uprawnienia.</strong> Na iPhonie system prosi o dostęp do sieci lokalnej: jest on używany wyłącznie do wyszukiwania i sterowania Twoimi urządzeniami. O mikrofon system pyta dopiero po włączeniu „Automatycznej głośności”. Aplikacja nie korzysta z lokalizacji, aparatu ani kontaktów.</li>
+  <li><strong>Mikrofon.</strong> Tylko jeśli włączysz „Automatyczną głośność”: mikrofon telefonu mierzy, jak głośno jest w pokoju, aby aplikacja mogła utrzymywać stałą głośność amplitunera. Obliczany jest tylko poziom dźwięku, na telefonie, kilka razy na sekundę. Nic nie jest nagrywane, zapisywane ani wysyłane. Mikrofon jest używany tylko wtedy, gdy pilot jest otwarty, a ustawienie włączone. Na stronie „Kto jest w pobliżu” jest używany tylko wtedy, gdy go tam włączysz (patrz niżej).</li>
+  <li><strong>Opinie i logi.</strong> Tylko gdy w „Wyślij opinię” stukniesz Wyślij (albo „Wyślij logi”), Risono wysyła raport na własny serwer dewelopera (feedback.14bodhi.com, prowadzony przez dewelopera w Szwajcarii, a nie przez podmiot trzeci). Raport zawiera wiadomość, którą piszesz, wersję aplikacji, model telefonu, wersję systemu i język telefonu. Jeśli „Dołącz raport techniczny” jest włączone (domyślnie jest), raport zawiera też modele i oprogramowanie (firmware) Twoich amplitunerów i głośników oraz ostatnie zdarzenia aplikacji. Jeśli „Dołącz dziennik techniczny” jest włączone (domyślnie jest, możesz to wyłączyć), zawiera też ostatnie wiadomości wymienione z Twoimi urządzeniami. Adresy sieciowe, numery seryjne i identyfikatory są maskowane; nazwy Twoich urządzeń, konta i tytuły utworów są pomijane. Przed wysłaniem „Pokaż, co zostanie wysłane” pokazuje cały tekst. Twój adres e-mail trafia do raportu tylko wtedy, gdy wpiszesz go w wiadomości. Nic nie jest wysyłane automatycznie ani w tle. Raport służy wyłącznie do naprawiania problemów i do odpowiedzi. Serwer nie zapisuje Twojego adresu IP. Jeśli serwer jest nieosiągalny, aplikacja proponuje wysłanie tego samego raportu e-mailem z Twojej aplikacji pocztowej: wtedy deweloper otrzymuje też Twój adres e-mail.</li>
+  <li><strong>„Kto jest w pobliżu”.</strong> To ukryta strona testowa. Tylko gdy ją otworzysz, Risono odbiera sygnały Bluetooth pobliskich głośników i odczytuje, z którym punktem dostępu Wi-Fi połączony jest telefon, aby rozpoznać, w którym pomieszczeniu jesteś. Jeśli włączysz tam mikrofon, mierzony jest tylko poziom dźwięku, tak jak przy „Automatycznej głośności”. Zmierzone pomieszczenia są zapisywane tylko na telefonie i możesz je usunąć na tej stronie. Lokalizacja nie służy do ustalania, gdzie jesteś na mapie: nie jest zapisywana ani nigdy wysyłana. Nazwa Twojej sieci Wi-Fi nigdy nie jest wysyłana. Zmierzone pomieszczenia opuszczają telefon tylko wtedy, gdy wybierzesz „Wyślij z opinią”, a potem wyślesz raport: zawierają wpisaną przez Ciebie nazwę pomieszczenia, siłę sygnałów, nazwy Twoich głośników i identyfikatory skrócone do ostatnich 4 znaków.</li>
+  <li><strong>Uprawnienia.</strong> Na iPhonie system prosi o dostęp do sieci lokalnej: jest on używany wyłącznie do wyszukiwania i sterowania Twoimi urządzeniami. O mikrofon system pyta dopiero po włączeniu „Automatycznej głośności” lub mikrofonu w „Kto jest w pobliżu”. O Bluetooth i lokalizację aplikacja prosi tylko po otwarciu „Kto jest w pobliżu”: na Androidzie system wymaga uprawnienia do lokalizacji, aby wyszukiwać urządzenia Bluetooth i odczytać punkt dostępu Wi-Fi; na iPhonie lokalizacja jest potrzebna do odczytania sieci Wi-Fi. Służą one wyłącznie do rozpoznania pomieszczenia, jak opisano wyżej. Aplikacja nie korzysta z aparatu ani kontaktów.</li>
 </ul>
 
 <h3>Usuwanie danych</h3>
-<p>Wszystkie dane pozostają na Twoim urządzeniu. Odinstalowanie aplikacji lub wyczyszczenie jej danych powoduje ich usunięcie.</p>
+<p>Dane aplikacji pozostają na Twoim urządzeniu. Odinstalowanie aplikacji lub wyczyszczenie jej danych powoduje ich usunięcie. Pomiary z „Kto jest w pobliżu” możesz też usunąć na tej stronie.</p>
+<p>Wysłane raporty pozostają na serwerze dewelopera. Aby je usunąć, napisz na <a href="mailto:admin@14bodhi.com">admin@14bodhi.com</a>, najlepiej z numerem pokazanym po wysłaniu.</p>
 
 <h3>Dzieci</h3>
-<p>Aplikacja nie jest skierowana do dzieci i nie zbiera od nikogo danych osobowych.</p>
+<p>Aplikacja nie jest skierowana do dzieci. Nie zbiera danych osobowych, poza tymi, które sam zdecydujesz się wysłać z opinią.</p>
 
 <h3>Ta strona internetowa</h3>
 <p>Niniejsza polityka dotyczy aplikacji Risono, a nie wizyty na tej stronie, hostowanej w GitHub Pages. GitHub może przetwarzać dane techniczne, takie jak adres IP, zgodnie z własną polityką: <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub General Privacy Statement</a></p>
