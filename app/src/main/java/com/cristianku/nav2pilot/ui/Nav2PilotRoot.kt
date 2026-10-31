@@ -124,6 +124,9 @@ fun Nav2PilotRoot(viewModel: MainViewModel) {
                 onHideMapboxDialog = { viewModel.hideMapboxDialog() },
                 onOpenSettings = { settingsOpen = true },
                 onOpenFavorites = { favoritesOpen = true },
+                onShowPlaces = { category, area -> viewModel.showPlaces(category, area) },
+                onHidePlaces = { viewModel.hidePlaces() },
+                onChoosePlace = { place -> viewModel.choosePlace(place) },
             ),
         )
     }

@@ -135,6 +135,19 @@ Enter the installer URL on the comma's custom-software installation screen. Then
 in **Devices → Mapbox** in Nav2Pilot: the app sends it to the selected comma when saved and before sending
 destinations. No manual environment setup is needed for these builds.
 
+## Points of interest
+
+The small button under the settings, at the top right of the map, opens a menu of places: fuel stations, EV
+charging, parking, rest areas, restaurants, cafés, supermarkets, hotels and pharmacies. Pick one and they show
+up on the part of the map you see (when the map shows a whole region, its middle, about 50 × 50 km). The
+button stays filled while they are on the map; **Hide places** in the same menu takes them away.
+
+Tap a place to make it your destination. If you already have one, the app asks whether to add the place as a
+stop on the way (a fuel station on a long drive) or to go there instead.
+
+The places come from OpenStreetMap, through a public Overpass server: free, no account, with or without a
+Mapbox token.
+
 ## Car screens: CarlinKit, Android Auto, CarPlay
 
 On a landscape screen (a car head unit, a tablet, a phone on its side) the app switches to two panes: search,
@@ -203,7 +216,8 @@ CarPlay app needs a CarPlay entitlement that Apple grants on request.
 - Your comma token and your Mapbox token are encrypted with a key that never leaves the Android Keystore,
   and they are never logged.
 - The app only talks to comma (to reach your device), to Google Maps (to open shared links), to the phone's
-  address search and, if you set it up, to Mapbox. No analytics, no tracking.
+  address search, to OpenStreetMap's Overpass servers (when you ask for points of interest: the category and
+  the part of the map you see) and, if you set it up, to Mapbox. No analytics, no tracking.
 - Your position is only used for the route preview: it goes to Mapbox, with your own token, and nowhere else.
 
 Nav2Pilot is an independent project, not affiliated with comma.ai or sunnypilot.
@@ -232,6 +246,8 @@ APIs, independently of the openpilot / sunnypilot source code.
 - **Route map (with the Mapbox token)**: the fastest route and its alternatives from the phone's position,
   stops added with a long press; the picked route goes to the device as waypoints (see "Route map and
   waypoints").
+- **Points of interest**: nine categories from OpenStreetMap (Overpass API) in the part of the map in view; a
+  place becomes the destination or a stop (see "Points of interest").
 - **Landscape layout** for car head units and tablets: two panes and a navigation rail.
 - **Android Auto**: favorites on the map, route preview and alternatives, search, the cars' status and
   clearing the destination (see "Android Auto screen").
@@ -328,6 +344,21 @@ Setup: Devices → Mapbox → **Set up Mapbox**.
   the same roads. The fastest route without stops is sent as `setNavDestination`. A device without
   `setNavRoute` (JSON-RPC -32601) gets `setNavDestination` instead, and the app says so.
 
+### Points of interest
+
+- Source: OpenStreetMap through the public Overpass API (`overpass-api.de`, then `overpass.private.coffee` when
+  the first answers 429, 5xx or not at all). No key; the requests carry the app's `User-Agent`.
+- Query: one `POST` (`data=` form field) per category picked: `nwr<tag filter>(south,west,north,east); out
+  center 200;`, so ways and relations (a fuel station drawn as an area) come back as their centre. The box is
+  the part of the map left visible by the panel and the buttons, cut to 25 km around its middle when the map is
+  zoomed out. Of the answer, the 50 places nearest to the middle are drawn.
+- Tags: `amenity=fuel`, `amenity=charging_station`, `amenity=parking` (not `access=private|no`),
+  `highway=services|rest_area`, `amenity=restaurant|fast_food`, `amenity=cafe`, `shop=supermarket`,
+  `tourism=hotel|motel`, `amenity=pharmacy` (`places/Places.kt`). A place without a `name` takes its
+  `brand`, then its `operator`, then the category's name; the address comes from the `addr:*` tags.
+- A tapped place goes to the device like any destination: its coordinates only, or as a stop
+  (`setNavRoute` waypoint with `via: false`).
+
 ### sunnylink
 
 Investigated, **not implemented** (the `SunnylinkTransport` backend is an explicit stub):
@@ -402,8 +433,9 @@ another backend can be added without touching the UI.
   through athena, to your own device.
 - Network access is limited to `api.commadotai.com`, `athena.comma.ai`, Google Maps hosts (only to expand
   shared links), the phone's Geocoder service (address search), `tiles.openfreemap.org` (map without a
-  Mapbox token) and, only with a Mapbox token, `api.mapbox.com`. Android Auto adds nothing: the car screen
-  uses the same services. No analytics.
+  Mapbox token), the Overpass API servers (points of interest, only when a category is picked) and, only
+  with a Mapbox token, `api.mapbox.com`. Android Auto adds nothing: the car screen uses the same services.
+  No analytics.
 
 ### Build
 
@@ -431,7 +463,8 @@ newer AndroidX versions together.
 
 - JVM unit tests (`app/src/test`): link parsing (including a real `maps.app.goo.gl` redirect and EU consent
   hop captured on 2026-10-17), short-link expansion, resolver fallbacks, the exact athena JSON-RPC requests
-  and response handling, token storage, repositories and the ViewModel flow. No network access.
+  and response handling, token storage, repositories, the Overpass query and answer for points of interest
+  and the ViewModel flow. No network access.
 - Android Auto screens (`app/src/test/.../car`): every template is built with the Car App Library's test host
   under Robolectric, so the library's own checks run on them; plus the car map's camera. Robolectric runs
   them on SDK 35, because SDK 36 needs Java 21.
