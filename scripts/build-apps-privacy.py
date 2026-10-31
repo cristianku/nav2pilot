@@ -14,7 +14,7 @@ import re
 from pathlib import Path
 
 DOCS = Path(__file__).resolve().parent.parent / "docs"
-UPDATED = "28 October 2026"
+UPDATED = "31 October 2026"
 SITE_POLICY = "https://cristianku.com/privacy-policy/"
 MAIL = '<a href="mailto:admin@14bodhi.com">admin@14bodhi.com</a>'
 
