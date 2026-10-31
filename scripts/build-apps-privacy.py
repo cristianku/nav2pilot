@@ -5,6 +5,8 @@ Each app keeps its own page in docs/<app>/privacy/index.html (Nav2Pilot: docs/pr
 copies their language sections under one heading per app, so every app can use the same address
 (stores accept .../apps-privacy/ for all of them; .../apps-privacy/#<app> jumps to one app).
 The general page is published on cristianku.com/apps-privacy/ (WordPress) and on GitHub Pages.
+It also writes docs/site/<app>/privacy/index.html, the app pages for cristianku.com/<app>/privacy/: the same
+text, with the note about the website instead of the one about GitHub Pages.
 
     python3 scripts/build-apps-privacy.py
 """
@@ -12,7 +14,7 @@ import re
 from pathlib import Path
 
 DOCS = Path(__file__).resolve().parent.parent / "docs"
-UPDATED = "26 October 2026"
+UPDATED = "28 October 2026"
 SITE_POLICY = "https://cristianku.com/privacy-policy/"
 MAIL = '<a href="mailto:admin@14bodhi.com">admin@14bodhi.com</a>'
 
@@ -56,6 +58,16 @@ INTRO = {
            "Kontakt w sprawie prywatności:"),
 }
 
+# The web page section of the app pages on cristianku.com.
+SITE_NOTE = {
+    "en": "This policy covers the {name} app, not your visit to this website, which has its own privacy policy: ",
+    "it": "Questa informativa riguarda l’app {name}, non la visita a questo sito, che ha la sua informativa: ",
+    "de": "Diese Datenschutzerklärung gilt für die App {name}, nicht für den Besuch dieser Website, für die ihre "
+          "eigene Datenschutzerklärung gilt: ",
+    "pl": "Niniejsza polityka dotyczy aplikacji {name}, a nie wizyty na tej stronie internetowej, która ma własną "
+          "politykę prywatności: ",
+}
+
 
 def app_section(anchor, name, source):
     html = source.read_text()
@@ -73,6 +85,27 @@ def app_section(anchor, name, source):
         parts.append(f'<div id="{anchor}-{code}" lang="{code}">{body.rstrip()}\n</div>')
     parts.append("</section>")
     return "\n".join(parts)
+
+
+def site_page(anchor, name, source):
+    """The app page for cristianku.com: the web page section points to the website's policy."""
+    html = source.read_text()
+
+    def replace_section(match):
+        code = match.group(1)
+        heading = match.group(2)
+        site = SITE_NOTE[code].format(name=name) + f'<a href="{SITE_POLICY}">{SITE_POLICY}</a>'
+        return re.sub(rf"<h3>{re.escape(heading)}</h3>.*?(?=<h3>|\Z)",
+                      f"<h3>{heading}</h3>\n<p>{site}</p>\n\n", match.group(0), flags=re.S)
+
+    html = re.sub(rf'<section id="([a-z]+)" lang="[a-z]+">.*?<h3>({WEB_PAGE_HEADINGS})</h3>.*?</section>',
+                  replace_section, html, flags=re.S)
+    if "GitHub Pages" in html:
+        raise SystemExit(f"GitHub Pages still named in the site page of {source}")
+    out = DOCS / "site" / anchor / "privacy/index.html"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(html)
+    print(f"wrote {out}")
 
 
 def main():
@@ -116,6 +149,9 @@ def main():
     out.parent.mkdir(exist_ok=True)
     out.write_text(page)
     print(f"wrote {out}")
+
+    for anchor, name, source in APPS:
+        site_page(anchor, name, source)
 
 
 if __name__ == "__main__":
