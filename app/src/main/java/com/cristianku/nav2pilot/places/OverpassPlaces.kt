@@ -8,6 +8,7 @@ import com.cristianku.nav2pilot.net.HttpRequest
 import com.cristianku.nav2pilot.net.HttpResponse
 import com.cristianku.nav2pilot.transport.ErrorText
 import com.cristianku.nav2pilot.transport.TransportError
+import com.cristianku.nav2pilot.transport.TransportErrorText
 import com.cristianku.nav2pilot.transport.TransportResult
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
@@ -90,6 +91,20 @@ class OverpassPlaces(
 
         // fetched to pick the MAX_PLACES nearest to the middle
         private const val MAX_FETCHED = 200
+
+        /** What the phone and the car say when OpenStreetMap gives no places. */
+        fun errorText(error: TransportError): String {
+            if (error == TransportError.RateLimited) {
+                return "OpenStreetMap is busy (HTTP 429). Try again in a moment."
+            }
+            if (error is TransportError.HttpFailure) {
+                return "OpenStreetMap did not answer (HTTP ${error.code}). Try again in a moment."
+            }
+            if (error is TransportError.DeviceRejected) {
+                return "OpenStreetMap: " + error.reason
+            }
+            return TransportErrorText.describe(error)
+        }
 
         /** Overpass QL: nodes, ways and relations with the category's tags in [area]; ways and relations as their centre. */
         fun query(category: PlaceCategory, area: MapArea): String {

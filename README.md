@@ -181,6 +181,8 @@ Nav2Pilot has its own Android Auto screen. Connect the phone to the car and open
 Auto launcher:
 
 - **Favorites** on the map, nearest first, with their distance. Tap one to open it.
+- **Nearby**: fuel stations, EV charging, parking, rest areas and the other kinds of the phone's places menu,
+  within 10 km of the car, nearest first. Tap one to open its route.
 - **The route**: the destination on a map with, if you set up Mapbox, the fastest route and up to two
   alternatives from the phone's position. Pick one and tap **Send**: the car follows it.
 - **Search** an address, a place or coordinates. The car shows the keyboard only when it allows it, usually
@@ -249,8 +251,8 @@ APIs, independently of the openpilot / sunnypilot source code.
 - **Points of interest**: nine categories from OpenStreetMap (Overpass API) in the part of the map in view; a
   place becomes the destination or a stop (see "Points of interest").
 - **Landscape layout** for car head units and tablets: two panes and a navigation rail.
-- **Android Auto**: favorites on the map, route preview and alternatives, search, the cars' status and
-  clearing the destination (see "Android Auto screen").
+- **Android Auto**: favorites and places nearby on the map, route preview and alternatives, search, the cars'
+  status and clearing the destination (see "Android Auto screen").
 
 ### comma token
 
@@ -379,6 +381,10 @@ Investigated, **not implemented** (the `SunnylinkTransport` backend is an explic
 - Favorites: `PlaceListMapTemplate`, on the map Android Auto draws itself. The rows are browsable (they open
   the route) and carry a `DistanceSpan` when the phone's position is known; nearest first, up to the car's
   place-list limit (usually 6).
+- Nearby: a `ListTemplate` of the place categories, those that matter most while driving first (a car with
+  short lists cuts the rest), then a `PlaceListMapTemplate` of the category from Overpass in a box 10 km to
+  each side of the phone's position (`MapArea.around`), with the same rows as the favorites. Without a
+  position or an answer the list says why and offers **Try again**.
 - Route: `MapWithContentTemplate` with a selectable list of routes. Android Auto has no map view for apps, so
   the app draws on the surface it gets for map templates (`androidx.car.app.ACCESS_SURFACE`): a still MapLibre
   snapshot (`MapSnapshotter`) in the phone map's style, with the routes and pins drawn on top with the same

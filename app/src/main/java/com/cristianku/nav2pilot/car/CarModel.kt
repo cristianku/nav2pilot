@@ -10,6 +10,7 @@ import com.cristianku.nav2pilot.data.FavoritesRepository
 import com.cristianku.nav2pilot.mapbox.RoutePlanning
 import com.cristianku.nav2pilot.mapbox.RouteShaping
 import com.cristianku.nav2pilot.model.LatLng
+import com.cristianku.nav2pilot.places.OverpassPlaces
 import com.cristianku.nav2pilot.resolve.DestinationResolver
 import com.cristianku.nav2pilot.security.TokenStore
 import com.cristianku.nav2pilot.transport.DestinationSender
@@ -32,6 +33,8 @@ class CarModel(
     /** False without a geocoder: the search button is hidden. */
     val searchAvailable: Boolean,
     val routePlanning: RoutePlanning?,
+    /** Points of interest near the car, from OpenStreetMap. */
+    val places: OverpassPlaces,
     val map: CarMap,
     private val ioDispatcher: CoroutineDispatcher,
 ) {
@@ -45,6 +48,7 @@ class CarModel(
         resolver = container.destinationResolver,
         searchAvailable = container.placeSearch.isAvailable(),
         routePlanning = container.routePlanning,
+        places = container.places,
         map = map,
         ioDispatcher = container.ioDispatcher,
     )
@@ -69,6 +73,12 @@ class CarModel(
     suspend fun currentPosition(): LatLng? {
         val planning = routePlanning ?: return null
         return planning.location.currentLocation()
+    }
+
+    /** The location permission is asked by the phone app; without it the car knows no position. */
+    fun hasLocationPermission(): Boolean {
+        val planning = routePlanning ?: return false
+        return planning.location.hasPermission()
     }
 
     companion object {

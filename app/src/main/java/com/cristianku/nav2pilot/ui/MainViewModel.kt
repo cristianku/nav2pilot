@@ -698,7 +698,7 @@ class MainViewModel(
             } else {
                 val error = (result as TransportResult.Failed).error
                 state.value = state.value.copy(placesCategory = null, places = emptyList(), placesLoading = false)
-                placesNotice(placesErrorText(error))
+                placesNotice(OverpassPlaces.errorText(error))
             }
         }
     }
@@ -724,19 +724,6 @@ class MainViewModel(
 
     private fun placesNotice(message: String) {
         state.value = state.value.copy(placesMessage = message, placesMessageRequest = state.value.placesMessageRequest + 1)
-    }
-
-    private fun placesErrorText(error: TransportError): String {
-        if (error == TransportError.RateLimited) {
-            return "OpenStreetMap is busy (HTTP 429). Try again in a moment."
-        }
-        if (error is TransportError.HttpFailure) {
-            return "OpenStreetMap did not answer (HTTP ${error.code}). Try again in a moment."
-        }
-        if (error is TransportError.DeviceRejected) {
-            return "OpenStreetMap: " + error.reason
-        }
-        return TransportErrorText.describe(error)
     }
 
     /** What the device gets besides the destination: the stops, or via points of the alternative picked on the map. */

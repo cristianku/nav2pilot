@@ -71,6 +71,18 @@ data class MapArea(
     companion object {
         private const val METERS_PER_DEGREE = 111_320.0
 
+        /** The box [halfMeters] to each side of [center]: where the car looks for places, having no map of its own. */
+        fun around(center: LatLng, halfMeters: Double): MapArea {
+            val halfLatitude = halfMeters / METERS_PER_DEGREE
+            val halfLongitude = halfMeters / metersPerDegreeOfLongitude(center.latitude)
+            return MapArea(
+                south = max(-90.0, center.latitude - halfLatitude),
+                west = center.longitude - halfLongitude,
+                north = min(90.0, center.latitude + halfLatitude),
+                east = center.longitude + halfLongitude,
+            )
+        }
+
         // near the poles a degree of longitude shrinks to nothing: kept above a kilometre
         private fun metersPerDegreeOfLongitude(latitude: Double): Double {
             return max(METERS_PER_DEGREE * cos(Math.toRadians(latitude)), 1_000.0)

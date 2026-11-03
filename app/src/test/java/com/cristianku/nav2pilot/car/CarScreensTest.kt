@@ -29,6 +29,8 @@ import com.cristianku.nav2pilot.mapbox.RoutePlanning
 import com.cristianku.nav2pilot.model.Destination
 import com.cristianku.nav2pilot.model.LatLng
 import com.cristianku.nav2pilot.model.PairedDevice
+import com.cristianku.nav2pilot.places.OverpassPlaces
+import com.cristianku.nav2pilot.places.PlaceCategory
 import com.cristianku.nav2pilot.resolve.DestinationResolver
 import com.cristianku.nav2pilot.resolve.ShortLinkResolver
 import com.cristianku.nav2pilot.security.TokenStore
@@ -87,6 +89,7 @@ class CarScreensTest {
             resolver = DestinationResolver(ShortLinkResolver(http), search, unconfined),
             searchAvailable = true,
             routePlanning = RoutePlanning(MapboxDirections(http, { mapboxToken.load() }, unconfined), location),
+            places = OverpassPlaces(http, unconfined, listOf(OVERPASS)),
             map = map,
             ioDispatcher = unconfined,
         )
@@ -145,7 +148,7 @@ class CarScreensTest {
         assertTrue((rows[0] as Row).isBrowsable)
         assertNotNull((rows[0] as Row).metadata!!.place)
         val actions = template.actionStrip!!.actions
-        assertEquals(listOf("Search", "Car"), actions.map { text(it.title) })
+        assertEquals(listOf("Nearby", "Search", "Car"), actions.map { text(it.title) })
 
         (rows[1] as Row).onClickDelegate!!.sendClick(done)
         assertTrue(pushed().last() is RouteScreen)
@@ -287,6 +290,78 @@ class CarScreensTest {
         assertTrue(text(template.message).contains("Devices"))
     }
 
+    @Test
+    fun nearbyListsThePlaceCategories() {
+        setUpCar()
+        val screen = NearbyScreen(carContext, model())
+        ScreenController(screen).moveToState(Lifecycle.State.RESUMED)
+
+        val template = screen.onGetTemplate() as ListTemplate
+        val rows = template.singleList!!.items
+        assertEquals("Fuel stations", text((rows[0] as Row).title))
+        assertEquals("EV charging", text((rows[1] as Row).title))
+        assertTrue((rows[0] as Row).isBrowsable)
+        (rows[0] as Row).onClickDelegate!!.sendClick(done)
+        assertTrue(pushed().last() is PlacesScreen)
+    }
+
+    @Test
+    fun placesNearbyAreOnTheMapNearestFirst() {
+        setUpCar()
+        location.position = LatLng(45.47, 9.18)
+        http.respond(200, FUEL)
+        val screen = PlacesScreen(carContext, model(), PlaceCategory.FUEL)
+        ScreenController(screen).moveToState(Lifecycle.State.RESUMED)
+        idle()
+
+        val query = java.net.URLDecoder.decode(http.requests.last().body!!.removePrefix("data="), "UTF-8")
+        assertTrue(query.contains("""["amenity"="fuel"]"""))
+        assertEquals(OVERPASS, http.requests.last().url)
+        val template = screen.onGetTemplate() as PlaceListMapTemplate
+        assertEquals("Fuel stations", text(template.title))
+        val rows = template.itemList!!.items
+        assertEquals(listOf("Eni", "Fuel station"), rows.map { text((it as Row).title) })
+        val line = (rows[0] as Row).texts[0].toCharSequence() as Spanned
+        assertEquals("  · Via Roma 1, 20121 Milano", line.toString())
+        assertNotNull((rows[0] as Row).metadata!!.place)
+        (rows[0] as Row).onClickDelegate!!.sendClick(done)
+        assertTrue(pushed().last() is RouteScreen)
+    }
+
+    @Test
+    fun placesWithoutPositionSayWhatIsMissing() {
+        setUpCar()
+        val screen = PlacesScreen(carContext, model(), PlaceCategory.PARKING)
+        ScreenController(screen).moveToState(Lifecycle.State.RESUMED)
+        idle()
+
+        val template = screen.onGetTemplate() as PlaceListMapTemplate
+        assertTrue(template.itemList!!.items.isEmpty())
+        assertTrue(text(template.itemList!!.noItemsMessage).contains("allow location access"))
+        assertEquals(listOf("Try again"), template.actionStrip!!.actions.map { text(it.title) })
+        assertTrue(http.requests.isEmpty())
+    }
+
+    @Test
+    fun busyOpenStreetMapOffersARetry() {
+        setUpCar()
+        location.position = LatLng(45.47, 9.18)
+        http.respond(429)
+        val screen = PlacesScreen(carContext, model(), PlaceCategory.CHARGING)
+        ScreenController(screen).moveToState(Lifecycle.State.RESUMED)
+        idle()
+
+        val failed = screen.onGetTemplate() as PlaceListMapTemplate
+        assertTrue(text(failed.itemList!!.noItemsMessage).contains("busy"))
+
+        http.respond(200, FUEL)
+        failed.actionStrip!!.actions[0].onClickDelegate!!.sendClick(done)
+        idle()
+        val template = screen.onGetTemplate() as PlaceListMapTemplate
+        assertEquals(2, template.itemList!!.items.size)
+        assertEquals(null, template.actionStrip)
+    }
+
     private class FakeLocation : LocationProvider {
         var position: LatLng? = null
 
@@ -311,6 +386,15 @@ class CarScreensTest {
     }
 
     companion object {
+        private const val OVERPASS = "https://overpass.test/api/interpreter"
+
+        // a station with a name and an address, and a farther one without either
+        private const val FUEL = """{"elements":[
+            {"type":"node","id":2,"lat":45.49,"lon":9.20,"tags":{"amenity":"fuel"}},
+            {"type":"way","id":1,"center":{"lat":45.471,"lon":9.181},
+             "tags":{"amenity":"fuel","brand":"Eni","addr:street":"Via Roma","addr:housenumber":"1","addr:postcode":"20121","addr:city":"Milano"}}
+        ]}"""
+
         // two routes Milan -> Verona, coordinates shortened
         private const val DIRECTIONS = """{"code":"Ok","routes":[
             {"distance":157000,"duration":5100,"legs":[{"summary":"A4"}],
