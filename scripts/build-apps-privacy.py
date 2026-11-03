@@ -7,6 +7,8 @@ copies their language sections under one heading per app, so every app can use t
 The general page is published on cristianku.com/apps-privacy/ (WordPress) and on GitHub Pages.
 It also writes docs/site/<app>/privacy/index.html, the app pages for cristianku.com/<app>/privacy/: the same
 text, with the note about the website instead of the one about GitHub Pages.
+Risono's policy lives on its own site (risono.14bodhi.com/privacy/, repo risono-site): here it only gets a section
+that points there, and its two pages forward to it.
 
     python3 scripts/build-apps-privacy.py
 """
@@ -23,8 +25,17 @@ APPS = [
     ("cubomi", "Cubomi", DOCS / "cubomi/privacy/index.html"),
     ("groovejam", "GrooveJam", DOCS / "groovejam/privacy/index.html"),
     ("nav2pilot", "Nav2Pilot", DOCS / "privacy/index.html"),
-    ("risono", "Risono", DOCS / "risono/privacy/index.html"),
+    ("risono", "Risono", "https://risono.14bodhi.com/privacy/"),
 ]
+
+# Apps whose policy lives on their own website (the source is its address): the general page keeps a short
+# section that points there, and docs/<app>/privacy/ and docs/site/<app>/privacy/ forward to it.
+ELSEWHERE = {
+    "en": ("The privacy policy of {name} is on the app’s website:", ""),
+    "it": ("L’informativa sulla privacy di {name} è sul sito dell’app:", "it/"),
+    "de": ("Die Datenschutzerklärung von {name} steht auf der Website der App:", "#policy-de"),
+    "pl": ("Polityka prywatności aplikacji {name} znajduje się na jej stronie internetowej:", "#policy-pl"),
+}
 
 LANGUAGE_NAMES = {"en": "English", "it": "Italiano", "de": "Deutsch", "pl": "Polski"}
 
@@ -69,7 +80,46 @@ SITE_NOTE = {
 }
 
 
+def elsewhere_url(url, code):
+    suffix = ELSEWHERE[code][1]
+    return url + suffix if suffix.startswith("#") else url.replace(".com/", ".com/" + suffix, 1)
+
+
+def elsewhere_section(anchor, name, url):
+    parts = [f'<section id="{anchor}">', f"<h2>{name}</h2>"]
+    for code, (text, _) in ELSEWHERE.items():
+        link = elsewhere_url(url, code)
+        parts.append(f'<div id="{anchor}-{code}" lang="{code}">\n<p>{text.format(name=name)} '
+                     f'<a href="{link}">{link}</a></p>\n</div>')
+    parts.append("</section>")
+    return "\n".join(parts)
+
+
+def forward_page(anchor, name, url):
+    """docs/<app>/privacy/ (GitHub Pages) and the cristianku.com copy: they only send the visitor on."""
+    page = f"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{name} — Privacy Policy</title>
+<link rel="canonical" href="{url}">
+<meta http-equiv="refresh" content="0; url={url}">
+</head>
+<body>
+<p>The privacy policy of {name} has moved to <a href="{url}">{url}</a></p>
+</body>
+</html>
+"""
+    for out in (DOCS / anchor / "privacy/index.html", DOCS / "site" / anchor / "privacy/index.html"):
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(page)
+        print(f"wrote {out}")
+
+
 def app_section(anchor, name, source):
+    if isinstance(source, str):
+        return elsewhere_section(anchor, name, source)
     html = source.read_text()
     updated = re.search(r'<p class="meta">(.*?)</p>', html, re.S).group(1).strip()
     sections = re.findall(r'<section id="([a-z]+)" lang="[a-z]+">(.*?)</section>', html, re.S)
@@ -151,7 +201,10 @@ def main():
     print(f"wrote {out}")
 
     for anchor, name, source in APPS:
-        site_page(anchor, name, source)
+        if isinstance(source, str):
+            forward_page(anchor, name, source)
+        else:
+            site_page(anchor, name, source)
 
 
 if __name__ == "__main__":
