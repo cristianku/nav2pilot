@@ -51,7 +51,7 @@
 <main>
 
 <h1>Apps by 14 Bodhi — Privacy Policy</h1>
-<p class="meta">Last updated: 31 October 2026</p>
+<p class="meta">Last updated: 3 November 2026</p>
 
 <ul>
   <li><a href="#cubomi">Cubomi</a></li>
@@ -283,7 +283,7 @@
 
 <section id="nav2pilot">
 <h2>Nav2Pilot</h2>
-<p class="meta">Last updated / Ultimo aggiornamento: 31 October 2026 / 31 ottobre 2026</p>
+<p class="meta">Last updated / Ultimo aggiornamento: 3 November 2026 / 3 novembre 2026</p>
 <p class="lang"><a href="#nav2pilot-en">English</a> <a href="#nav2pilot-it">Italiano</a></p>
 <div id="nav2pilot-en" lang="en">
 
@@ -312,9 +312,9 @@
   <li><strong>Destinations and routes.</strong> A place you share from Google Maps, open as a map link, type, paste or pick from your favorites. When you tap Send, the app sends the place’s coordinates (latitude and longitude) to your comma device. On compatible devices it can also send waypoints: the stops you added on the map, or intermediate points taken along the route alternative you picked. The place name and address are shown in the app but are not part of what is sent.</li>
   <li><strong>Favorites.</strong> Places you save as favorites (coordinates, name, address) are stored on the phone.</li>
   <li><strong>Mapbox public token (optional).</strong> If you set up Mapbox, you paste the public token (<code>pk.…</code>) of your own Mapbox account. The app checks it with Mapbox, stores it on the phone, encrypted, and uses it for the route map. It also sends it to your selected comma device: after you save it and before every destination. Compatible devices use it to compute their own routes with Mapbox.</li>
-  <li><strong>Phone location (optional).</strong> Used only for the route preview, which requires a Mapbox token. See “Location” below.</li>
+  <li><strong>Phone location (optional).</strong> Used for the route preview, which requires a Mapbox token, and on the Android Auto screen to list the favorites nearest first and to find places nearby. See “Location” below.</li>
   <li><strong>Search text and shared links.</strong> Addresses you type, and text or links you share with the app, are used to find the place. See “Services the app contacts”.</li>
-  <li><strong>Points of interest (optional).</strong> When you pick a category in the points-of-interest menu (fuel stations, parking and so on), the app sends that category and the boundaries of the part of the map you are looking at to a public Overpass server, which answers with the matching places from OpenStreetMap. The places are shown on the map and are not saved.</li>
+  <li><strong>Points of interest (optional).</strong> When you pick a category in the points-of-interest menu (fuel stations, parking and so on), the app sends that category and the boundaries of the part of the map you are looking at (on the Android Auto screen, an area about 20 km wide centred on your position) to a public Overpass server, which answers with the matching places from OpenStreetMap. The places are shown on the map and are not saved.</li>
   <li><strong>Clipboard.</strong> The app reads the clipboard only when you tap a Paste button (for a link or a token).</li>
   <li><strong>Map tiles.</strong> Map images downloaded for the route map are kept in the app’s cache on the phone.</li>
   <li><strong>Technical data.</strong> Like any app that goes online, every request reveals your IP address to the service contacted. Requests also identify the app (“Nav2Pilot”, its version, Android).</li>
@@ -323,9 +323,10 @@
 <h4>Location</h4>
 <ul>
   <li>The app asks for location access only when it needs to show a route preview, that is, when a Mapbox token is set up and a destination is selected. You can grant approximate or precise location.</li>
-  <li>The app reads the position once per route calculation, only while you use it. It reuses a position the phone already has if it is less than 2 minutes old; otherwise it waits up to 15 seconds for a new one. It does not request background location and does not track you continuously.</li>
+  <li>On the Android Auto screen the app uses the access already granted on the phone, while the car screen is open: to list the favorites nearest first (computed on the phone, nothing is sent) and, when you open Nearby and pick a category, to look for places around you on an Overpass server (see below).</li>
+  <li>The app reads the position once per route calculation or Nearby search, only while you use it. It reuses a position the phone already has if it is less than 2 minutes old; otherwise it waits up to 15 seconds for a new one. It does not request background location and does not track you continuously.</li>
   <li>The position is sent to Mapbox, together with the stops and the destination, to compute the route preview. The app does not save the position and does not send it to comma or to your comma device. However, waypoints taken along a route you picked (see above) follow that route, which starts from your position.</li>
-  <li>Without location access the app keeps working; only the route preview is unavailable.</li>
+  <li>Without location access the app keeps working; only the route preview and the places nearby on the Android Auto screen are unavailable.</li>
 </ul>
 
 <h4>Services the app contacts</h4>
@@ -335,7 +336,7 @@
   <li><strong>Mapbox</strong> (<code>api.mapbox.com</code>), only if you set it up: checking the token; computing routes from your position, stops and destination; downloading map images for the area shown on the map. Your token is part of each request. Privacy policy: <a href="https://www.mapbox.com/legal/privacy">mapbox.com/legal/privacy</a></li>
   <li><strong>Address search</strong>: the app uses the phone’s built-in Android geocoding service. The text you search for is sent to whichever service the phone provides, usually Google through Google Play services. Without such a service, address search is not available. Google privacy policy: <a href="https://policies.google.com/privacy">policies.google.com/privacy</a></li>
   <li><strong>Google Maps</strong>: to read the location in a shared short link (<code>maps.app.goo.gl</code>), the app opens the link on Google’s servers and follows its redirects. It only contacts Google Maps addresses. Google privacy policy: <a href="https://policies.google.com/privacy">policies.google.com/privacy</a></li>
-  <li><strong>OpenStreetMap Overpass API</strong> (<code>overpass-api.de</code>, or <code>overpass.private.coffee</code> when the first one is busy), only when you pick a points-of-interest category: the category and the boundaries of the part of the map you are looking at, which can include where you are. No account and no token. These public servers are run by their own operators, under their own terms: <a href="https://overpass-api.de/">overpass-api.de</a>, <a href="https://private.coffee/">private.coffee</a></li>
+  <li><strong>OpenStreetMap Overpass API</strong> (<code>overpass-api.de</code>, or <code>overpass.private.coffee</code> when the first one is busy), only when you pick a points-of-interest category: the category and the boundaries of the part of the map you are looking at, which can include where you are, or, on the Android Auto screen, an area about 20 km wide centred on your position. No account and no token. These public servers are run by their own operators, under their own terms: <a href="https://overpass-api.de/">overpass-api.de</a>, <a href="https://private.coffee/">private.coffee</a></li>
 </ul>
 <p>Links that open other pages (jwt.comma.ai to get a token, Mapbox sign-up and token pages, Mapbox map attribution) open in your browser and are governed by those websites.</p>
 
@@ -358,7 +359,7 @@
 <h4>Permissions</h4>
 <ul>
   <li><strong>Internet</strong> and <strong>network state</strong>: to contact the services above and to check the connection before downloading map images.</li>
-  <li><strong>Approximate / precise location</strong>: only for the route preview, as described above.</li>
+  <li><strong>Approximate / precise location</strong>: for the route preview and the Android Auto screen, as described above.</li>
 </ul>
 <p>You can revoke location access at any time in Android: Settings → Apps → Nav2Pilot → Permissions.</p>
 
@@ -406,9 +407,9 @@
   <li><strong>Destinazioni e percorsi.</strong> Un luogo che condividi da Google Maps, apri come link, digiti, incolli o scegli tra i preferiti. Quando premi Invia, l’app manda al tuo dispositivo comma le coordinate del luogo (latitudine e longitudine). Sui dispositivi compatibili può inviare anche tappe: quelle aggiunte sulla mappa, oppure punti intermedi presi lungo l’alternativa di percorso che hai scelto. Nome e indirizzo del luogo sono mostrati nell’app ma non fanno parte di ciò che viene inviato.</li>
   <li><strong>Preferiti.</strong> I luoghi salvati come preferiti (coordinate, nome, indirizzo) sono memorizzati sul telefono.</li>
   <li><strong>Token pubblico Mapbox (facoltativo).</strong> Se configuri Mapbox, inserisci il token pubblico (<code>pk.…</code>) del tuo account Mapbox. L’app lo verifica con Mapbox, lo memorizza sul telefono, cifrato, e lo usa per la mappa del percorso. Lo invia anche al dispositivo comma selezionato: dopo il salvataggio e prima di ogni destinazione. I dispositivi compatibili lo usano per calcolare i propri percorsi con Mapbox.</li>
-  <li><strong>Posizione del telefono (facoltativa).</strong> Usata solo per l’anteprima del percorso, che richiede un token Mapbox. Vedi “Posizione” più sotto.</li>
+  <li><strong>Posizione del telefono (facoltativa).</strong> Usata per l’anteprima del percorso, che richiede un token Mapbox, e sullo schermo di Android Auto per elencare i preferiti dal più vicino e per trovare i luoghi nelle vicinanze. Vedi “Posizione” più sotto.</li>
   <li><strong>Testo di ricerca e link condivisi.</strong> Gli indirizzi che digiti e i testi o link che condividi con l’app servono a trovare il luogo. Vedi “Servizi contattati dall’app”.</li>
-  <li><strong>Punti di interesse (facoltativi).</strong> Quando scegli una categoria nel menu dei punti di interesse (distributori, parcheggi e così via), l’app invia la categoria e i confini della parte di mappa che stai guardando a un server Overpass pubblico, che risponde con i luoghi corrispondenti di OpenStreetMap. I luoghi vengono mostrati sulla mappa e non vengono salvati.</li>
+  <li><strong>Punti di interesse (facoltativi).</strong> Quando scegli una categoria nel menu dei punti di interesse (distributori, parcheggi e così via), l’app invia la categoria e i confini della parte di mappa che stai guardando (sullo schermo di Android Auto, un’area larga circa 20 km centrata sulla tua posizione) a un server Overpass pubblico, che risponde con i luoghi corrispondenti di OpenStreetMap. I luoghi vengono mostrati sulla mappa e non vengono salvati.</li>
   <li><strong>Appunti.</strong> L’app legge gli appunti solo quando premi un pulsante Incolla (per un link o un token).</li>
   <li><strong>Immagini della mappa.</strong> Le immagini scaricate per la mappa del percorso restano nella cache dell’app sul telefono.</li>
   <li><strong>Dati tecnici.</strong> Come per ogni app che si collega a Internet, ogni richiesta rivela il tuo indirizzo IP al servizio contattato. Le richieste identificano anche l’app (“Nav2Pilot”, la versione, Android).</li>
@@ -417,9 +418,10 @@
 <h4>Posizione</h4>
 <ul>
   <li>L’app chiede l’accesso alla posizione solo quando deve mostrare un’anteprima del percorso, cioè quando è configurato un token Mapbox ed è selezionata una destinazione. Puoi concedere la posizione approssimativa o precisa.</li>
-  <li>L’app legge la posizione una volta per ogni calcolo del percorso, solo mentre la usi. Riutilizza una posizione già nota al telefono se ha meno di 2 minuti; altrimenti ne attende una nuova per al massimo 15 secondi. Non richiede la posizione in background e non ti traccia in modo continuo.</li>
+  <li>Sullo schermo di Android Auto l’app usa l’accesso già concesso sul telefono, mentre lo schermo dell’auto è aperto: per elencare i preferiti dal più vicino (calcolato sul telefono, non viene inviato nulla) e, quando apri Nearby e scegli una categoria, per cercare i luoghi intorno a te su un server Overpass (vedi sotto).</li>
+  <li>L’app legge la posizione una volta per ogni calcolo del percorso o ricerca Nearby, solo mentre la usi. Riutilizza una posizione già nota al telefono se ha meno di 2 minuti; altrimenti ne attende una nuova per al massimo 15 secondi. Non richiede la posizione in background e non ti traccia in modo continuo.</li>
   <li>La posizione viene inviata a Mapbox, insieme alle tappe e alla destinazione, per calcolare l’anteprima del percorso. L’app non la salva e non la invia a comma né al tuo dispositivo comma. I punti intermedi presi lungo un percorso scelto (vedi sopra) seguono però quel percorso, che parte dalla tua posizione.</li>
-  <li>Senza accesso alla posizione l’app continua a funzionare; manca solo l’anteprima del percorso.</li>
+  <li>Senza accesso alla posizione l’app continua a funzionare; mancano solo l’anteprima del percorso e i luoghi nelle vicinanze sullo schermo di Android Auto.</li>
 </ul>
 
 <h4>Servizi contattati dall’app</h4>
@@ -429,7 +431,7 @@
   <li><strong>Mapbox</strong> (<code>api.mapbox.com</code>), solo se lo configuri: verifica del token; calcolo dei percorsi a partire da posizione, tappe e destinazione; download delle immagini della mappa per l’area visualizzata. Il tuo token fa parte di ogni richiesta. Informativa privacy: <a href="https://www.mapbox.com/legal/privacy">mapbox.com/legal/privacy</a></li>
   <li><strong>Ricerca indirizzi</strong>: l’app usa il servizio di geocodifica integrato in Android. Il testo cercato viene inviato al servizio fornito dal telefono, di solito Google tramite Google Play Services. Senza un servizio di questo tipo la ricerca indirizzi non è disponibile. Informativa privacy di Google: <a href="https://policies.google.com/privacy">policies.google.com/privacy</a></li>
   <li><strong>Google Maps</strong>: per leggere la posizione contenuta in un link breve condiviso (<code>maps.app.goo.gl</code>), l’app apre il link sui server di Google e ne segue i reindirizzamenti. Contatta solo indirizzi di Google Maps. Informativa privacy di Google: <a href="https://policies.google.com/privacy">policies.google.com/privacy</a></li>
-  <li><strong>OpenStreetMap Overpass API</strong> (<code>overpass-api.de</code>, oppure <code>overpass.private.coffee</code> quando il primo è occupato), solo quando scegli una categoria di punti di interesse: la categoria e i confini della parte di mappa che stai guardando, che può comprendere il luogo in cui ti trovi. Nessun account e nessun token. Questi server pubblici sono gestiti dai rispettivi operatori, secondo le loro condizioni: <a href="https://overpass-api.de/">overpass-api.de</a>, <a href="https://private.coffee/">private.coffee</a></li>
+  <li><strong>OpenStreetMap Overpass API</strong> (<code>overpass-api.de</code>, oppure <code>overpass.private.coffee</code> quando il primo è occupato), solo quando scegli una categoria di punti di interesse: la categoria e i confini della parte di mappa che stai guardando, che può comprendere il luogo in cui ti trovi, oppure, sullo schermo di Android Auto, un’area larga circa 20 km centrata sulla tua posizione. Nessun account e nessun token. Questi server pubblici sono gestiti dai rispettivi operatori, secondo le loro condizioni: <a href="https://overpass-api.de/">overpass-api.de</a>, <a href="https://private.coffee/">private.coffee</a></li>
 </ul>
 <p>I link che aprono altre pagine (jwt.comma.ai per ottenere il token, le pagine di registrazione e dei token di Mapbox, l’attribuzione della mappa Mapbox) si aprono nel browser e sono regolati da quei siti.</p>
 
@@ -452,7 +454,7 @@
 <h4>Permessi</h4>
 <ul>
   <li><strong>Internet</strong> e <strong>stato della rete</strong>: per contattare i servizi indicati sopra e verificare la connessione prima di scaricare le immagini della mappa.</li>
-  <li><strong>Posizione approssimativa / precisa</strong>: solo per l’anteprima del percorso, come descritto sopra.</li>
+  <li><strong>Posizione approssimativa / precisa</strong>: per l’anteprima del percorso e lo schermo di Android Auto, come descritto sopra.</li>
 </ul>
 <p>Puoi revocare l’accesso alla posizione in qualsiasi momento in Android: Impostazioni → App → Nav2Pilot → Autorizzazioni.</p>
 
