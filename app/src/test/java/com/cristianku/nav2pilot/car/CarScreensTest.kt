@@ -89,7 +89,7 @@ class CarScreensTest {
             resolver = DestinationResolver(ShortLinkResolver(http), search, unconfined),
             searchAvailable = true,
             routePlanning = RoutePlanning(MapboxDirections(http, { mapboxToken.load() }, unconfined), location),
-            places = OverpassPlaces(http, unconfined, listOf(OVERPASS)),
+            places = OverpassPlaces(http, unconfined, { listOf(OVERPASS) }),
             map = map,
             ioDispatcher = unconfined,
         )

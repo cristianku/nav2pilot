@@ -86,7 +86,7 @@ class OverpassPlacesTest {
     @Test
     fun searchPostsTheQueryAndTriesTheNextServerWhenOneIsBusy() = runTest {
         val http = FakeHttpClient()
-        val places = OverpassPlaces(http, UnconfinedTestDispatcher(testScheduler), listOf(FIRST_SERVER, SECOND_SERVER))
+        val places = OverpassPlaces(http, UnconfinedTestDispatcher(testScheduler), { listOf(FIRST_SERVER, SECOND_SERVER) })
 
         http.respond(429, "")
         http.respond(200, OVERPASS_ANSWER)
@@ -104,7 +104,7 @@ class OverpassPlacesTest {
     @Test
     fun searchReportsWhatWentWrong() = runTest {
         val http = FakeHttpClient()
-        val places = OverpassPlaces(http, UnconfinedTestDispatcher(testScheduler), listOf(FIRST_SERVER, SECOND_SERVER))
+        val places = OverpassPlaces(http, UnconfinedTestDispatcher(testScheduler), { listOf(FIRST_SERVER, SECOND_SERVER) })
 
         // both busy: the last answer
         http.fail("timeout")
@@ -119,14 +119,53 @@ class OverpassPlacesTest {
         assertEquals(400, ((refused as TransportResult.Failed).error as TransportError.HttpFailure).code)
         assertEquals(1, http.requests.size)
 
-        // out of time: 200 with a remark and no elements
-        http.respond(200, """{"elements": [], "remark": "runtime error: Query timed out in \"query\" at line 1 after 21 seconds."}""")
+        // out of time on both: 200 with a remark and no elements
+        val outOfTime = """{"elements": [], "remark": "runtime error: Query timed out in \"query\" at line 1 after 21 seconds."}"""
+        http.respond(200, outOfTime)
+        http.respond(200, outOfTime)
         val timedOut = places.search(PlaceCategory.FUEL, FRICK)
         assertTrue((timedOut as TransportResult.Failed).error is TransportError.DeviceRejected)
 
         http.respond(200, """{"elements": []}""")
         val none = places.search(PlaceCategory.FUEL, FRICK)
         assertTrue((none as TransportResult.Ok).value.isEmpty())
+    }
+
+    @Test
+    fun aServerThatRefusesTheAppOrAnswersBadlyLeavesItToTheNext() = runTest {
+        val http = FakeHttpClient()
+        val places = OverpassPlaces(http, UnconfinedTestDispatcher(testScheduler), { listOf(FIRST_SERVER, SECOND_SERVER) })
+
+        http.respond(406, "<html>Not Acceptable</html>")
+        http.respond(200, OVERPASS_ANSWER)
+        assertEquals(3, (places.search(PlaceCategory.FUEL, FRICK) as TransportResult.Ok).value.size)
+
+        http.respond(200, "<html>rate_limited</html>")
+        http.respond(200, OVERPASS_ANSWER)
+        assertEquals(3, (places.search(PlaceCategory.FUEL, FRICK) as TransportResult.Ok).value.size)
+    }
+
+    @Test
+    fun theSwissServerIsAskedFirstOnlyAroundSwitzerland() {
+        assertEquals(OverpassEndpoints.SWITZERLAND, OverpassEndpoints.forArea(FRICK).first())
+        assertEquals(3, OverpassEndpoints.forArea(FRICK).size)
+        val milan = MapArea(south = 45.40, west = 9.10, north = 45.50, east = 9.25)
+        assertEquals(OverpassEndpoints.INTERPRETERS, OverpassEndpoints.forArea(milan))
+    }
+
+    @Test
+    fun noneOnTheSwissServerIsCheckedAcrossTheBorder() = runTest {
+        val http = FakeHttpClient()
+        val places = OverpassPlaces(http, UnconfinedTestDispatcher(testScheduler), { listOf(OverpassEndpoints.SWITZERLAND, FIRST_SERVER) })
+
+        http.respond(200, """{"elements": []}""")
+        http.respond(200, OVERPASS_ANSWER)
+        assertEquals(3, (places.search(PlaceCategory.FUEL, FRICK) as TransportResult.Ok).value.size)
+
+        // the world servers are busy: still "none", not an error
+        http.respond(200, """{"elements": []}""")
+        http.fail("timeout")
+        assertTrue((places.search(PlaceCategory.FUEL, FRICK) as TransportResult.Ok).value.isEmpty())
     }
 
     @Test
@@ -178,7 +217,7 @@ class PlacesViewModelTest {
             favoritesRepository = FavoritesRepository(storage),
             deviceRepository = DeviceRepository(storage),
             ioDispatcher = dispatcher,
-            places = OverpassPlaces(http, dispatcher, listOf(FIRST_SERVER)),
+            places = OverpassPlaces(http, dispatcher, { listOf(FIRST_SERVER) }),
         )
     }
 

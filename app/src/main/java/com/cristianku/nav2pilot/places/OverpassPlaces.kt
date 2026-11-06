@@ -20,11 +20,23 @@ import java.util.Locale
 
 /** Public Overpass API servers (OpenStreetMap data, free and without a key), tried in this order. */
 object OverpassEndpoints {
+    /** Answers in under a second, but has only Switzerland and the land along its border. */
+    const val SWITZERLAND = "https://overpass.osm.ch/api/interpreter"
+
     val INTERPRETERS = listOf(
         "https://overpass-api.de/api/interpreter",
         // the main server answers 429 or 504 when it is busy
         "https://overpass.private.coffee/api/interpreter",
     )
+
+    /** The servers for [area]: the Swiss one first when its middle is around Switzerland. */
+    fun forArea(area: MapArea): List<String> {
+        val center = area.center()
+        if (center.latitude in 45.8..47.9 && center.longitude in 5.9..10.5) {
+            return listOf(SWITZERLAND) + INTERPRETERS
+        }
+        return INTERPRETERS
+    }
 }
 
 /**
@@ -34,12 +46,13 @@ object OverpassEndpoints {
 class OverpassPlaces(
     private val http: HttpClient,
     private val ioDispatcher: CoroutineDispatcher,
-    private val endpoints: List<String> = OverpassEndpoints.INTERPRETERS,
+    private val endpoints: (MapArea) -> List<String> = OverpassEndpoints::forArea,
 ) {
     suspend fun search(category: PlaceCategory, area: MapArea): TransportResult<List<Place>> {
         val body = "data=" + URLEncoder.encode(query(category, area), "UTF-8")
         var failure: TransportError = TransportError.Network("no Overpass server")
-        for (endpoint in endpoints) {
+        var noneInSwitzerland = false
+        for (endpoint in endpoints(area)) {
             val request = HttpRequest(
                 method = "POST",
                 url = endpoint,
@@ -56,31 +69,42 @@ class OverpassPlaces(
                 failure = TransportError.Network(error.message ?: error.javaClass.simpleName)
                 continue
             }
-            // busy or down: the next server may answer
+            // a query the server cannot read: the others would refuse it too
+            if (response.code == 400) {
+                return TransportResult.Failed(TransportError.HttpFailure(response.code, ErrorText.fromHttpBody(response.body)))
+            }
+            // busy, down or refusing this client: the next server may answer
             if (response.code == 429) {
                 failure = TransportError.RateLimited
                 continue
             }
-            if (response.code >= 500) {
+            if (!response.isSuccessful()) {
                 failure = TransportError.HttpFailure(response.code, ErrorText.fromHttpBody(response.body))
                 continue
-            }
-            if (!response.isSuccessful()) {
-                return TransportResult.Failed(TransportError.HttpFailure(response.code, ErrorText.fromHttpBody(response.body)))
             }
             val json: JSONObject
             try {
                 json = JSONObject(response.body)
             } catch (notJson: JSONException) {
-                return TransportResult.Failed(TransportError.Malformed(ErrorText.shorten(response.body)))
+                failure = TransportError.Malformed(ErrorText.shorten(response.body))
+                continue
             }
             val places = parsePlaces(json, category, area.center(), MAX_PLACES)
             // a query that ran out of time or memory comes back as 200 with a remark and no elements
             val remark = stringField(json, "remark")
             if (places.isEmpty() && remark.isNotEmpty()) {
-                return TransportResult.Failed(TransportError.DeviceRejected(ErrorText.shorten(remark)))
+                failure = TransportError.DeviceRejected(ErrorText.shorten(remark))
+                continue
+            }
+            // the Swiss server stops at the border: the places may be just across it
+            if (places.isEmpty() && endpoint == OverpassEndpoints.SWITZERLAND) {
+                noneInSwitzerland = true
+                continue
             }
             return TransportResult.Ok(places)
+        }
+        if (noneInSwitzerland) {
+            return TransportResult.Ok(emptyList())
         }
         return TransportResult.Failed(failure)
     }
