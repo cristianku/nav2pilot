@@ -9,6 +9,8 @@ class HttpRequest(
     val body: String? = null,
     val followRedirects: Boolean = true,
     val readBody: Boolean = true,
+    /** How long to wait for the server, instead of the client's own limits. */
+    val timeoutMillis: Int? = null,
 ) {
     // Headers are left out on purpose: they can contain the Authorization token.
     override fun toString(): String {

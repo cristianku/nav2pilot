@@ -57,7 +57,7 @@ class OverpassPlacesTest {
     @Test
     fun queryAsksTheCategoryInTheAreaWithCentres() {
         assertEquals(
-            """[out:json][timeout:20];nwr["amenity"="fuel"](47.45000,7.95000,47.55000,8.10000);out center 200;""",
+            """[out:json][timeout:10];nwr["amenity"="fuel"](47.45000,7.95000,47.55000,8.10000);out center 200;""",
             OverpassPlaces.query(PlaceCategory.FUEL, FRICK),
         )
         assertTrue(OverpassPlaces.query(PlaceCategory.PARKING, FRICK).contains("""["access"!~"^(private|no)$"]"""))

@@ -17,8 +17,8 @@ class UrlConnectionHttpClient(
         try {
             connection.requestMethod = request.method
             connection.instanceFollowRedirects = request.followRedirects
-            connection.connectTimeout = connectTimeoutMillis
-            connection.readTimeout = readTimeoutMillis
+            connection.connectTimeout = request.timeoutMillis ?: connectTimeoutMillis
+            connection.readTimeout = request.timeoutMillis ?: readTimeoutMillis
             connection.useCaches = false
             connection.setRequestProperty("User-Agent", userAgent)
             for ((name, value) in request.headers) {

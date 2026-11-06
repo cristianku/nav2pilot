@@ -47,6 +47,8 @@ class OverpassPlaces(
     private val http: HttpClient,
     private val ioDispatcher: CoroutineDispatcher,
     private val endpoints: (MapArea) -> List<String> = OverpassEndpoints::forArea,
+    /** Asked when no Overpass server gave an answer. */
+    private val reserve: PhotonPlaces? = null,
 ) {
     suspend fun search(category: PlaceCategory, area: MapArea): TransportResult<List<Place>> {
         val body = "data=" + URLEncoder.encode(query(category, area), "UTF-8")
@@ -61,6 +63,7 @@ class OverpassPlaces(
                     "Accept" to "application/json",
                 ),
                 body = body,
+                timeoutMillis = SERVER_TIMEOUT_MILLIS,
             )
             val response: HttpResponse
             try {
@@ -103,6 +106,10 @@ class OverpassPlaces(
             }
             return TransportResult.Ok(places)
         }
+        val reserved = reserve?.search(category, area)
+        if (reserved is TransportResult.Ok && reserved.value.isNotEmpty()) {
+            return reserved
+        }
         if (noneInSwitzerland) {
             return TransportResult.Ok(emptyList())
         }
@@ -115,6 +122,9 @@ class OverpassPlaces(
 
         // fetched to pick the MAX_PLACES nearest to the middle
         private const val MAX_FETCHED = 200
+
+        // a busy server takes half a minute or more: better the next one, and in the end the reserve
+        private const val SERVER_TIMEOUT_MILLIS = 6_000
 
         /** What the phone and the car say when OpenStreetMap gives no places. */
         fun errorText(error: TransportError): String {
@@ -134,7 +144,7 @@ class OverpassPlaces(
         fun query(category: PlaceCategory, area: MapArea): String {
             return String.format(
                 Locale.US,
-                "[out:json][timeout:20];nwr%s(%.5f,%.5f,%.5f,%.5f);out center %d;",
+                "[out:json][timeout:10];nwr%s(%.5f,%.5f,%.5f,%.5f);out center %d;",
                 category.filter,
                 area.south,
                 area.west,

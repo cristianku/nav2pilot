@@ -9,25 +9,26 @@ import kotlin.math.min
 /**
  * A kind of point of interest in the map's places menu.
  *
- * [filter] is the Overpass QL tag filter that makes it in OpenStreetMap; [singular] names a place that has no
- * name of its own there.
+ * [filter] is the Overpass QL tag filter that makes it in OpenStreetMap, [tags] the same as Photon's key:value
+ * pairs; [singular] names a place that has no name of its own there.
  */
 enum class PlaceCategory(
     val label: String,
     val singular: String,
     val filter: String,
+    val tags: List<String>,
 ) {
-    FUEL("Fuel stations", "Fuel station", """["amenity"="fuel"]"""),
-    CHARGING("EV charging", "Charging station", """["amenity"="charging_station"]"""),
+    FUEL("Fuel stations", "Fuel station", """["amenity"="fuel"]""", listOf("amenity:fuel")),
+    CHARGING("EV charging", "Charging station", """["amenity"="charging_station"]""", listOf("amenity:charging_station")),
     // private car parks are mapped too, and nobody can use them
-    PARKING("Parking", "Parking", """["amenity"="parking"]["access"!~"^(private|no)$"]"""),
+    PARKING("Parking", "Parking", """["amenity"="parking"]["access"!~"^(private|no)$"]""", listOf("amenity:parking")),
     // motorway service areas ("services") and lay-bys with tables and toilets ("rest_area")
-    REST_AREA("Rest areas", "Rest area", """["highway"~"^(services|rest_area)$"]"""),
-    RESTAURANT("Restaurants", "Restaurant", """["amenity"~"^(restaurant|fast_food)$"]"""),
-    CAFE("Cafés", "Café", """["amenity"="cafe"]"""),
-    SUPERMARKET("Supermarkets", "Supermarket", """["shop"="supermarket"]"""),
-    HOTEL("Hotels", "Hotel", """["tourism"~"^(hotel|motel)$"]"""),
-    PHARMACY("Pharmacies", "Pharmacy", """["amenity"="pharmacy"]"""),
+    REST_AREA("Rest areas", "Rest area", """["highway"~"^(services|rest_area)$"]""", listOf("highway:services", "highway:rest_area")),
+    RESTAURANT("Restaurants", "Restaurant", """["amenity"~"^(restaurant|fast_food)$"]""", listOf("amenity:restaurant", "amenity:fast_food")),
+    CAFE("Cafés", "Café", """["amenity"="cafe"]""", listOf("amenity:cafe")),
+    SUPERMARKET("Supermarkets", "Supermarket", """["shop"="supermarket"]""", listOf("shop:supermarket")),
+    HOTEL("Hotels", "Hotel", """["tourism"~"^(hotel|motel)$"]""", listOf("tourism:hotel", "tourism:motel")),
+    PHARMACY("Pharmacies", "Pharmacy", """["amenity"="pharmacy"]""", listOf("amenity:pharmacy")),
 }
 
 /** A point of interest from OpenStreetMap, drawn on the map. */

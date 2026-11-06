@@ -17,6 +17,7 @@ import com.cristianku.nav2pilot.mapbox.MapboxTokenVerifier
 import com.cristianku.nav2pilot.mapbox.RoutePlanning
 import com.cristianku.nav2pilot.net.UrlConnectionHttpClient
 import com.cristianku.nav2pilot.places.OverpassPlaces
+import com.cristianku.nav2pilot.places.PhotonPlaces
 import com.cristianku.nav2pilot.resolve.DestinationResolver
 import com.cristianku.nav2pilot.resolve.ShortLinkResolver
 import com.cristianku.nav2pilot.security.KeystoreTokenCipher
@@ -52,7 +53,7 @@ class AppContainer(context: Context) {
         location = AndroidLocationProvider(context),
     )
     // points of interest on the map, from OpenStreetMap (Overpass API, no key)
-    val places = OverpassPlaces(httpClient, ioDispatcher)
+    val places = OverpassPlaces(httpClient, ioDispatcher, reserve = PhotonPlaces(httpClient, ioDispatcher))
     val favoritesRepository = FavoritesRepository(dataStore)
     val deviceRepository = DeviceRepository(dataStore)
 
