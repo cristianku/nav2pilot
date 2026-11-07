@@ -119,6 +119,8 @@ import com.cristianku.nav2pilot.model.PairedDevice
 import com.cristianku.nav2pilot.places.MapArea
 import com.cristianku.nav2pilot.places.Place
 import com.cristianku.nav2pilot.places.PlaceCategory
+import com.cristianku.nav2pilot.places.PlaceInfo
+import com.cristianku.nav2pilot.places.PlaceKinds
 import com.cristianku.nav2pilot.ui.ConnectionState
 import com.cristianku.nav2pilot.ui.Formatting
 import com.cristianku.nav2pilot.ui.MainUiState
@@ -133,6 +135,7 @@ import com.cristianku.nav2pilot.ui.map.STOP_COLOR
 import com.cristianku.nav2pilot.ui.map.placeSymbol
 import com.cristianku.nav2pilot.ui.theme.StatusColors
 import kotlinx.coroutines.launch
+import java.time.LocalDateTime
 import java.util.Locale
 
 /** What the map screen does, wired to the view model by the root. */
@@ -670,12 +673,16 @@ private fun PlaceDialog(
                     Text(place.details, style = MaterialTheme.typography.bodyMedium)
                 }
                 // an unnamed place is already called by its category
-                if (place.name != place.category.singular) {
-                    Text(
-                        place.category.singular,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                var label = PlaceKinds.label(place.kind)
+                if (label.isEmpty()) {
+                    label = place.category.singular
+                }
+                if (place.name == label || place.name == place.category.singular) {
+                    label = ""
+                }
+                val line = kindAndStatus(label, place.info?.openingHours ?: "", currentMinute())
+                if (line.isNotEmpty()) {
+                    Text(line, style = MaterialTheme.typography.bodySmall)
                 }
             }
         },
@@ -854,8 +861,15 @@ private fun SearchBox(
                         .heightIn(max = RESULTS_MAX_HEIGHT)
                         .verticalScroll(rememberScrollState()),
                 ) {
+                    val now = currentMinute()
                     for (choice in state.choices) {
-                        ChoiceRow(choice = choice, near = state.searchCenter, onChoose = { actions.onChooseCandidate(choice) })
+                        ChoiceRow(
+                            choice = choice,
+                            near = state.searchCenter,
+                            info = state.placeInfo[choice.osmId],
+                            now = now,
+                            onChoose = { actions.onChooseCandidate(choice) },
+                        )
                     }
                 }
             } else if (state.suggestions.isNotEmpty() && query.isNotBlank() && !state.resolving) {
@@ -866,10 +880,13 @@ private fun SearchBox(
                         .heightIn(max = RESULTS_MAX_HEIGHT)
                         .verticalScroll(rememberScrollState()),
                 ) {
+                    val now = currentMinute()
                     for (suggestion in state.suggestions) {
                         ChoiceRow(
                             choice = suggestion,
                             near = state.searchCenter,
+                            info = state.placeInfo[suggestion.osmId],
+                            now = now,
                             onChoose = { actions.onChooseCandidate(suggestion) },
                         )
                     }
@@ -879,9 +896,12 @@ private fun SearchBox(
     }
 }
 
-/** A search result; with [near] known, its distance from there after the address. */
+/**
+ * A search result: its kind and address, with [near] known its distance from there, and when OpenStreetMap
+ * has its opening hours ([info]) whether it is open at [now].
+ */
 @Composable
-private fun ChoiceRow(choice: Destination, near: LatLng?, onChoose: () -> Unit) {
+private fun ChoiceRow(choice: Destination, near: LatLng?, info: PlaceInfo?, now: LocalDateTime, onChoose: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -889,25 +909,37 @@ private fun ChoiceRow(choice: Destination, near: LatLng?, onChoose: () -> Unit) 
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(Icons.Filled.Place, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        KindIcon(choice.kind)
         Spacer(Modifier.width(16.dp))
         Column(Modifier.weight(1f)) {
             Text(choice.displayName(), style = MaterialTheme.typography.bodyLarge)
+            val parts = mutableListOf<String>()
+            val label = PlaceKinds.label(choice.kind)
+            // "Zürich", a city: the label says nothing the name does not
+            if (label.isNotEmpty() && !label.equals(choice.name, ignoreCase = true)) {
+                parts.add(label)
+            }
             // the coordinates only when nothing else tells the places apart
-            var secondLine = choice.details
-            if (secondLine.isEmpty() && choice.displayName() != choice.coordinatesText()) {
-                secondLine = choice.coordinatesText()
+            if (choice.details.isNotEmpty()) {
+                parts.add(choice.details)
+            } else if (choice.displayName() != choice.coordinatesText()) {
+                parts.add(choice.coordinatesText())
             }
             if (near != null) {
-                val distance = RouteFormatting.distance(RouteShaping.distanceMeters(near, LatLng(choice.latitude, choice.longitude)))
-                if (secondLine.isEmpty()) {
-                    secondLine = distance
-                } else {
-                    secondLine = "$secondLine · $distance"
-                }
+                parts.add(RouteFormatting.distance(RouteShaping.distanceMeters(near, LatLng(choice.latitude, choice.longitude))))
             }
-            if (secondLine.isNotEmpty()) {
-                Text(secondLine, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (parts.isNotEmpty()) {
+                Text(
+                    parts.joinToString(" · "),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (info != null && info.openingHours.isNotEmpty()) {
+                val status = kindAndStatus("", info.openingHours, now)
+                if (status.isNotEmpty()) {
+                    Text(status, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
             }
         }
     }
@@ -1033,6 +1065,8 @@ private fun DestinationPanel(
 ) {
     val context = LocalContext.current
     var detailsVisible by rememberSaveable(destination.latitude, destination.longitude) { mutableStateOf(false) }
+    val info = state.placeInfo[destination.osmId]
+    val now = currentMinute()
 
     var shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
     var panelModifier = Modifier.fillMaxWidth()
@@ -1085,6 +1119,21 @@ private fun DestinationPanel(
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                         )
+                    }
+                    // "Furniture store · Open · Closes 20:00"; a tap shows the week, the phone and the website
+                    var label = PlaceKinds.label(destination.kind)
+                    if (label.equals(destination.name, ignoreCase = true)) {
+                        label = ""
+                    }
+                    val line = kindAndStatus(label, info?.openingHours ?: "", now)
+                    if (line.isNotEmpty()) {
+                        var lineModifier = Modifier.padding(top = 2.dp)
+                        if (info != null && !info.isEmpty()) {
+                            lineModifier = Modifier
+                                .clickable { detailsVisible = !detailsVisible }
+                                .then(lineModifier)
+                        }
+                        Text(line, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = lineModifier)
                     }
                 }
                 IconButton(onClick = actions.onToggleFavorite) {
@@ -1148,6 +1197,11 @@ private fun DestinationPanel(
                 }
             }
             if (detailsVisible) {
+                if (info != null && !info.isEmpty()) {
+                    Column(modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 6.dp)) {
+                        PlaceInfoBlock(info = info, now = now)
+                    }
+                }
                 Column(
                     modifier = Modifier.padding(start = 12.dp, end = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp),

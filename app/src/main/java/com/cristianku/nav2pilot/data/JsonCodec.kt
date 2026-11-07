@@ -23,6 +23,13 @@ object JsonCodec {
         json.put("name", destination.name)
         json.put("details", destination.details)
         json.put("approximate", destination.approximate)
+        // older versions have neither: read as ""
+        if (destination.kind.isNotEmpty()) {
+            json.put("kind", destination.kind)
+        }
+        if (destination.osmId.isNotEmpty()) {
+            json.put("osmId", destination.osmId)
+        }
         return json
     }
 
@@ -41,6 +48,8 @@ object JsonCodec {
             name = stringField(json, "name"),
             details = stringField(json, "details"),
             approximate = json.optBoolean("approximate", false),
+            kind = stringField(json, "kind"),
+            osmId = stringField(json, "osmId"),
         )
     }
 

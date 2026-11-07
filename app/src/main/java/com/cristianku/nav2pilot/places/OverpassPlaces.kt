@@ -31,8 +31,12 @@ object OverpassEndpoints {
 
     /** The servers for [area]: the Swiss one first when its middle is around Switzerland. */
     fun forArea(area: MapArea): List<String> {
-        val center = area.center()
-        if (center.latitude in 45.8..47.9 && center.longitude in 5.9..10.5) {
+        return forPoints(listOf(area.center()))
+    }
+
+    /** The servers for places at [points]: the Swiss one first when one of them is around Switzerland. */
+    fun forPoints(points: List<LatLng>): List<String> {
+        if (points.any { point -> point.latitude in 45.8..47.9 && point.longitude in 5.9..10.5 }) {
             return listOf(SWITZERLAND) + INTERPRETERS
         }
         return INTERPRETERS
@@ -174,7 +178,24 @@ class OverpassPlaces(
                 if (tags == null) {
                     tags = JSONObject()
                 }
-                found.add(Place(category, latitude, longitude, placeName(tags, category), address(tags)))
+                var osmId = ""
+                val type = element.optString("type", "")
+                val id = element.optLong("id", -1L)
+                if (id >= 0 && PlaceInfoLookup.isOsmId("$type/$id")) {
+                    osmId = "$type/$id"
+                }
+                found.add(
+                    Place(
+                        category = category,
+                        latitude = latitude,
+                        longitude = longitude,
+                        name = placeName(tags, category),
+                        details = address(tags),
+                        kind = PlaceKinds.fromTags(tags, category),
+                        osmId = osmId,
+                        info = PlaceInfo.fromTags(tags),
+                    ),
+                )
             }
             val nearest = found.sortedBy { place -> RouteShaping.distanceMeters(center, LatLng(place.latitude, place.longitude)) }
             return nearest.take(limit)

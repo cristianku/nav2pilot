@@ -218,6 +218,7 @@ class PlacesViewModelTest {
             deviceRepository = DeviceRepository(storage),
             ioDispatcher = dispatcher,
             places = OverpassPlaces(http, dispatcher, { listOf(FIRST_SERVER) }),
+            placeInfoLookup = PlaceInfoLookup(http, dispatcher) { listOf(FIRST_SERVER) },
         )
     }
 
@@ -238,6 +239,11 @@ class PlacesViewModelTest {
         assertEquals("Migrol Frick", chosen.destination!!.name)
         assertEquals("Hauptstrasse 12, 5070 Frick", chosen.destination!!.details)
         assertEquals(DestinationResolver.SOURCE_PLACES, chosen.destinationSource)
+        assertEquals("node/1", chosen.destination!!.osmId)
+        assertEquals("amenity:fuel", chosen.destination!!.kind)
+        // its tags came with it: no request for its opening hours
+        assertTrue(chosen.placeInfo["node/1"]!!.isEmpty())
+        assertEquals(1, http.requests.size)
         // still on the map, to add one as a stop
         assertEquals(3, chosen.places.size)
 

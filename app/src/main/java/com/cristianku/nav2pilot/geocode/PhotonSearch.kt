@@ -7,6 +7,7 @@ import com.cristianku.nav2pilot.model.LatLng
 import com.cristianku.nav2pilot.net.HttpClient
 import com.cristianku.nav2pilot.net.HttpRequest
 import com.cristianku.nav2pilot.net.HttpResponse
+import com.cristianku.nav2pilot.places.PlaceKinds
 import com.cristianku.nav2pilot.transport.ErrorText
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
@@ -115,8 +116,12 @@ class PhotonSearch(
                     properties = JSONObject()
                 }
                 val destination = toDestination(properties, latitude, longitude) ?: continue
-                if (!isRepeated(destination, found)) {
+                val earlier = repeated(destination, found)
+                if (earlier < 0) {
                     found.add(destination)
+                } else if (PlaceKinds.isParking(found[earlier].kind) && !PlaceKinds.isParking(destination.kind)) {
+                    // the car park of the shop came first: the shop takes its place
+                    found[earlier] = destination
                 }
             }
             return found
@@ -155,20 +160,28 @@ class PhotonSearch(
                     }
                 }
             }
-            return Destination(latitude = latitude, longitude = longitude, name = name, details = details.joinToString(", "))
+            return Destination(
+                latitude = latitude,
+                longitude = longitude,
+                name = name,
+                details = details.joinToString(", "),
+                kind = PlaceKinds.fromPhoton(properties),
+                osmId = PlaceKinds.osmIdFromPhoton(properties),
+            )
         }
 
-        private fun isRepeated(destination: Destination, earlier: List<Destination>): Boolean {
+        /** The index of an earlier result that is the same place, -1 when there is none. */
+        private fun repeated(destination: Destination, earlier: List<Destination>): Int {
             val point = LatLng(destination.latitude, destination.longitude)
-            for (other in earlier) {
+            for ((index, other) in earlier.withIndex()) {
                 if (!other.name.equals(destination.name, ignoreCase = true)) {
                     continue
                 }
                 if (RouteShaping.distanceMeters(point, LatLng(other.latitude, other.longitude)) < SAME_PLACE_METERS) {
-                    return true
+                    return index
                 }
             }
-            return false
+            return -1
         }
 
         /** optString returns "null" for JSON null on Android's org.json, so null is checked first. */

@@ -39,9 +39,15 @@ data class Place(
     val name: String,
     /** The address, "" when OpenStreetMap has none. */
     val details: String,
+    /** Its main tag, "amenity:fast_food" (see [Destination.kind]); "" when unknown. */
+    val kind: String = "",
+    /** Its OpenStreetMap element, "node/123"; "" when unknown. */
+    val osmId: String = "",
+    /** Its opening hours, phone and website, as they came with it from Overpass; null from Photon, which has none. */
+    val info: PlaceInfo? = null,
 ) {
     fun toDestination(): Destination {
-        return Destination(latitude = latitude, longitude = longitude, name = name, details = details)
+        return Destination(latitude = latitude, longitude = longitude, name = name, details = details, kind = kind, osmId = osmId)
     }
 }
 

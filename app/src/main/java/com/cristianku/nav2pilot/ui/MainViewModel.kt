@@ -27,6 +27,8 @@ import com.cristianku.nav2pilot.places.Place
 import com.cristianku.nav2pilot.parsing.CoordinateParser
 import com.cristianku.nav2pilot.parsing.ShareTextParser
 import com.cristianku.nav2pilot.places.PlaceCategory
+import com.cristianku.nav2pilot.places.PlaceInfo
+import com.cristianku.nav2pilot.places.PlaceInfoLookup
 import com.cristianku.nav2pilot.resolve.DestinationResolver
 import com.cristianku.nav2pilot.resolve.ResolveOutcome
 import com.cristianku.nav2pilot.security.JwtInfo
@@ -72,6 +74,8 @@ data class MainUiState(
     val suggestions: List<Destination> = emptyList(),
     /** Where the last search looked first, for the distances of its results; null when unknown. */
     val searchCenter: LatLng? = null,
+    /** Opening hours, phone and website of the search results and the destination, by [Destination.osmId]. */
+    val placeInfo: Map<String, PlaceInfo> = emptyMap(),
     val connection: ConnectionState = ConnectionState.Unknown,
     val sending: Boolean = false,
     val feedback: SendFeedback? = null,
@@ -129,6 +133,8 @@ class MainViewModel(
     private val places: OverpassPlaces? = null,
     /** Photon: the suggestions while typing. Null in tests that do not need them. */
     private val suggestionSearch: PlaceSearch? = null,
+    /** Opening hours and the like of the results, from OpenStreetMap; null in tests that do not need them. */
+    private val placeInfoLookup: PlaceInfoLookup? = null,
     private val clock: () -> Long = { System.currentTimeMillis() },
 ) : ViewModel() {
 
@@ -345,6 +351,7 @@ class MainViewModel(
                 choices = outcome.candidates,
                 resolveError = "",
             )
+            lookUpInfo(outcome.candidates)
             return
         }
         if (outcome is ResolveOutcome.Failed) {
@@ -782,6 +789,11 @@ class MainViewModel(
     /** A place tapped on the map becomes the destination; the places stay, to compare or add one as a stop. */
     fun choosePlace(place: Place) {
         resolveJob?.cancel()
+        // what came with the place: no need to ask again
+        val info = place.info
+        if (info != null && place.osmId.isNotEmpty()) {
+            state.value = state.value.copy(placeInfo = state.value.placeInfo + (place.osmId to info))
+        }
         state.value = state.value.copy(
             destination = place.toDestination(),
             destinationSource = DestinationResolver.SOURCE_PLACES,
@@ -823,8 +835,26 @@ class MainViewModel(
             routesMessage = "",
             locationPermissionNeeded = false,
         )
-        if (state.value.destination != null) {
+        val destination = state.value.destination
+        if (destination != null) {
             refreshRoutes()
+            lookUpInfo(listOf(destination))
+        }
+    }
+
+    /** Opening hours, phone and website of [destinations] from OpenStreetMap, for those not known yet. */
+    private fun lookUpInfo(destinations: List<Destination>) {
+        val lookup = placeInfoLookup ?: return
+        val known = state.value.placeInfo
+        val missing = destinations.filter { destination -> destination.osmId.isNotEmpty() && !known.containsKey(destination.osmId) }
+        if (missing.isEmpty()) {
+            return
+        }
+        viewModelScope.launch {
+            val found = lookup.lookup(missing)
+            if (found.isNotEmpty()) {
+                state.value = state.value.copy(placeInfo = state.value.placeInfo + found)
+            }
         }
     }
 
@@ -894,6 +924,7 @@ class MainViewModel(
                         routePlanning = container.routePlanning,
                         places = container.places,
                         suggestionSearch = container.nearbySearch,
+                        placeInfoLookup = container.placeInfo,
                     )
                     return viewModel as T
                 }

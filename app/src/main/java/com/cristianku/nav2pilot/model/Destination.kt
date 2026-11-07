@@ -12,8 +12,8 @@ data class LatLng(
  * A navigation destination.
  *
  * Only [latitude] and [longitude] are sent to the device: athenad's setNavDestination accepts
- * exactly these two parameters (see README "Verified API"). [name] and [details] are kept for display
- * and favorites only.
+ * exactly these two parameters (see README "Verified API"). [name], [details], [kind] and [osmId] are kept
+ * for display and favorites only.
  *
  * [approximate] is true when the coordinates are a map viewport centre rather than a place pin.
  */
@@ -23,6 +23,10 @@ data class Destination(
     val name: String = "",
     val details: String = "",
     val approximate: Boolean = false,
+    /** What the place is in OpenStreetMap, its main tag as "shop:furniture"; "" when unknown. */
+    val kind: String = "",
+    /** Its OpenStreetMap element, "way/26343678", for its opening hours; "" when it comes from elsewhere. */
+    val osmId: String = "",
 ) {
     fun coordinatesText(): String {
         return String.format(Locale.US, "%.6f, %.6f", latitude, longitude)

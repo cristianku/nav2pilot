@@ -5,6 +5,7 @@ import com.cristianku.nav2pilot.data.FavoritesRepository
 import com.cristianku.nav2pilot.model.Destination
 import com.cristianku.nav2pilot.model.PairedDevice
 import com.cristianku.nav2pilot.places.MapArea
+import com.cristianku.nav2pilot.places.PlaceInfoLookup
 import com.cristianku.nav2pilot.resolve.DestinationResolver
 import com.cristianku.nav2pilot.resolve.ShortLinkResolver
 import com.cristianku.nav2pilot.security.TokenStore
@@ -53,10 +54,10 @@ class MainViewModelTest {
     }
 
     private val suggestions = FakePlaceSearch()
+    private val search = FakePlaceSearch()
 
-    private fun createViewModel(): MainViewModel {
+    private fun createViewModel(placeInfoLookup: PlaceInfoLookup? = null): MainViewModel {
         val comma = CommaAthenaTransport(http, { tokenStore.load() }, dispatcher)
-        val search = FakePlaceSearch()
         return MainViewModel(
             resolver = DestinationResolver(ShortLinkResolver(http), search, dispatcher),
             placeSearch = search,
@@ -67,6 +68,7 @@ class MainViewModelTest {
             deviceRepository = deviceRepository,
             ioDispatcher = dispatcher,
             suggestionSearch = suggestions,
+            placeInfoLookup = placeInfoLookup,
             clock = { 1_000L },
         )
     }
@@ -228,6 +230,53 @@ class MainViewModelTest {
         assertEquals(47.505, near.latitude, 0.0001)
         assertEquals(8.015, near.longitude, 0.0001)
         assertEquals(near, viewModel.uiState.value.searchCenter)
+    }
+
+    private val pratteln = Destination(47.53, 7.70, "IKEA", "Grüssenweg 21, 4133 Pratteln", kind = "shop:furniture", osmId = "way/26343678")
+    private val spreitenbach = Destination(47.42, 8.37, "IKEA", "Müslistrasse 18, 8957 Spreitenbach", kind = "shop:furniture", osmId = "way/76278068")
+
+    private fun lookup(): PlaceInfoLookup {
+        return PlaceInfoLookup(http, dispatcher) { listOf("https://overpass.example/api/interpreter") }
+    }
+
+    @Test
+    fun theResultsOfASearchGetTheirOpeningHoursInOneRequest() {
+        val viewModel = createViewModel(lookup())
+        search.results["ikea"] = listOf(pratteln, spreitenbach)
+        http.respond(
+            200,
+            """{"elements": [{"type": "way", "id": 26343678, "tags": {"opening_hours": "Mo-Sa 10:00-20:00"}},
+                {"type": "way", "id": 76278068, "tags": {"shop": "furniture"}}]}""",
+        )
+
+        viewModel.search("ikea")
+
+        val state = viewModel.uiState.value
+        assertEquals(listOf(pratteln, spreitenbach), state.choices)
+        assertEquals("Mo-Sa 10:00-20:00", state.placeInfo["way/26343678"]!!.openingHours)
+        assertTrue(state.placeInfo["way/76278068"]!!.isEmpty())
+        assertTrue(http.requests[0].body!!.contains("26343678%2C76278068"))
+
+        // known already: chosen, no new request
+        viewModel.chooseCandidate(pratteln)
+        assertEquals(1, http.requests.size)
+        assertEquals("Mo-Sa 10:00-20:00", viewModel.uiState.value.placeInfo[pratteln.osmId]!!.openingHours)
+    }
+
+    @Test
+    fun suggestionsAskNothingTheChosenOneGetsItsHours() {
+        val viewModel = createViewModel(lookup())
+        suggestions.results["ikea"] = listOf(pratteln, Destination(47.5, 8.0, "Ikea street"))
+        viewModel.typeSearch("ikea")
+        dispatcher.scheduler.advanceTimeBy(1_000)
+        assertEquals(2, viewModel.uiState.value.suggestions.size)
+        assertTrue(http.requests.isEmpty())
+
+        http.respond(200, """{"elements": [{"type": "way", "id": 26343678, "tags": {"opening_hours": "24/7", "phone": "+41 848 801100"}}]}""")
+        viewModel.chooseCandidate(pratteln)
+
+        assertEquals(1, http.requests.size)
+        assertEquals("+41 848 801100", viewModel.uiState.value.placeInfo[pratteln.osmId]!!.phone)
     }
 
     @Test

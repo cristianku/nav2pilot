@@ -19,6 +19,7 @@ import com.cristianku.nav2pilot.mapbox.RoutePlanning
 import com.cristianku.nav2pilot.net.UrlConnectionHttpClient
 import com.cristianku.nav2pilot.places.OverpassPlaces
 import com.cristianku.nav2pilot.places.PhotonPlaces
+import com.cristianku.nav2pilot.places.PlaceInfoLookup
 import com.cristianku.nav2pilot.resolve.DestinationResolver
 import com.cristianku.nav2pilot.resolve.ShortLinkResolver
 import com.cristianku.nav2pilot.security.KeystoreTokenCipher
@@ -55,6 +56,8 @@ class AppContainer(context: Context) {
     )
     // points of interest on the map, from OpenStreetMap (Overpass API, no key)
     val places = OverpassPlaces(httpClient, ioDispatcher, reserve = PhotonPlaces(httpClient, ioDispatcher))
+    // opening hours, phone and website of the search results, from the same servers
+    val placeInfo = PlaceInfoLookup(httpClient, ioDispatcher)
     val favoritesRepository = FavoritesRepository(dataStore)
     val deviceRepository = DeviceRepository(dataStore)
 

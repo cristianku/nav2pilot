@@ -97,7 +97,21 @@ class PhotonPlaces(
                 if (name.isEmpty()) {
                     name = category.singular
                 }
-                found.add(Place(category, latitude, longitude, name, address(properties)))
+                var kind = PlaceKinds.fromPhoton(properties)
+                if (kind.isEmpty()) {
+                    kind = category.tags.first()
+                }
+                found.add(
+                    Place(
+                        category = category,
+                        latitude = latitude,
+                        longitude = longitude,
+                        name = name,
+                        details = address(properties),
+                        kind = kind,
+                        osmId = PlaceKinds.osmIdFromPhoton(properties),
+                    ),
+                )
             }
             val center = area.center()
             return found.sortedBy { place -> RouteShaping.distanceMeters(center, LatLng(place.latitude, place.longitude)) }

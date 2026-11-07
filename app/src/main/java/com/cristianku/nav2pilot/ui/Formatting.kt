@@ -56,4 +56,22 @@ object MapIntents {
             // nothing can show it; the coordinates stay visible in the app
         }
     }
+
+    /** The phone app with [number] ready to call: the user still presses call. */
+    fun dial(context: Context, number: String) {
+        start(context, Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", number, null)))
+    }
+
+    /** [address], an http or https one (see PlaceInfo.webAddress), in the browser. */
+    fun openWebsite(context: Context, address: String) {
+        start(context, Intent(Intent.ACTION_VIEW, Uri.parse(address)))
+    }
+
+    private fun start(context: Context, intent: Intent) {
+        try {
+            context.startActivity(intent)
+        } catch (noApp: ActivityNotFoundException) {
+            // no phone or browser app: the number and the address stay visible in the app
+        }
+    }
 }

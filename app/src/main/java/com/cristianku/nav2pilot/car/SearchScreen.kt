@@ -9,6 +9,7 @@ import androidx.car.app.model.SearchTemplate
 import androidx.car.app.model.Template
 import androidx.lifecycle.lifecycleScope
 import com.cristianku.nav2pilot.model.Destination
+import com.cristianku.nav2pilot.places.PlaceKinds
 import com.cristianku.nav2pilot.resolve.ResolveOutcome
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -44,8 +45,12 @@ class SearchScreen(carContext: CarContext, private val model: CarModel) : Screen
             val row = Row.Builder()
                 .setTitle(destination.displayName())
                 .setOnClickListener { screenManager.push(RouteScreen(carContext, model, destination)) }
-            if (destination.details.isNotBlank()) {
-                row.addText(destination.details)
+            // "Furniture store · Grüssenweg 21, 4133 Pratteln"
+            val text = listOf(PlaceKinds.label(destination.kind), destination.details)
+                .filter { part -> part.isNotBlank() && !part.equals(destination.name, ignoreCase = true) }
+                .joinToString(" · ")
+            if (text.isNotEmpty()) {
+                row.addText(text)
             }
             items.addItem(row.build())
         }

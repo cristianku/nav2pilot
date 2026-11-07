@@ -34,6 +34,25 @@ class RepositoriesTest {
     }
 
     @Test
+    fun aFavoriteKeepsItsKindAndOpenStreetMapElement() {
+        val ikea = Destination(47.53, 7.70, "IKEA", "Grüssenweg 21, 4133 Pratteln", kind = "shop:furniture", osmId = "way/26343678")
+        FavoritesRepository(storage).add(ikea)
+
+        assertEquals(ikea, FavoritesRepository(storage).favorites.value[0].destination)
+    }
+
+    @Test
+    fun favoritesOfOlderVersionsStillLoad() {
+        storage.values[FavoritesRepository.KEY_FAVORITES] =
+            """[{"id": "a", "destination": {"latitude": 45.4642, "longitude": 9.19, "name": "Home", "details": "Milano", "approximate": false}}]"""
+
+        val home = FavoritesRepository(storage).favorites.value[0].destination
+        assertEquals("Home", home.name)
+        assertEquals("", home.kind)
+        assertEquals("", home.osmId)
+    }
+
+    @Test
     fun corruptedFavoritesAreIgnored() {
         storage.values[FavoritesRepository.KEY_FAVORITES] = "not json"
         assertTrue(FavoritesRepository(storage).favorites.value.isEmpty())

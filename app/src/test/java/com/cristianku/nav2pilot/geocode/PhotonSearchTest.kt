@@ -25,9 +25,9 @@ private const val LEFT_OUT = "&osm_tag=!highway:bus_stop&osm_tag=!highway:platfo
 
 // "ikea" near Frick, shortened from Photon's answer of 2026-11-07, plus an address without a name and a town
 private const val IKEA_ANSWER = """{"features": [
-    {"geometry": {"coordinates": [7.7012, 47.5302]}, "properties": {"name": "IKEA", "street": "Grüssenweg", "housenumber": "21", "postcode": "4133", "city": "Pratteln", "state": "Basel-Landschaft", "country": "Switzerland"}},
-    {"geometry": {"coordinates": [8.3712, 47.4201]}, "properties": {"name": "IKEA", "street": "Industriestrasse", "postcode": "8957", "city": "Spreitenbach"}},
-    {"geometry": {"coordinates": [8.3741, 47.4189]}, "properties": {"name": "IKEA", "street": "Müslistrasse", "housenumber": "18", "postcode": "8957", "city": "Spreitenbach"}},
+    {"geometry": {"coordinates": [7.7012, 47.5302]}, "properties": {"osm_type": "W", "osm_id": 26343678, "osm_key": "shop", "osm_value": "furniture", "name": "IKEA", "street": "Grüssenweg", "housenumber": "21", "postcode": "4133", "city": "Pratteln", "state": "Basel-Landschaft", "country": "Switzerland"}},
+    {"geometry": {"coordinates": [8.3712, 47.4201]}, "properties": {"osm_type": "N", "osm_id": 5, "osm_key": "amenity", "osm_value": "parking", "name": "IKEA", "street": "Industriestrasse", "postcode": "8957", "city": "Spreitenbach"}},
+    {"geometry": {"coordinates": [8.3741, 47.4189]}, "properties": {"osm_type": "W", "osm_id": 76278068, "osm_key": "shop", "osm_value": "furniture", "name": "IKEA", "street": "Müslistrasse", "housenumber": "18", "postcode": "8957", "city": "Spreitenbach"}},
     {"geometry": {"coordinates": [200.0, 47.0]}, "properties": {"name": "Broken"}},
     {"geometry": {"coordinates": [8.0158, 47.5072]}, "properties": {"street": "Hauptstrasse", "housenumber": "12", "postcode": "5070", "city": "Frick"}},
     {"geometry": {"coordinates": [8.5417, 47.3769]}, "properties": {"name": "Zürich", "city": null, "state": "Zürich", "country": "Switzerland"}},
@@ -63,8 +63,14 @@ class PhotonSearchTest {
         assertEquals("Grüssenweg 21, 4133 Pratteln", found[0].details)
         assertEquals(47.5302, found[0].latitude, 0.00001)
         assertEquals(7.7012, found[0].longitude, 0.00001)
-        // the car park and the shop in Spreitenbach, 250 m apart: the first one stays
-        assertEquals("Industriestrasse, 8957 Spreitenbach", found[1].details)
+        assertEquals("shop:furniture", found[0].kind)
+        assertEquals("way/26343678", found[0].osmId)
+        // the car park and the shop in Spreitenbach, 250 m apart: the shop takes the car park's place
+        assertEquals("Müslistrasse 18, 8957 Spreitenbach", found[1].details)
+        assertEquals("way/76278068", found[1].osmId)
+        // without Photon's OpenStreetMap fields
+        assertEquals("", found[2].kind)
+        assertEquals("", found[2].osmId)
         assertEquals("5070 Frick", found[2].details)
         assertEquals("Switzerland", found[3].details)
     }

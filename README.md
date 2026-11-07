@@ -217,9 +217,11 @@ CarPlay app needs a CarPlay entitlement that Apple grants on request.
 
 - Your comma token and your Mapbox token are encrypted with a key that never leaves the Android Keystore,
   and they are never logged.
-- The app only talks to comma (to reach your device), to Google Maps (to open shared links), to the phone's
-  address search, to OpenStreetMap's Overpass servers (when you ask for points of interest: the category and
-  the part of the map you see) and, if you set it up, to Mapbox. No analytics, no tracking.
+- The app only talks to comma (to reach your device), to Google Maps (to open shared links), to komoot's
+  Photon and the phone's address search (what you search for, with a position rounded to about 1 km), to
+  OpenStreetMap's Overpass servers (when you ask for points of interest: the category and the part of the map
+  you see; after a search, the OpenStreetMap ids of the places found, for their opening hours) and, if you set
+  it up, to Mapbox. No analytics, no tracking.
 - Your position is only used for the route preview: it goes to Mapbox, with your own token, and nowhere else.
 
 Nav2Pilot is an independent project, not affiliated with comma.ai or sunnypilot.
@@ -250,6 +252,9 @@ APIs, independently of the openpilot / sunnypilot source code.
   waypoints").
 - **Points of interest**: nine categories from OpenStreetMap (Overpass API) in the part of the map in view; a
   place becomes the destination or a stop (see "Points of interest").
+- **Search results with details**: the kind of place, the distance and whether it is open now ("Open · Closes
+  20:00"); the chosen destination shows the week's opening hours, the phone number and the website, from
+  OpenStreetMap (see "Opening hours").
 - **Landscape layout** for car head units and tablets: two panes and a navigation rail.
 - **Android Auto**: favorites and places nearby on the map, route preview and alternatives, search, the cars'
   status and clearing the destination (see "Android Auto screen").
@@ -366,6 +371,20 @@ Setup: Devices → Mapbox → **Set up Mapbox**.
 - A tapped place goes to the device like any destination: its coordinates only, or as a stop
   (`setNavRoute` waypoint with `via: false`).
 
+### Opening hours
+
+- Photon's results carry their OpenStreetMap element (`osm_type`, `osm_id`) and kind (`osm_key:osm_value`,
+  "shop:furniture" → "Furniture store"). After Enter, the ids of the whole list go to Overpass in one `POST`:
+  `[out:json][timeout:5];(way(id:26343678,76278068););out tags;` — no position, no typed text. The chosen
+  destination is asked the same way; the suggestions while typing ask nothing. Same servers and order as the
+  points of interest, 6 seconds each; what was answered is kept for the session.
+- From the tags: `opening_hours`, `phone` / `contact:phone` (the first number), `website` / `contact:website`
+  / `url` (only http and https). Places from the points-of-interest menu already have their tags: no request.
+- `opening_hours` is read for the common forms: days and day ranges (`Mo-Fr`, `Sa,Su`, `Fr-Mo`), several
+  times a day (`08:00-12:00,13:30-18:00`), past midnight (`18:00-02:00`), `24/7`, `off`, later rules replacing
+  earlier ones on their days; public and school holidays are left out. Anything else (months, weeks,
+  `sunrise`, comments) is shown as written, without the open or closed status.
+
 ### sunnylink
 
 Investigated, **not implemented** (the `SunnylinkTransport` backend is an explicit stub):
@@ -443,8 +462,9 @@ another backend can be added without touching the UI.
 - The Mapbox public token is encrypted the same way, and is sent only to `api.mapbox.com` (token check) and,
   through athena, to your own device.
 - Network access is limited to `api.commadotai.com`, `athena.comma.ai`, Google Maps hosts (only to expand
-  shared links), the phone's Geocoder service (address search), `tiles.openfreemap.org` (map without a
-  Mapbox token), the Overpass API servers (points of interest, only when a category is picked) and, only
+  shared links), `photon.komoot.io` and the phone's Geocoder service (address search),
+  `tiles.openfreemap.org` (map without a Mapbox token), the Overpass API servers (points of interest when a
+  category is picked; opening hours of search results, by OpenStreetMap id only) and, only
   with a Mapbox token, `api.mapbox.com`. Android Auto adds nothing: the car screen uses the same services.
   No analytics.
 
