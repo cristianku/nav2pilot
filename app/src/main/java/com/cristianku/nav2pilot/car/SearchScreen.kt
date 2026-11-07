@@ -60,7 +60,7 @@ class SearchScreen(carContext: CarContext, private val model: CarModel) : Screen
         searching = true
         invalidate()
         searchJob = lifecycleScope.launch {
-            val outcome = model.resolver.resolveTyped(text)
+            val outcome = model.resolver.resolveTyped(text, model.lastKnownPosition())
             results = emptyList()
             message = ""
             if (outcome is ResolveOutcome.Resolved) {

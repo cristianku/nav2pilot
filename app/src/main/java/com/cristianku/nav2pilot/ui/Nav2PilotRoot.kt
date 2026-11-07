@@ -104,6 +104,7 @@ fun Nav2PilotRoot(viewModel: MainViewModel) {
             wide = wide,
             actions = MapActions(
                 onSearch = { text -> viewModel.search(text) },
+                onTypeSearch = { text -> viewModel.typeSearch(text) },
                 onChooseCandidate = { destination -> viewModel.chooseCandidate(destination) },
                 onDismissChoices = { viewModel.dismissChoices() },
                 onClearSelection = { viewModel.clearSelection() },
@@ -127,6 +128,7 @@ fun Nav2PilotRoot(viewModel: MainViewModel) {
                 onShowPlaces = { category, area -> viewModel.showPlaces(category, area) },
                 onHidePlaces = { viewModel.hidePlaces() },
                 onChoosePlace = { place -> viewModel.choosePlace(place) },
+                onMapAreaChange = { area -> viewModel.mapAreaChanged(area) },
             ),
         )
     }

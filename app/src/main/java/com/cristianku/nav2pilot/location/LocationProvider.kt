@@ -21,6 +21,9 @@ interface LocationProvider {
 
     /** Null when there is no permission or no fix. */
     suspend fun currentLocation(): LatLng?
+
+    /** The last position the phone knows, of any age, without waiting for a new one; null without one. */
+    fun lastKnownLocation(): LatLng?
 }
 
 /**
@@ -63,6 +66,14 @@ class AndroidLocationProvider(context: Context) : LocationProvider {
             return toLatLng(lastKnown)
         }
         return null
+    }
+
+    override fun lastKnownLocation(): LatLng? {
+        if (!hasPermission()) {
+            return null
+        }
+        val lastKnown = freshestLastKnown() ?: return null
+        return toLatLng(lastKnown)
     }
 
     @SuppressLint("MissingPermission")

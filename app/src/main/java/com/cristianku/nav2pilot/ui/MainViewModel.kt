@@ -24,6 +24,8 @@ import com.cristianku.nav2pilot.model.PairedDevice
 import com.cristianku.nav2pilot.places.MapArea
 import com.cristianku.nav2pilot.places.OverpassPlaces
 import com.cristianku.nav2pilot.places.Place
+import com.cristianku.nav2pilot.parsing.CoordinateParser
+import com.cristianku.nav2pilot.parsing.ShareTextParser
 import com.cristianku.nav2pilot.places.PlaceCategory
 import com.cristianku.nav2pilot.resolve.DestinationResolver
 import com.cristianku.nav2pilot.resolve.ResolveOutcome
@@ -39,10 +41,12 @@ import com.cristianku.nav2pilot.transport.TransportRegistry
 import com.cristianku.nav2pilot.transport.TransportResult
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.IOException
 import java.security.GeneralSecurityException
 
 sealed class ConnectionState {
@@ -64,6 +68,10 @@ data class MainUiState(
     val resolving: Boolean = false,
     val resolveError: String = "",
     val choices: List<Destination> = emptyList(),
+    /** Places matching the text being typed, shown under the search field. */
+    val suggestions: List<Destination> = emptyList(),
+    /** Where the last search looked first, for the distances of its results; null when unknown. */
+    val searchCenter: LatLng? = null,
     val connection: ConnectionState = ConnectionState.Unknown,
     val sending: Boolean = false,
     val feedback: SendFeedback? = null,
@@ -119,6 +127,8 @@ class MainViewModel(
     private val mapbox: MapboxSetup? = null,
     private val routePlanning: RoutePlanning? = null,
     private val places: OverpassPlaces? = null,
+    /** Photon: the suggestions while typing. Null in tests that do not need them. */
+    private val suggestionSearch: PlaceSearch? = null,
     private val clock: () -> Long = { System.currentTimeMillis() },
 ) : ViewModel() {
 
@@ -136,10 +146,14 @@ class MainViewModel(
     private var connectionJob: Job? = null
     private var routesJob: Job? = null
     private var placesJob: Job? = null
+    private var suggestJob: Job? = null
+
+    // the part of the map in view: where searches look when the phone's position is unknown
+    private var mapArea: MapArea? = null
 
     init {
         state.value = state.value.copy(
-            geocoderAvailable = placeSearch.isAvailable(),
+            geocoderAvailable = placeSearch.isAvailable() || suggestionSearch != null,
             routePlanningAvailable = routePlanning != null && mapbox != null,
         )
         viewModelScope.launch {
@@ -151,24 +165,74 @@ class MainViewModel(
     // ---- destination input ----
 
     fun handleShare(text: String, subject: String) {
-        startResolve { resolver.resolveShared(text, subject) }
+        val near = searchCenter()
+        startResolve { resolver.resolveShared(text, subject, near) }
         requestSendTab()
     }
 
     fun handleLink(link: String) {
-        startResolve { resolver.resolveLink(link, "", "", DestinationResolver.SOURCE_LINK) }
+        val near = searchCenter()
+        startResolve { resolver.resolveLink(link, "", "", DestinationResolver.SOURCE_LINK, near) }
         requestSendTab()
     }
 
     fun search(text: String) {
-        startResolve { resolver.resolveTyped(text) }
+        val near = searchCenter()
+        state.value = state.value.copy(searchCenter = near)
+        startResolve { resolver.resolveTyped(text, near) }
+    }
+
+    /** The text in the search field changed: after a short pause, the places that match it, the nearest first. */
+    fun typeSearch(text: String) {
+        suggestJob?.cancel()
+        val search = suggestionSearch
+        val query = text.trim()
+        if (search == null || !isPlaceName(query)) {
+            state.value = state.value.copy(suggestions = emptyList())
+            return
+        }
+        suggestJob = viewModelScope.launch {
+            delay(SUGGEST_DELAY_MILLIS)
+            val near = searchCenter()
+            var found: List<Destination>
+            try {
+                found = search.search(query, MAX_SUGGESTIONS, near)
+            } catch (error: IOException) {
+                // only a hint: the search key gives the error
+                found = emptyList()
+            }
+            state.value = state.value.copy(suggestions = found, searchCenter = near)
+        }
+    }
+
+    /** The map moved; [area] is the part in view. */
+    fun mapAreaChanged(area: MapArea) {
+        mapArea = area
+    }
+
+    /** Where searches look first: the phone's last position, else the middle of the map if it shows a region. */
+    private fun searchCenter(): LatLng? {
+        val phone = routePlanning?.location?.lastKnownLocation()
+        if (phone != null) {
+            return phone
+        }
+        val area = mapArea ?: return null
+        val center = area.center()
+        if (RouteShaping.distanceMeters(center, LatLng(area.north, area.east)) > SEARCH_MAP_MAX_HALF_DIAGONAL_METERS) {
+            return null
+        }
+        return center
     }
 
     fun chooseCandidate(destination: Destination) {
+        resolveJob?.cancel()
+        suggestJob?.cancel()
         state.value = state.value.copy(
             destination = destination,
             destinationSource = DestinationResolver.SOURCE_SEARCH,
+            resolving = false,
             choices = emptyList(),
+            suggestions = emptyList(),
             resolveError = "",
             feedback = null,
         )
@@ -181,6 +245,7 @@ class MainViewModel(
             destination = favorite.destination,
             destinationSource = DestinationResolver.SOURCE_FAVORITE,
             choices = emptyList(),
+            suggestions = emptyList(),
             resolving = false,
             resolveError = "",
             feedback = null,
@@ -208,6 +273,7 @@ class MainViewModel(
             destination = Destination(latitude = latitude, longitude = longitude, name = "Dropped pin"),
             destinationSource = DestinationResolver.SOURCE_MAP,
             choices = emptyList(),
+            suggestions = emptyList(),
             resolving = false,
             resolveError = "",
             feedback = null,
@@ -217,7 +283,8 @@ class MainViewModel(
 
     /** Closes the search results without choosing one. */
     fun dismissChoices() {
-        state.value = state.value.copy(choices = emptyList(), resolveError = "")
+        suggestJob?.cancel()
+        state.value = state.value.copy(choices = emptyList(), suggestions = emptyList(), resolveError = "")
     }
 
     fun clearSelection() {
@@ -226,6 +293,7 @@ class MainViewModel(
             destination = null,
             destinationSource = "",
             choices = emptyList(),
+            suggestions = emptyList(),
             resolving = false,
             resolveError = "",
             feedback = null,
@@ -249,7 +317,8 @@ class MainViewModel(
 
     private fun startResolve(block: suspend () -> ResolveOutcome) {
         resolveJob?.cancel()
-        state.value = state.value.copy(resolving = true, resolveError = "", choices = emptyList())
+        suggestJob?.cancel()
+        state.value = state.value.copy(resolving = true, resolveError = "", choices = emptyList(), suggestions = emptyList())
         resolveJob = viewModelScope.launch {
             val outcome = block()
             applyOutcome(outcome)
@@ -263,6 +332,7 @@ class MainViewModel(
                 destination = outcome.destination,
                 destinationSource = outcome.source,
                 choices = emptyList(),
+                suggestions = emptyList(),
                 resolveError = "",
                 feedback = null,
             )
@@ -281,6 +351,7 @@ class MainViewModel(
             state.value = state.value.copy(
                 resolving = false,
                 choices = emptyList(),
+                suggestions = emptyList(),
                 resolveError = outcome.reason,
             )
         }
@@ -715,6 +786,7 @@ class MainViewModel(
             destination = place.toDestination(),
             destinationSource = DestinationResolver.SOURCE_PLACES,
             choices = emptyList(),
+            suggestions = emptyList(),
             resolving = false,
             resolveError = "",
             feedback = null,
@@ -742,6 +814,7 @@ class MainViewModel(
     /** A new destination starts a new plan. */
     private fun destinationChanged() {
         routesJob?.cancel()
+        suggestJob?.cancel()
         state.value = state.value.copy(
             stops = emptyList(),
             selectedRouteIndex = 0,
@@ -781,6 +854,25 @@ class MainViewModel(
         // places are looked up at most this far from the middle of the map: 50 x 50 km
         private const val PLACES_MAX_HALF_METERS = 25_000.0
 
+        // the suggestions wait for a pause in the typing, and need two letters: one gives anything
+        private const val SUGGEST_DELAY_MILLIS = 300L
+        private const val MIN_SUGGEST_LENGTH = 2
+        private const val MAX_SUGGESTIONS = 6
+
+        // a map showing more than about 140 x 140 km says nothing about where the user is
+        private const val SEARCH_MAP_MAX_HALF_DIAGONAL_METERS = 100_000.0
+
+        /** A name or an address to suggest places for: not coordinates or a map link, which need no suggestions. */
+        fun isPlaceName(text: String): Boolean {
+            if (text.length < MIN_SUGGEST_LENGTH) {
+                return false
+            }
+            if (CoordinateParser.parse(text) != null) {
+                return false
+            }
+            return ShareTextParser.parse(text, "").link.isEmpty()
+        }
+
         private const val LOCATION_NEEDED_MESSAGE = "The route preview starts from this phone's position: allow location access."
         private const val LOCATION_DENIED_MESSAGE =
             "No location access: the route preview starts from this phone's position. Allow it in the app settings."
@@ -801,6 +893,7 @@ class MainViewModel(
                         mapbox = container.mapbox,
                         routePlanning = container.routePlanning,
                         places = container.places,
+                        suggestionSearch = container.nearbySearch,
                     )
                     return viewModel as T
                 }

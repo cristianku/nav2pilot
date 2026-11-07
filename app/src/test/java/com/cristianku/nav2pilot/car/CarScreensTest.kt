@@ -372,6 +372,10 @@ class CarScreensTest {
         override suspend fun currentLocation(): LatLng? {
             return position
         }
+
+        override fun lastKnownLocation(): LatLng? {
+            return position
+        }
     }
 
     private class RecordingMap : CarMap {

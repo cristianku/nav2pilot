@@ -133,6 +133,13 @@ private class FakeLocationProvider : LocationProvider {
     override suspend fun currentLocation(): LatLng? {
         return position
     }
+
+    override fun lastKnownLocation(): LatLng? {
+        if (!permission) {
+            return null
+        }
+        return position
+    }
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)

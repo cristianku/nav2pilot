@@ -112,7 +112,9 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.cristianku.nav2pilot.R
 import com.cristianku.nav2pilot.mapbox.RoutePreview
+import com.cristianku.nav2pilot.mapbox.RouteShaping
 import com.cristianku.nav2pilot.model.Destination
+import com.cristianku.nav2pilot.model.LatLng
 import com.cristianku.nav2pilot.model.PairedDevice
 import com.cristianku.nav2pilot.places.MapArea
 import com.cristianku.nav2pilot.places.Place
@@ -136,6 +138,8 @@ import java.util.Locale
 /** What the map screen does, wired to the view model by the root. */
 class MapActions(
     val onSearch: (String) -> Unit,
+    /** The text in the search field changed: suggestions follow. */
+    val onTypeSearch: (String) -> Unit,
     val onChooseCandidate: (Destination) -> Unit,
     val onDismissChoices: () -> Unit,
     val onClearSelection: () -> Unit,
@@ -160,6 +164,7 @@ class MapActions(
     val onShowPlaces: (PlaceCategory, MapArea?) -> Unit,
     val onHidePlaces: () -> Unit,
     val onChoosePlace: (Place) -> Unit,
+    val onMapAreaChange: (MapArea) -> Unit,
 )
 
 /**
@@ -280,7 +285,10 @@ fun MapScreen(
                     }
                 }
             },
-            onAreaChange = { area -> mapArea = area },
+            onAreaChange = { area ->
+                mapArea = area
+                actions.onMapAreaChange(area)
+            },
             modifier = Modifier.fillMaxSize(),
         )
 
@@ -755,7 +763,10 @@ private fun SearchBox(
                 }
                 TextField(
                     value = query,
-                    onValueChange = { text -> query = text },
+                    onValueChange = { text ->
+                        query = text
+                        actions.onTypeSearch(text)
+                    },
                     placeholder = { Text("Search or paste a link", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     singleLine = true,
                     colors = TextFieldDefaults.colors(
@@ -781,7 +792,12 @@ private fun SearchBox(
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                     }
                 } else if (query.isNotEmpty()) {
-                    IconButton(onClick = { query = "" }) {
+                    IconButton(
+                        onClick = {
+                            query = ""
+                            actions.onTypeSearch("")
+                        },
+                    ) {
                         Icon(Icons.Filled.Clear, contentDescription = "Clear search")
                     }
                 }
@@ -839,7 +855,23 @@ private fun SearchBox(
                         .verticalScroll(rememberScrollState()),
                 ) {
                     for (choice in state.choices) {
-                        ChoiceRow(choice = choice, onChoose = { actions.onChooseCandidate(choice) })
+                        ChoiceRow(choice = choice, near = state.searchCenter, onChoose = { actions.onChooseCandidate(choice) })
+                    }
+                }
+            } else if (state.suggestions.isNotEmpty() && query.isNotBlank() && !state.resolving) {
+                // while typing: the places that match, the nearest first; the search key still searches
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = RESULTS_MAX_HEIGHT)
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    for (suggestion in state.suggestions) {
+                        ChoiceRow(
+                            choice = suggestion,
+                            near = state.searchCenter,
+                            onChoose = { actions.onChooseCandidate(suggestion) },
+                        )
                     }
                 }
             }
@@ -847,8 +879,9 @@ private fun SearchBox(
     }
 }
 
+/** A search result; with [near] known, its distance from there after the address. */
 @Composable
-private fun ChoiceRow(choice: Destination, onChoose: () -> Unit) {
+private fun ChoiceRow(choice: Destination, near: LatLng?, onChoose: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -864,6 +897,14 @@ private fun ChoiceRow(choice: Destination, onChoose: () -> Unit) {
             var secondLine = choice.details
             if (secondLine.isEmpty() && choice.displayName() != choice.coordinatesText()) {
                 secondLine = choice.coordinatesText()
+            }
+            if (near != null) {
+                val distance = RouteFormatting.distance(RouteShaping.distanceMeters(near, LatLng(choice.latitude, choice.longitude)))
+                if (secondLine.isEmpty()) {
+                    secondLine = distance
+                } else {
+                    secondLine = "$secondLine · $distance"
+                }
             }
             if (secondLine.isNotEmpty()) {
                 Text(secondLine, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

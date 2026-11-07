@@ -1,6 +1,7 @@
 package com.cristianku.nav2pilot.resolve
 
 import com.cristianku.nav2pilot.model.Destination
+import com.cristianku.nav2pilot.model.LatLng
 import com.cristianku.nav2pilot.testing.FakeHttpClient
 import com.cristianku.nav2pilot.testing.FakePlaceSearch
 import com.cristianku.nav2pilot.testing.Fixtures
@@ -114,5 +115,59 @@ class DestinationResolverTest {
         http.fail("Unable to resolve host")
         val outcome = resolver.resolveTyped(Fixtures.SHORT_LINK)
         assertEquals("Could not open the link: Unable to resolve host", (outcome as ResolveOutcome.Failed).reason)
+    }
+
+    @Test
+    fun aTypedNameIsLookedForNearTheUserFirst() = runTest {
+        val nearby = FakePlaceSearch()
+        val nearResolver = DestinationResolver(ShortLinkResolver(http), search, UnconfinedTestDispatcher(), nearby)
+        val frick = LatLng(47.506, 8.016)
+        nearby.results["ikea"] = listOf(Destination(47.53, 7.70, "IKEA", "Grüssenweg 21, 4133 Pratteln"))
+
+        val outcome = nearResolver.resolveTyped("ikea", frick)
+
+        assertEquals("IKEA", (outcome as ResolveOutcome.Resolved).destination.name)
+        assertEquals(listOf<LatLng?>(frick), nearby.nearPoints)
+        assertTrue(search.queries.isEmpty())
+    }
+
+    @Test
+    fun theGeocoderAnswersWhenTheNearbySearchFindsNothingOrFails() = runTest {
+        val nearby = FakePlaceSearch()
+        val nearResolver = DestinationResolver(ShortLinkResolver(http), search, UnconfinedTestDispatcher(), nearby)
+        search.results["Via Roma 1, Torino"] = listOf(Destination(45.07, 7.68, "Via Roma 1"))
+
+        val nothing = nearResolver.resolveTyped("Via Roma 1, Torino")
+        nearby.error = IOException("timeout")
+        val failed = nearResolver.resolveTyped("Via Roma 1, Torino")
+
+        assertEquals("Via Roma 1", (nothing as ResolveOutcome.Resolved).destination.name)
+        assertEquals("Via Roma 1", (failed as ResolveOutcome.Resolved).destination.name)
+        assertEquals(2, search.queries.size)
+    }
+
+    @Test
+    fun sharedTextKeepsTheGeocoderFirst() = runTest {
+        val nearby = FakePlaceSearch()
+        val nearResolver = DestinationResolver(ShortLinkResolver(http), search, UnconfinedTestDispatcher(), nearby)
+        search.results["Via Roma 1, Torino"] = listOf(Destination(45.07, 7.68, "Via Roma 1"))
+        nearby.results["Via Roma 1, Torino"] = listOf(Destination(41.9, 12.5, "Somewhere else"))
+
+        val outcome = nearResolver.resolveShared("Via Roma 1, Torino", "")
+
+        assertEquals(45.07, (outcome as ResolveOutcome.Resolved).destination.latitude, 0.0000001)
+        assertTrue(nearby.queries.isEmpty())
+    }
+
+    @Test
+    fun withoutGeocoderTheNearbySearchStillWorks() = runTest {
+        val nearby = FakePlaceSearch()
+        val nearResolver = DestinationResolver(ShortLinkResolver(http), FakePlaceSearch(available = false), UnconfinedTestDispatcher(), nearby)
+        nearby.results["Via Roma 1, Torino"] = listOf(Destination(45.07, 7.68, "Via Roma 1"))
+
+        val outcome = nearResolver.resolveShared("Via Roma 1, Torino", "")
+
+        assertEquals(45.07, (outcome as ResolveOutcome.Resolved).destination.latitude, 0.0000001)
+        assertEquals(listOf("Via Roma 1, Torino"), nearby.queries)
     }
 }

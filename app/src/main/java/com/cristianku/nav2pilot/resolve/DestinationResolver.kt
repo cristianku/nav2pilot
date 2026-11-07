@@ -2,6 +2,7 @@ package com.cristianku.nav2pilot.resolve
 
 import com.cristianku.nav2pilot.geocode.PlaceSearch
 import com.cristianku.nav2pilot.model.Destination
+import com.cristianku.nav2pilot.model.LatLng
 import com.cristianku.nav2pilot.parsing.CoordinateParser
 import com.cristianku.nav2pilot.parsing.GoogleHosts
 import com.cristianku.nav2pilot.parsing.LinkParseResult
@@ -18,18 +19,25 @@ sealed class ResolveOutcome {
     data class Failed(val reason: String) : ResolveOutcome()
 }
 
-/** Turns shared text, typed text or a map link into a destination. */
+/**
+ * Turns shared text, typed text or a map link into a destination.
+ *
+ * Two searches: [placeSearch], the platform Geocoder, and [nearbySearch], Photon, which takes the user's position.
+ * Typed text goes to Photon first: a name alone ("ikea") is found near the user. Shared text keeps the Geocoder
+ * first, it holds the addresses of the place pages that apps share.
+ */
 class DestinationResolver(
     private val shortLinkResolver: ShortLinkResolver,
     private val placeSearch: PlaceSearch,
     private val ioDispatcher: CoroutineDispatcher,
+    private val nearbySearch: PlaceSearch? = null,
 ) {
 
     /** Text received through a share intent (Intent.EXTRA_TEXT and Intent.EXTRA_SUBJECT). */
-    suspend fun resolveShared(text: String, subject: String): ResolveOutcome {
+    suspend fun resolveShared(text: String, subject: String, near: LatLng? = null): ResolveOutcome {
         val shared = ShareTextParser.parse(text, subject)
         if (shared.link.isNotEmpty()) {
-            return resolveLink(shared.link, shared.title, shared.details, SOURCE_SHARED_LINK)
+            return resolveLink(shared.link, shared.title, shared.details, SOURCE_SHARED_LINK, near)
         }
 
         for (line in text.lines()) {
@@ -46,11 +54,11 @@ class DestinationResolver(
         if (shared.textWithoutLink.isEmpty()) {
             return ResolveOutcome.Failed("The shared content is empty.")
         }
-        return search(listOf(shared.textWithoutLink), shared.title, SOURCE_SEARCH)
+        return search(listOf(shared.textWithoutLink), shared.title, SOURCE_SEARCH, near, nearbyFirst = false)
     }
 
-    /** Text typed or pasted in the search field: coordinates, a map link or an address. */
-    suspend fun resolveTyped(text: String): ResolveOutcome {
+    /** Text typed or pasted in the search field: coordinates, a map link, an address or a name. */
+    suspend fun resolveTyped(text: String, near: LatLng? = null): ResolveOutcome {
         val trimmed = text.trim()
         if (trimmed.isEmpty()) {
             return ResolveOutcome.Failed("Enter an address, coordinates or a map link.")
@@ -63,13 +71,13 @@ class DestinationResolver(
 
         val shared = ShareTextParser.parse(trimmed, "")
         if (shared.link.isNotEmpty()) {
-            return resolveLink(shared.link, shared.title, shared.details, SOURCE_LINK)
+            return resolveLink(shared.link, shared.title, shared.details, SOURCE_LINK, near)
         }
 
-        return search(listOf(trimmed), "", SOURCE_SEARCH)
+        return search(listOf(trimmed), "", SOURCE_SEARCH, near, nearbyFirst = true)
     }
 
-    suspend fun resolveLink(link: String, title: String, details: String, source: String): ResolveOutcome {
+    suspend fun resolveLink(link: String, title: String, details: String, source: String, near: LatLng? = null): ResolveOutcome {
         var result = MapLinkParser.parse(link)
         var networkError = ""
 
@@ -87,11 +95,11 @@ class DestinationResolver(
         }
 
         if (result is LinkParseResult.Query) {
-            return search(searchTexts(title, details, result.text), title, source)
+            return search(searchTexts(title, details, result.text), title, source, near, nearbyFirst = false)
         }
 
         if (title.isNotEmpty()) {
-            return search(searchTexts(title, details, ""), title, source)
+            return search(searchTexts(title, details, ""), title, source, near, nearbyFirst = false)
         }
         if (networkError.isNotEmpty()) {
             return ResolveOutcome.Failed("Could not open the link: $networkError")
@@ -99,8 +107,15 @@ class DestinationResolver(
         return ResolveOutcome.Failed("This link does not contain a location.")
     }
 
-    private suspend fun search(texts: List<String>, nameHint: String, source: String): ResolveOutcome {
-        if (!placeSearch.isAvailable()) {
+    private suspend fun search(
+        texts: List<String>,
+        nameHint: String,
+        source: String,
+        near: LatLng?,
+        nearbyFirst: Boolean,
+    ): ResolveOutcome {
+        val searches = searchOrder(nearbyFirst)
+        if (searches.isEmpty()) {
             return ResolveOutcome.Failed(
                 "Address search is not available on this phone (no Geocoder service). Enter coordinates instead.",
             )
@@ -110,22 +125,24 @@ class DestinationResolver(
         var lastText = ""
         for (text in texts) {
             lastText = text
-            val results: List<Destination>
-            try {
-                results = placeSearch.search(text, MAX_RESULTS)
-            } catch (error: IOException) {
-                lastError = error.message ?: error.javaClass.simpleName
-                continue
-            }
-            if (results.size == 1) {
-                var destination = results[0]
-                if (nameHint.isNotEmpty()) {
-                    destination = destination.copy(name = nameHint)
+            for (search in searches) {
+                val results: List<Destination>
+                try {
+                    results = search.search(text, MAX_RESULTS, near)
+                } catch (error: IOException) {
+                    lastError = error.message ?: error.javaClass.simpleName
+                    continue
                 }
-                return ResolveOutcome.Resolved(destination, source)
-            }
-            if (results.size > 1) {
-                return ResolveOutcome.Choices(text, results)
+                if (results.size == 1) {
+                    var destination = results[0]
+                    if (nameHint.isNotEmpty()) {
+                        destination = destination.copy(name = nameHint)
+                    }
+                    return ResolveOutcome.Resolved(destination, source)
+                }
+                if (results.size > 1) {
+                    return ResolveOutcome.Choices(text, results)
+                }
             }
         }
 
@@ -133,6 +150,23 @@ class DestinationResolver(
             return ResolveOutcome.Failed("Search failed: $lastError")
         }
         return ResolveOutcome.Failed("No results for \"$lastText\".")
+    }
+
+    /** The searches this phone has, in the order to try them. */
+    private fun searchOrder(nearbyFirst: Boolean): List<PlaceSearch> {
+        val searches = mutableListOf<PlaceSearch>()
+        if (placeSearch.isAvailable()) {
+            searches.add(placeSearch)
+        }
+        val nearby = nearbySearch
+        if (nearby != null && nearby.isAvailable()) {
+            if (nearbyFirst) {
+                searches.add(0, nearby)
+            } else {
+                searches.add(nearby)
+            }
+        }
+        return searches
     }
 
     private fun needsExpansion(link: String): Boolean {

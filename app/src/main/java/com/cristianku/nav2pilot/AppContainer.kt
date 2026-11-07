@@ -9,6 +9,7 @@ import com.cristianku.nav2pilot.data.DeviceRepository
 import com.cristianku.nav2pilot.data.FavoritesRepository
 import com.cristianku.nav2pilot.data.SharedPreferencesStore
 import com.cristianku.nav2pilot.geocode.AndroidGeocoderSearch
+import com.cristianku.nav2pilot.geocode.PhotonSearch
 import com.cristianku.nav2pilot.geocode.PlaceSearch
 import com.cristianku.nav2pilot.location.AndroidLocationProvider
 import com.cristianku.nav2pilot.mapbox.MapboxDirections
@@ -67,7 +68,9 @@ class AppContainer(context: Context) {
     val sender = DestinationSender(transports) { withContext(ioDispatcher) { mapbox.tokenStore.load() } }
 
     val placeSearch: PlaceSearch = AndroidGeocoderSearch(context.applicationContext, ioDispatcher)
-    val destinationResolver = DestinationResolver(ShortLinkResolver(httpClient), placeSearch, ioDispatcher)
+    // names typed in the search are looked for near the user first (OpenStreetMap, Photon); also the suggestions
+    val nearbySearch: PlaceSearch = PhotonSearch(httpClient, ioDispatcher)
+    val destinationResolver = DestinationResolver(ShortLinkResolver(httpClient), placeSearch, ioDispatcher, nearbySearch)
 
     companion object {
         private fun appVersion(context: Context): String {

@@ -7,6 +7,7 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import com.cristianku.nav2pilot.model.CoordinateRules
 import com.cristianku.nav2pilot.model.Destination
+import com.cristianku.nav2pilot.model.LatLng
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -30,7 +31,8 @@ class AndroidGeocoderSearch(
         return Geocoder.isPresent()
     }
 
-    override suspend fun search(query: String, maxResults: Int): List<Destination> {
+    /** The Geocoder takes no point to prefer, only a box to stay in: [near] is not used. */
+    override suspend fun search(query: String, maxResults: Int, near: LatLng?): List<Destination> {
         val geocoder = Geocoder(context, Locale.getDefault())
         val addresses: List<Address>
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

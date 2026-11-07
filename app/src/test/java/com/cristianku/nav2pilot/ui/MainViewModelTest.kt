@@ -2,7 +2,9 @@ package com.cristianku.nav2pilot.ui
 
 import com.cristianku.nav2pilot.data.DeviceRepository
 import com.cristianku.nav2pilot.data.FavoritesRepository
+import com.cristianku.nav2pilot.model.Destination
 import com.cristianku.nav2pilot.model.PairedDevice
+import com.cristianku.nav2pilot.places.MapArea
 import com.cristianku.nav2pilot.resolve.DestinationResolver
 import com.cristianku.nav2pilot.resolve.ShortLinkResolver
 import com.cristianku.nav2pilot.security.TokenStore
@@ -24,9 +26,11 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.io.IOException
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MainViewModelTest {
@@ -48,6 +52,8 @@ class MainViewModelTest {
         Dispatchers.resetMain()
     }
 
+    private val suggestions = FakePlaceSearch()
+
     private fun createViewModel(): MainViewModel {
         val comma = CommaAthenaTransport(http, { tokenStore.load() }, dispatcher)
         val search = FakePlaceSearch()
@@ -60,6 +66,7 @@ class MainViewModelTest {
             favoritesRepository = favoritesRepository,
             deviceRepository = deviceRepository,
             ioDispatcher = dispatcher,
+            suggestionSearch = suggestions,
             clock = { 1_000L },
         )
     }
@@ -154,5 +161,84 @@ class MainViewModelTest {
 
         viewModel.toggleFavorite()
         assertTrue(favoritesRepository.favorites.value.isEmpty())
+    }
+
+    @Test
+    fun suggestionsComeAfterAPauseInTheTyping() {
+        val viewModel = createViewModel()
+        val ikea = Destination(47.53, 7.70, "IKEA", "Grüssenweg 21, 4133 Pratteln")
+        suggestions.results["ike"] = listOf(ikea)
+        suggestions.results["ikea"] = listOf(ikea)
+
+        viewModel.typeSearch("ik")
+        viewModel.typeSearch("ike")
+        dispatcher.scheduler.advanceTimeBy(100)
+        viewModel.typeSearch("ikea")
+        dispatcher.scheduler.advanceTimeBy(299)
+        assertTrue(viewModel.uiState.value.suggestions.isEmpty())
+
+        dispatcher.scheduler.advanceTimeBy(2)
+        assertEquals(listOf(ikea), viewModel.uiState.value.suggestions)
+        // only the last text was looked up
+        assertEquals(listOf("ikea"), suggestions.queries)
+    }
+
+    @Test
+    fun noSuggestionsForOneLetterCoordinatesOrALink() {
+        val viewModel = createViewModel()
+
+        viewModel.typeSearch("i")
+        viewModel.typeSearch("45.46, 9.19")
+        viewModel.typeSearch("https://maps.app.goo.gl/abc")
+        dispatcher.scheduler.advanceTimeBy(1_000)
+
+        assertTrue(suggestions.queries.isEmpty())
+    }
+
+    @Test
+    fun aChosenSuggestionBecomesTheDestinationAndTheListCloses() {
+        val viewModel = createViewModel()
+        val ikea = Destination(47.53, 7.70, "IKEA", "Grüssenweg 21, 4133 Pratteln")
+        suggestions.results["ikea"] = listOf(ikea)
+        viewModel.typeSearch("ikea")
+        dispatcher.scheduler.advanceTimeBy(1_000)
+
+        viewModel.chooseCandidate(ikea)
+
+        assertEquals(ikea, viewModel.uiState.value.destination)
+        assertTrue(viewModel.uiState.value.suggestions.isEmpty())
+    }
+
+    @Test
+    fun withoutThePhonesPositionTheMapsMiddleIsWhereTheSuggestionsLook() {
+        val viewModel = createViewModel()
+        suggestions.results["ikea"] = listOf(Destination(47.53, 7.70, "IKEA"))
+
+        // the whole world: no hint
+        viewModel.mapAreaChanged(MapArea(south = -60.0, west = -170.0, north = 70.0, east = 170.0))
+        viewModel.typeSearch("ikea")
+        dispatcher.scheduler.advanceTimeBy(1_000)
+        assertNull(suggestions.nearPoints[0])
+        assertNull(viewModel.uiState.value.searchCenter)
+
+        viewModel.mapAreaChanged(MapArea(south = 47.49, west = 7.99, north = 47.52, east = 8.04))
+        viewModel.typeSearch("ikea ")
+        dispatcher.scheduler.advanceTimeBy(1_000)
+        val near = suggestions.nearPoints[1]!!
+        assertEquals(47.505, near.latitude, 0.0001)
+        assertEquals(8.015, near.longitude, 0.0001)
+        assertEquals(near, viewModel.uiState.value.searchCenter)
+    }
+
+    @Test
+    fun aFailedSuggestionShowsNothing() {
+        val viewModel = createViewModel()
+        suggestions.error = IOException("timeout")
+
+        viewModel.typeSearch("ikea")
+        dispatcher.scheduler.advanceTimeBy(1_000)
+
+        assertTrue(viewModel.uiState.value.suggestions.isEmpty())
+        assertEquals("", viewModel.uiState.value.resolveError)
     }
 }

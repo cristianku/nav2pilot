@@ -30,7 +30,7 @@ class CarModel(
     val transports: TransportRegistry,
     val sender: DestinationSender,
     val resolver: DestinationResolver,
-    /** False without a geocoder: the search button is hidden. */
+    /** False without any search: the search button is hidden. */
     val searchAvailable: Boolean,
     val routePlanning: RoutePlanning?,
     /** Points of interest near the car, from OpenStreetMap. */
@@ -46,7 +46,7 @@ class CarModel(
         transports = container.transports,
         sender = container.sender,
         resolver = container.destinationResolver,
-        searchAvailable = container.placeSearch.isAvailable(),
+        searchAvailable = container.placeSearch.isAvailable() || container.nearbySearch.isAvailable(),
         routePlanning = container.routePlanning,
         places = container.places,
         map = map,
@@ -73,6 +73,12 @@ class CarModel(
     suspend fun currentPosition(): LatLng? {
         val planning = routePlanning ?: return null
         return planning.location.currentLocation()
+    }
+
+    /** The last position the phone knows, without waiting for a fix: where the search looks first. */
+    fun lastKnownPosition(): LatLng? {
+        val planning = routePlanning ?: return null
+        return planning.location.lastKnownLocation()
     }
 
     /** The location permission is asked by the phone app; without it the car knows no position. */

@@ -3,6 +3,7 @@ package com.cristianku.nav2pilot.testing
 import com.cristianku.nav2pilot.data.KeyValueStore
 import com.cristianku.nav2pilot.geocode.PlaceSearch
 import com.cristianku.nav2pilot.model.Destination
+import com.cristianku.nav2pilot.model.LatLng
 import com.cristianku.nav2pilot.net.HttpClient
 import com.cristianku.nav2pilot.net.HttpRequest
 import com.cristianku.nav2pilot.net.HttpResponse
@@ -77,6 +78,8 @@ class FakePlaceSearch(
     private val available: Boolean = true,
 ) : PlaceSearch {
     val queries = mutableListOf<String>()
+    /** The point each query was made near, in the same order. */
+    val nearPoints = mutableListOf<LatLng?>()
     val results = mutableMapOf<String, List<Destination>>()
     var error: IOException? = null
 
@@ -84,8 +87,9 @@ class FakePlaceSearch(
         return available
     }
 
-    override suspend fun search(query: String, maxResults: Int): List<Destination> {
+    override suspend fun search(query: String, maxResults: Int, near: LatLng?): List<Destination> {
         queries.add(query)
+        nearPoints.add(near)
         val failure = error
         if (failure != null) {
             throw failure
