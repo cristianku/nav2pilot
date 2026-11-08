@@ -6,9 +6,11 @@ import android.text.Spanned
 import androidx.car.app.AppManager
 import androidx.car.app.ScreenManager
 import androidx.car.app.OnDoneCallback
+import androidx.car.app.model.CarColor
 import androidx.car.app.model.CarText
 import androidx.car.app.model.Distance
 import androidx.car.app.model.DistanceSpan
+import androidx.car.app.model.ForegroundCarColorSpan
 import androidx.car.app.model.ListTemplate
 import androidx.car.app.model.MessageTemplate
 import androidx.car.app.model.PlaceListMapTemplate
@@ -31,6 +33,7 @@ import com.cristianku.nav2pilot.model.LatLng
 import com.cristianku.nav2pilot.model.PairedDevice
 import com.cristianku.nav2pilot.places.OverpassPlaces
 import com.cristianku.nav2pilot.places.PlaceCategory
+import com.cristianku.nav2pilot.places.PlaceInfoLookup
 import com.cristianku.nav2pilot.resolve.DestinationResolver
 import com.cristianku.nav2pilot.resolve.ShortLinkResolver
 import com.cristianku.nav2pilot.security.TokenStore
@@ -90,6 +93,7 @@ class CarScreensTest {
             searchAvailable = true,
             routePlanning = RoutePlanning(MapboxDirections(http, { mapboxToken.load() }, unconfined), location),
             places = OverpassPlaces(http, unconfined, { listOf(OVERPASS) }),
+            placeInfo = PlaceInfoLookup(http, unconfined, { listOf(OVERPASS) }),
             map = map,
             ioDispatcher = unconfined,
         )
@@ -104,6 +108,16 @@ class CarScreensTest {
 
     private fun text(carText: CarText?): String {
         return carText!!.toCharSequence().toString()
+    }
+
+    /** The colour of the start of [carText], the open or closed of a place. */
+    private fun headlineColor(carText: CarText): CarColor {
+        val line = carText.toCharSequence() as Spanned
+        return line.getSpans(0, 1, ForegroundCarColorSpan::class.java)[0].color
+    }
+
+    private fun overpassQuery(): String {
+        return java.net.URLDecoder.decode(http.requests.last().body!!.removePrefix("data="), "UTF-8")
     }
 
     private fun idle() {
@@ -152,6 +166,36 @@ class CarScreensTest {
 
         (rows[1] as Row).onClickDelegate!!.sendClick(done)
         assertTrue(pushed().last() is RouteScreen)
+    }
+
+    @Test
+    fun favoritePlacesSayWhetherTheyAreOpen() {
+        setUpCar()
+        favorites.add(Destination(47.5313, 7.6911, "IKEA", "Pratteln", kind = "shop:furniture", osmId = "way/1"))
+        favorites.add(Destination(47.50, 8.01, "Home", "Hauptstrasse 1, Frick", kind = "place:house", osmId = "node/5"))
+        favorites.add(Destination(47.51, 8.02, "Old favorite", "Frick", osmId = "node/6"))
+        http.respond(200, """{"elements":[{"type":"way","id":1,"tags":{"opening_hours":"off"}}]}""")
+
+        val model = model()
+        val screen = DestinationsScreen(carContext, model)
+        ScreenController(screen).moveToState(Lifecycle.State.RESUMED)
+        idle()
+
+        // only the shop is asked about: not the home, nor a favorite of unknown kind
+        assertEquals(1, http.requests.size)
+        assertTrue(overpassQuery().contains("way(id:1);"))
+        assertFalse(overpassQuery().contains("node("))
+        val rows = (screen.onGetTemplate() as PlaceListMapTemplate).itemList!!.items.map { it as Row }
+        assertEquals(listOf("Pratteln", "Closed"), rows[0].texts.map { text(it) })
+        assertEquals(CarColor.RED, headlineColor(rows[0].texts[1]))
+        assertEquals(1, rows[1].texts.size)
+
+        // known for the rest of the session: the car's next start asks nothing
+        val again = DestinationsScreen(carContext, model)
+        ScreenController(again).moveToState(Lifecycle.State.RESUMED)
+        idle()
+        assertEquals(1, http.requests.size)
+        assertEquals("Closed", text(((again.onGetTemplate() as PlaceListMapTemplate).itemList!!.items[0] as Row).texts[1]))
     }
 
     @Test
@@ -280,6 +324,27 @@ class CarScreensTest {
     }
 
     @Test
+    fun searchResultsSayWhetherTheyAreOpen() {
+        setUpCar()
+        search.results["ikea"] = listOf(
+            Destination(47.5313, 7.6911, "IKEA", "Grüssenweg 21, 4133 Pratteln", kind = "shop:furniture", osmId = "way/1"),
+            Destination(47.39, 8.43, "IKEA", "Spreitenbach", kind = "shop:furniture"),
+        )
+        http.respond(200, """{"elements":[{"type":"way","id":1,"tags":{"opening_hours":"24/7"}}]}""")
+        val screen = SearchScreen(carContext, model())
+        ScreenController(screen).moveToState(Lifecycle.State.RESUMED)
+
+        (screen.onGetTemplate() as SearchTemplate).searchCallbackDelegate.sendSearchSubmitted("ikea", done)
+        idle()
+
+        assertTrue(overpassQuery().contains("way(id:1);"))
+        val rows = (screen.onGetTemplate() as SearchTemplate).itemList!!.items.map { it as Row }
+        assertEquals(listOf("Furniture store · Grüssenweg 21, 4133 Pratteln", "Open 24 hours"), rows[0].texts.map { text(it) })
+        assertEquals(CarColor.GREEN, headlineColor(rows[0].texts[1]))
+        assertEquals(listOf("Furniture store · Spreitenbach"), rows[1].texts.map { text(it) })
+    }
+
+    @Test
     fun withoutCarsTheListSaysWhereToAddThem() {
         commaToken.save(Fixtures.TEST_JWT)
         val screen = DestinationsScreen(carContext, model())
@@ -314,8 +379,7 @@ class CarScreensTest {
         ScreenController(screen).moveToState(Lifecycle.State.RESUMED)
         idle()
 
-        val query = java.net.URLDecoder.decode(http.requests.last().body!!.removePrefix("data="), "UTF-8")
-        assertTrue(query.contains("""["amenity"="fuel"]"""))
+        assertTrue(overpassQuery().contains("""["amenity"="fuel"]"""))
         assertEquals(OVERPASS, http.requests.last().url)
         val template = screen.onGetTemplate() as PlaceListMapTemplate
         assertEquals("Fuel stations", text(template.title))
@@ -323,6 +387,11 @@ class CarScreensTest {
         assertEquals(listOf("Eni", "Fuel station"), rows.map { text((it as Row).title) })
         val line = (rows[0] as Row).texts[0].toCharSequence() as Spanned
         assertEquals("  · Via Roma 1, 20121 Milano", line.toString())
+        // the hours come with the places: no other request
+        assertEquals("Open 24 hours", text((rows[0] as Row).texts[1]))
+        assertEquals(CarColor.GREEN, headlineColor((rows[0] as Row).texts[1]))
+        assertEquals(1, (rows[1] as Row).texts.size)
+        assertEquals(1, http.requests.size)
         assertNotNull((rows[0] as Row).metadata!!.place)
         (rows[0] as Row).onClickDelegate!!.sendClick(done)
         assertTrue(pushed().last() is RouteScreen)
@@ -392,11 +461,11 @@ class CarScreensTest {
     companion object {
         private const val OVERPASS = "https://overpass.test/api/interpreter"
 
-        // a station with a name and an address, and a farther one without either
+        // a station with a name, an address and hours, and a farther one without any
         private const val FUEL = """{"elements":[
             {"type":"node","id":2,"lat":45.49,"lon":9.20,"tags":{"amenity":"fuel"}},
             {"type":"way","id":1,"center":{"lat":45.471,"lon":9.181},
-             "tags":{"amenity":"fuel","brand":"Eni","addr:street":"Via Roma","addr:housenumber":"1","addr:postcode":"20121","addr:city":"Milano"}}
+             "tags":{"amenity":"fuel","brand":"Eni","opening_hours":"24/7","addr:street":"Via Roma","addr:housenumber":"1","addr:postcode":"20121","addr:city":"Milano"}}
         ]}"""
 
         // two routes Milan -> Verona, coordinates shortened

@@ -180,13 +180,14 @@ Good to know:
 Nav2Pilot has its own Android Auto screen. Connect the phone to the car and open Nav2Pilot from the Android
 Auto launcher:
 
-- **Favorites** on the map, nearest first, with their distance. Tap one to open it.
+- **Favorites** on the map, nearest first, with their distance; shops, restaurants and the like say whether
+  they are open ("Open · Closes 20:00"). Tap one to open it.
 - **Nearby**: fuel stations, EV charging, parking, rest areas and the other kinds of the phone's places menu,
-  within 10 km of the car, nearest first. Tap one to open its route.
+  within 10 km of the car, nearest first, open or closed. Tap one to open its route.
 - **The route**: the destination on a map with, if you set up Mapbox, the fastest route and up to two
   alternatives from the phone's position. Pick one and tap **Send**: the car follows it.
-- **Search** an address, a place or coordinates. The car shows the keyboard only when it allows it, usually
-  when parked.
+- **Search** an address, a place or coordinates, with the kind of place and whether it is open. The car shows
+  the keyboard only when it allows it, usually when parked.
 - **Car**: your cars with their status (online, software version). Pick the one to send to, or clear its
   destination.
 
@@ -220,8 +221,9 @@ CarPlay app needs a CarPlay entitlement that Apple grants on request.
 - The app only talks to comma (to reach your device), to Google Maps (to open shared links), to komoot's
   Photon and the phone's address search (what you search for, with a position rounded to about 1 km), to
   OpenStreetMap's Overpass servers (when you ask for points of interest: the category and the part of the map
-  you see; after a search, the OpenStreetMap ids of the places found, for their opening hours) and, if you set
-  it up, to Mapbox. No analytics, no tracking.
+  you see; after a search, the OpenStreetMap ids of the places found, for their opening hours; in Android Auto
+  also those of the favorites that are shops and the like, never of an address) and, if you set it up, to
+  Mapbox. No analytics, no tracking.
 - Your position is only used for the route preview: it goes to Mapbox, with your own token, and nowhere else.
 
 Nav2Pilot is an independent project, not affiliated with comma.ai or sunnypilot.
@@ -256,8 +258,8 @@ APIs, independently of the openpilot / sunnypilot source code.
   20:00"); the chosen destination shows the week's opening hours, the phone number and the website, from
   OpenStreetMap (see "Opening hours").
 - **Landscape layout** for car head units and tablets: two panes and a navigation rail.
-- **Android Auto**: favorites and places nearby on the map, route preview and alternatives, search, the cars'
-  status and clearing the destination (see "Android Auto screen").
+- **Android Auto**: favorites and places nearby on the map, open or closed, route preview and alternatives,
+  search, the cars' status and clearing the destination (see "Android Auto screen").
 
 ### comma token
 
@@ -380,6 +382,10 @@ Setup: Devices → Mapbox → **Set up Mapbox**.
   points of interest, 6 seconds each; what was answered is kept for the session.
 - From the tags: `opening_hours`, `phone` / `contact:phone` (the first number), `website` / `contact:website`
   / `url` (only http and https). Places from the points-of-interest menu already have their tags: no request.
+- Android Auto asks the same way for its search results and for the favorites on its screen whose kind is a
+  place (`shop:*`, `amenity:*` and the like): not an address or a building (`building:*`, `place:house`), often
+  someone's home, nor a town or a street, nor a favorite saved before the app kept the kind. The phone and the
+  car share what was found.
 - `opening_hours` is read for the common forms: days and day ranges (`Mo-Fr`, `Sa,Su`, `Fr-Mo`), several
   times a day (`08:00-12:00,13:30-18:00`), past midnight (`18:00-02:00`), `24/7`, `off`, later rules replacing
   earlier ones on their days; public and school holidays are left out. Anything else (months, weeks,
@@ -404,7 +410,9 @@ Investigated, **not implemented** (the `SunnylinkTransport` backend is an explic
   and navigate to points of interest and take relevant actions"), minimum car API level 7.
 - Favorites: `PlaceListMapTemplate`, on the map Android Auto draws itself. The rows are browsable (they open
   the route) and carry a `DistanceSpan` when the phone's position is known; nearest first, up to the car's
-  place-list limit (usually 6).
+  place-list limit (usually 6). A second line says whether the place is open, the "Open" or "Closed" in a
+  `ForegroundCarColorSpan` (green, yellow, red: the car may draw its own colours); the screens look again at
+  each new minute and redraw only when a status changes.
 - Nearby: a `ListTemplate` of the place categories, those that matter most while driving first (a car with
   short lists cuts the rest), then a `PlaceListMapTemplate` of the category from Overpass in a box 10 km to
   each side of the phone's position (`MapArea.around`), with the same rows as the favorites. Without a
@@ -464,8 +472,9 @@ another backend can be added without touching the UI.
 - Network access is limited to `api.commadotai.com`, `athena.comma.ai`, Google Maps hosts (only to expand
   shared links), `photon.komoot.io` and the phone's Geocoder service (address search),
   `tiles.openfreemap.org` (map without a Mapbox token), the Overpass API servers (points of interest when a
-  category is picked; opening hours of search results, by OpenStreetMap id only) and, only
-  with a Mapbox token, `api.mapbox.com`. Android Auto adds nothing: the car screen uses the same services.
+  category is picked; opening hours of search results and, in Android Auto, of favorites that are places, by
+  OpenStreetMap id only) and, only with a Mapbox token, `api.mapbox.com`. Android Auto adds no other service:
+  the car screen uses the same ones.
   No analytics.
 
 ### Build

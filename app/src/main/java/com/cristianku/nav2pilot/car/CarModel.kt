@@ -11,6 +11,7 @@ import com.cristianku.nav2pilot.mapbox.RoutePlanning
 import com.cristianku.nav2pilot.mapbox.RouteShaping
 import com.cristianku.nav2pilot.model.LatLng
 import com.cristianku.nav2pilot.places.OverpassPlaces
+import com.cristianku.nav2pilot.places.PlaceInfoLookup
 import com.cristianku.nav2pilot.resolve.DestinationResolver
 import com.cristianku.nav2pilot.security.TokenStore
 import com.cristianku.nav2pilot.transport.DestinationSender
@@ -35,6 +36,8 @@ class CarModel(
     val routePlanning: RoutePlanning?,
     /** Points of interest near the car, from OpenStreetMap. */
     val places: OverpassPlaces,
+    /** Opening hours of search results and favorites, from OpenStreetMap; shared with the phone's search. */
+    val placeInfo: PlaceInfoLookup,
     val map: CarMap,
     private val ioDispatcher: CoroutineDispatcher,
 ) {
@@ -49,6 +52,7 @@ class CarModel(
         searchAvailable = container.placeSearch.isAvailable() || container.nearbySearch.isAvailable(),
         routePlanning = container.routePlanning,
         places = container.places,
+        placeInfo = container.placeInfo,
         map = map,
         ioDispatcher = container.ioDispatcher,
     )

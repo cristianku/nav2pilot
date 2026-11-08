@@ -7,7 +7,9 @@ import androidx.car.app.model.ActionStrip
 import androidx.car.app.model.ItemList
 import androidx.car.app.model.PlaceListMapTemplate
 import androidx.car.app.model.Template
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.cristianku.nav2pilot.model.LatLng
 import com.cristianku.nav2pilot.places.MapArea
 import com.cristianku.nav2pilot.places.OverpassPlaces
@@ -16,10 +18,11 @@ import com.cristianku.nav2pilot.places.PlaceCategory
 import com.cristianku.nav2pilot.transport.TransportResult
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import java.time.LocalDateTime
 
 /**
- * The places of one category around the car, from OpenStreetMap, nearest first on Android Auto's map. Picking one
- * opens its route, like a favorite.
+ * The places of one category around the car, from OpenStreetMap, nearest first on Android Auto's map, open or closed
+ * from the hours that come with them. Picking one opens its route, like a favorite.
  */
 class PlacesScreen(
     carContext: CarContext,
@@ -36,6 +39,11 @@ class PlacesScreen(
 
     init {
         search()
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                CarRows.followClock({ shown().map { place -> place.info?.openingHours ?: "" } }) { invalidate() }
+            }
+        }
     }
 
     override fun onGetTemplate(): Template {
@@ -50,9 +58,12 @@ class PlacesScreen(
         if (message.isNotEmpty()) {
             items.setNoItemsMessage(message)
         }
-        for (place in places.take(CarRows.placeLimit(carContext))) {
+        val now = LocalDateTime.now()
+        for (place in shown()) {
             val destination = place.toDestination()
-            items.addItem(CarRows.place(destination, position) { screenManager.push(RouteScreen(carContext, model, destination)) })
+            items.addItem(
+                CarRows.place(destination, position, place.info, now) { screenManager.push(RouteScreen(carContext, model, destination)) },
+            )
         }
         template.setItemList(items.build())
         if (failed) {
@@ -68,6 +79,10 @@ class PlacesScreen(
             )
         }
         return template.build()
+    }
+
+    private fun shown(): List<Place> {
+        return places.take(CarRows.placeLimit(carContext))
     }
 
     private fun search() {
