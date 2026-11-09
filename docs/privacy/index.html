@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Nav2Pilot — Privacy Policy</title>
-<meta name="description" content="Privacy Policy of the Nav2Pilot Android app: which data it handles, where it is sent and how to delete it.">
+<meta name="description" content="Privacy Policy of the Nav2Pilot apps for Android and iPhone: which data they handle, where it is sent and how to delete it.">
 <style>
   :root {
     --bg: #ffffff;
@@ -51,7 +51,7 @@
 <main>
 
 <h1>Nav2Pilot — Privacy Policy</h1>
-<p class="meta">Last updated / Ultimo aggiornamento: 8 November 2026 / 8 novembre 2026</p>
+<p class="meta">Last updated / Ultimo aggiornamento: 9 November 2026 / 9 novembre 2026</p>
 <p class="lang"><a href="#en">English</a> <a href="#it">Italiano</a></p>
 
 <!-- ============================== ENGLISH ============================== -->
@@ -60,7 +60,7 @@
 <h2>English</h2>
 
 <h3>Who is responsible</h3>
-<p>Nav2Pilot is an Android app developed by Cristian Zantedeschi, Switzerland, and published on Google Play under the developer name “14 Bodhi”.</p>
+<p>Nav2Pilot is an app for Android and iPhone developed by Cristian Zantedeschi, Switzerland. The Android app is published on Google Play under the developer name “14 Bodhi”; the iPhone app is in beta on Apple’s TestFlight. This page describes the Android app; the differences of the iPhone app are under “The iPhone app”.</p>
 <p>Privacy contact: <a href="mailto:admin@14bodhi.com">admin@14bodhi.com</a></p>
 <p>Nav2Pilot is an independent project. It is not affiliated with, endorsed by or operated by comma.ai or sunnypilot.</p>
 
@@ -70,7 +70,7 @@
   <li>Nav2Pilot sends destinations from your phone to your own comma device, through comma’s servers, using your comma account token.</li>
   <li>The developer runs no server for the app and receives none of the data described here.</li>
   <li>The app contains no analytics, advertising or tracking SDKs.</li>
-  <li>Some data is sent to third-party services (comma, Mapbox if you set it up, komoot’s Photon and your phone’s address search service for searches, Google Maps for shared links, OpenStreetMap’s Overpass servers and Photon for points of interest, Overpass servers for opening hours). Each of them handles it under its own privacy policy.</li>
+  <li>Some data is sent to third-party services (comma, Mapbox if you set it up, komoot’s Photon and your phone’s address search service for searches, Google Maps for shared links, OpenStreetMap’s Overpass servers and Photon for points of interest, Overpass servers for opening hours; on the iPhone, Apple’s map search for searches). Each of them handles it under its own privacy policy.</li>
 </ul>
 </div>
 
@@ -147,8 +147,21 @@
 </ul>
 <p><strong>At external services.</strong> Removing a token from the phone does not delete copies held elsewhere, and does not by itself invalidate the token. The validity and revocation of your comma token depend on comma. Data received by comma, Mapbox and Google is kept and deleted under their policies; contact them directly to exercise your rights over it.</p>
 
+<h3>The iPhone app</h3>
+<p>Nav2Pilot for iPhone does the same things as the Android app and handles the same data in the same way, with these differences:</p>
+<ul>
+  <li><strong>Search.</strong> Names and addresses you type (also while you type, for the suggestions) and text shared with the app go to Apple’s map search (MapKit), with your last known position, when the app has one, as the area to look in first. Photon and Google are not used for searches. Apple privacy policy: <a href="https://www.apple.com/legal/privacy/">apple.com/legal/privacy</a></li>
+  <li><strong>Opening hours.</strong> Apple’s results have no OpenStreetMap identifier, so after a search the app sends the Overpass servers the names of the places found that are shops, restaurants and the like, each with its coordinates rounded to about 10 m. The same for the destination you choose and, on the CarPlay screen, for the favorites it shows that are shops, restaurants and the like, never for a favorite that is an address. Not your position and not the text you typed; but the places found are usually near you, so they can show roughly where you searched. The kind of place, the phone number and the website come from Apple’s results first.</li>
+  <li><strong>Map.</strong> The map is Apple’s (MapKit), with its map images from Apple; with a Mapbox token, Mapbox’s map images replace them. Apple Maps short links shared with the app (<code>maps.apple</code>) are opened on Apple’s servers, like Google Maps links on Google’s.</li>
+  <li><strong>Location.</strong> The app asks for access “while using the app”. It reads the position when it needs it: to show where you are on the map, for the route preview (sent only to Mapbox), as the search area (sent to Apple) and, on the CarPlay screen, to list the favorites nearest first (computed on the iPhone). No background location. You can revoke access in iOS: Settings → Nav2Pilot → Location (from iOS 18, Settings → Apps → Nav2Pilot → Location).</li>
+  <li><strong>CarPlay.</strong> The CarPlay screen works only once Apple grants the app its CarPlay permission. It shows your favorites and your cars, and sends destinations as the iPhone does; it has no search and no points of interest.</li>
+  <li><strong>Storage.</strong> The comma token and the Mapbox token are kept in the iOS Keychain. They can be read once the iPhone has been unlocked after it was turned on, so that CarPlay works with the iPhone locked, and they are never synced to iCloud Keychain or restored to another iPhone. The device list and the favorites are in the app’s storage on the iPhone, shared with its share extension, and are part of your iPhone’s backups (iCloud or computer) like other app data. The app’s connections keep no cache and no cookies.</li>
+  <li><strong>Deletion.</strong> Remove the tokens, devices and favorites in the app, or delete the app, which deletes its storage. iOS can keep Keychain entries after an app is deleted: to be sure the tokens are gone from the iPhone, remove them in the app first.</li>
+  <li><strong>Technical data.</strong> Requests identify the app as “Nav2Pilot”, its version and iOS.</li>
+</ul>
+
 <h3>This web page</h3>
-<p>This policy covers the Nav2Pilot app. It does not cover visits to this page, which is hosted on GitHub Pages: GitHub may process technical data, such as your IP address, under its own privacy statement: <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub General Privacy Statement</a></p>
+<p>This policy covers the Nav2Pilot apps. It does not cover visits to this page, which is hosted on GitHub Pages: GitHub may process technical data, such as your IP address, under its own privacy statement: <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub General Privacy Statement</a></p>
 
 <h3>Changes and contact</h3>
 <p>If the app starts handling data differently, this page will be updated and the date at the top will change.</p>
@@ -162,7 +175,7 @@
 <h2>Italiano</h2>
 
 <h3>Chi è il responsabile</h3>
-<p>Nav2Pilot è un’app Android sviluppata da Cristian Zantedeschi, Svizzera, e pubblicata su Google Play con il nome sviluppatore “14 Bodhi”.</p>
+<p>Nav2Pilot è un’app per Android e iPhone sviluppata da Cristian Zantedeschi, Svizzera. L’app Android è pubblicata su Google Play con il nome sviluppatore “14 Bodhi”; l’app per iPhone è in beta su TestFlight di Apple. Questa pagina descrive l’app Android; le differenze dell’app per iPhone sono in “L’app per iPhone”.</p>
 <p>Contatto per la privacy: <a href="mailto:admin@14bodhi.com">admin@14bodhi.com</a></p>
 <p>Nav2Pilot è un progetto indipendente, non affiliato, approvato o gestito da comma.ai o da sunnypilot.</p>
 
@@ -172,7 +185,7 @@
   <li>Nav2Pilot invia destinazioni dal telefono al tuo dispositivo comma, attraverso i server di comma, usando il token del tuo account comma.</li>
   <li>Lo sviluppatore non gestisce alcun server per l’app e non riceve nessuno dei dati descritti qui.</li>
   <li>L’app non contiene SDK di analisi, pubblicità o tracciamento.</li>
-  <li>Alcuni dati vengono inviati a servizi esterni (comma, Mapbox se lo configuri, Photon di komoot e il servizio di ricerca indirizzi del telefono per le ricerche, Google Maps per i link condivisi, i server Overpass di OpenStreetMap e Photon per i punti di interesse, i server Overpass per gli orari di apertura). Ognuno li tratta secondo la propria informativa privacy.</li>
+  <li>Alcuni dati vengono inviati a servizi esterni (comma, Mapbox se lo configuri, Photon di komoot e il servizio di ricerca indirizzi del telefono per le ricerche, Google Maps per i link condivisi, i server Overpass di OpenStreetMap e Photon per i punti di interesse, i server Overpass per gli orari di apertura; su iPhone, la ricerca mappe di Apple per le ricerche). Ognuno li tratta secondo la propria informativa privacy.</li>
 </ul>
 </div>
 
@@ -249,8 +262,21 @@
 </ul>
 <p><strong>Presso i servizi esterni.</strong> La rimozione di un token dal telefono non cancella le copie conservate altrove e non rende di per sé il token invalido. Validità e revoca del token comma dipendono da comma. I dati ricevuti da comma, Mapbox e Google sono conservati e cancellati secondo le loro informative; per esercitare i tuoi diritti su quei dati rivolgiti direttamente a loro.</p>
 
+<h3>L’app per iPhone</h3>
+<p>Nav2Pilot per iPhone fa le stesse cose dell’app Android e tratta gli stessi dati nello stesso modo, con queste differenze:</p>
+<ul>
+  <li><strong>Ricerca.</strong> I nomi e gli indirizzi che digiti (anche mentre scrivi, per i suggerimenti) e i testi condivisi con l’app vanno alla ricerca mappe di Apple (MapKit), con la tua ultima posizione nota, quando l’app ne ha una, come zona in cui cercare per prima. Per le ricerche non si usano né Photon né Google. Informativa privacy di Apple: <a href="https://www.apple.com/legal/privacy/">apple.com/legal/privacy</a></li>
+  <li><strong>Orari di apertura.</strong> I risultati di Apple non hanno un identificativo OpenStreetMap, quindi dopo una ricerca l’app invia ai server Overpass i nomi dei luoghi trovati che sono negozi, ristoranti e simili, ognuno con le sue coordinate arrotondate a circa 10 m. Lo stesso per la destinazione che scegli e, sullo schermo di CarPlay, per i preferiti mostrati che sono negozi, ristoranti e simili, mai per un preferito che è un indirizzo. Non la tua posizione e non il testo digitato; ma i luoghi trovati di solito sono vicini a te, quindi possono indicare più o meno dove hai cercato. Il tipo di luogo, il numero di telefono e il sito web vengono prima dai risultati di Apple.</li>
+  <li><strong>Mappa.</strong> La mappa è quella di Apple (MapKit), con le immagini della mappa fornite da Apple; con un token Mapbox, le immagini della mappa di Mapbox le sostituiscono. I link brevi di Apple Mappe condivisi con l’app (<code>maps.apple</code>) vengono aperti sui server di Apple, come quelli di Google Maps sui server di Google.</li>
+  <li><strong>Posizione.</strong> L’app chiede l’accesso “mentre usi l’app”. Legge la posizione quando le serve: per mostrare dove sei sulla mappa, per l’anteprima del percorso (inviata solo a Mapbox), come zona di ricerca (inviata ad Apple) e, sullo schermo di CarPlay, per elencare i preferiti dal più vicino (calcolato sull’iPhone). Nessuna posizione in background. Puoi revocare l’accesso in iOS: Impostazioni → Nav2Pilot → Posizione (da iOS 18, Impostazioni → App → Nav2Pilot → Posizione).</li>
+  <li><strong>CarPlay.</strong> Lo schermo di CarPlay funziona solo dopo che Apple ha concesso all’app il permesso per CarPlay. Mostra i tuoi preferiti e le tue auto, e invia le destinazioni come fa l’iPhone; non ha ricerca né punti di interesse.</li>
+  <li><strong>Memorizzazione.</strong> Il token comma e il token Mapbox sono custoditi nel Portachiavi di iOS. Si possono leggere dopo il primo sblocco dell’iPhone dall’accensione, perché CarPlay funzioni con l’iPhone bloccato, e non vengono mai sincronizzati con il Portachiavi di iCloud né ripristinati su un altro iPhone. L’elenco dei dispositivi e i preferiti sono nello spazio dell’app sull’iPhone, condiviso con la sua estensione di condivisione, e fanno parte dei backup dell’iPhone (iCloud o computer) come gli altri dati delle app. Le connessioni dell’app non tengono cache né cookie.</li>
+  <li><strong>Cancellazione.</strong> Rimuovi nell’app i token, i dispositivi e i preferiti, oppure elimina l’app, che cancella il suo spazio. iOS può conservare le voci del Portachiavi dopo l’eliminazione di un’app: per essere sicuro che i token non restino sull’iPhone, rimuovili prima nell’app.</li>
+  <li><strong>Dati tecnici.</strong> Le richieste identificano l’app come “Nav2Pilot”, la versione e iOS.</li>
+</ul>
+
 <h3>Questa pagina web</h3>
-<p>Questa informativa riguarda l’app Nav2Pilot. Non riguarda la visita a questa pagina, ospitata su GitHub Pages: GitHub può trattare dati tecnici, come l’indirizzo IP, secondo la propria informativa: <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub General Privacy Statement</a></p>
+<p>Questa informativa riguarda le app Nav2Pilot. Non riguarda la visita a questa pagina, ospitata su GitHub Pages: GitHub può trattare dati tecnici, come l’indirizzo IP, secondo la propria informativa: <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub General Privacy Statement</a></p>
 
 <h3>Modifiche e contatto</h3>
 <p>Se l’app cambia il modo in cui tratta i dati, questa pagina verrà aggiornata e la data in alto cambierà.</p>
