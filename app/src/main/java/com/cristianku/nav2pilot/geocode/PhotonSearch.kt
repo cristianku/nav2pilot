@@ -71,6 +71,11 @@ class PhotonSearch(
             "railway:halt",
             "public_transport",
             "tourism:information",
+            // street furniture named after the building it hangs on (the "IKEA" defibrillator)
+            "emergency:defibrillator",
+            "emergency:fire_hydrant",
+            "emergency:phone",
+            "amenity:vending_machine",
         )
 
         // results are asked for in excess: the same place mapped twice is dropped

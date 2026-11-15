@@ -113,6 +113,8 @@ data class MainUiState(
     val placesCategory: PlaceCategory? = null,
     val places: List<Place> = emptyList(),
     val placesLoading: Boolean = false,
+    /** The part of the map that was in view when the places were looked up, null when they are hidden. */
+    val placesArea: MapArea? = null,
     /** Why no places are shown: none found, or OpenStreetMap could not answer. */
     val placesMessage: String = "",
     /** Incremented with each new placesMessage, so that the screen shows it once. */
@@ -762,20 +764,20 @@ class MainViewModel(
             return
         }
         val limited = area.limitedTo(PLACES_MAX_HALF_METERS)
-        state.value = state.value.copy(placesCategory = category, places = emptyList(), placesLoading = true)
+        state.value = state.value.copy(placesCategory = category, places = emptyList(), placesLoading = true, placesArea = area)
         placesJob = viewModelScope.launch {
             val result = source.search(category, limited)
             if (result is TransportResult.Ok) {
                 val found = result.value
                 if (found.isEmpty()) {
-                    state.value = state.value.copy(placesCategory = null, places = emptyList(), placesLoading = false)
+                    noPlaces()
                     placesNotice(category.label + ": none in this part of the map.")
                     return@launch
                 }
                 state.value = state.value.copy(places = found, placesLoading = false)
             } else {
                 val error = (result as TransportResult.Failed).error
-                state.value = state.value.copy(placesCategory = null, places = emptyList(), placesLoading = false)
+                noPlaces()
                 placesNotice(OverpassPlaces.errorText(error))
             }
         }
@@ -783,7 +785,11 @@ class MainViewModel(
 
     fun hidePlaces() {
         placesJob?.cancel()
-        state.value = state.value.copy(placesCategory = null, places = emptyList(), placesLoading = false)
+        noPlaces()
+    }
+
+    private fun noPlaces() {
+        state.value = state.value.copy(placesCategory = null, places = emptyList(), placesLoading = false, placesArea = null)
     }
 
     /** A place tapped on the map becomes the destination; the places stay, to compare or add one as a stop. */

@@ -2,6 +2,7 @@ package com.cristianku.nav2pilot.places
 
 import com.cristianku.nav2pilot.model.Destination
 import com.cristianku.nav2pilot.model.LatLng
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
@@ -75,8 +76,31 @@ data class MapArea(
         )
     }
 
+    /**
+     * Whether this part of the map shows much that [searched], the part where places were looked up, did not:
+     * its middle went a quarter of its height or width away, or the map was zoomed out to half as much again.
+     */
+    fun movedFrom(searched: MapArea): Boolean {
+        val height = searched.north - searched.south
+        val width = searched.east - searched.west
+        if (height <= 0 || width <= 0) {
+            return true
+        }
+        val center = center()
+        val from = searched.center()
+        if (abs(center.latitude - from.latitude) > height * MOVED_SHARE) {
+            return true
+        }
+        if (abs(center.longitude - from.longitude) > width * MOVED_SHARE) {
+            return true
+        }
+        return north - south > height * ZOOMED_OUT_FACTOR || east - west > width * ZOOMED_OUT_FACTOR
+    }
+
     companion object {
         private const val METERS_PER_DEGREE = 111_320.0
+        private const val MOVED_SHARE = 0.25
+        private const val ZOOMED_OUT_FACTOR = 1.5
 
         /** The box [halfMeters] to each side of [center]: where the car looks for places, having no map of its own. */
         fun around(center: LatLng, halfMeters: Double): MapArea {

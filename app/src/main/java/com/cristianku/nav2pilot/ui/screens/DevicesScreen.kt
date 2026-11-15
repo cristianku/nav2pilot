@@ -65,6 +65,7 @@ import com.cristianku.nav2pilot.transport.CommaEndpoints
 import com.cristianku.nav2pilot.transport.SunnylinkTransport
 import com.cristianku.nav2pilot.ui.ConnectionState
 import com.cristianku.nav2pilot.ui.Formatting
+import com.cristianku.nav2pilot.ui.FeedbackMail
 import com.cristianku.nav2pilot.ui.MainUiState
 import com.cristianku.nav2pilot.ui.components.BrandCard
 import com.cristianku.nav2pilot.ui.components.BrandLogo
@@ -533,7 +534,7 @@ private fun MapboxCard(
                 Text("Mapbox routes (optional)", style = MaterialTheme.typography.titleSmall)
                 Text(
                     "With your own free Mapbox account the car computes its routes with Mapbox instead of comma's route service, " +
-                        "and the Send tab shows the routes on a map.",
+                        "and the app draws the routes on the map.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -627,6 +628,7 @@ private fun appVersion(context: Context): String {
 private fun AboutCard() {
     val context = LocalContext.current
     val version = appVersion(context)
+    var noMailApp by remember { mutableStateOf(false) }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -650,6 +652,24 @@ private fun AboutCard() {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
+        // an e-mail in the user's own mail app: the app sends nothing by itself
+        TextButton(
+            onClick = {
+                if (!FeedbackMail.open(context, version)) {
+                    noMailApp = true
+                }
+            },
+        ) {
+            Text("Send feedback")
+        }
+        if (noMailApp) {
+            Text(
+                "No mail app on this phone. Write to " + FeedbackMail.ADDRESS + ".",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+        }
     }
 }
 

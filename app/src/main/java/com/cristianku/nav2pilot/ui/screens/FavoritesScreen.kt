@@ -60,17 +60,17 @@ fun FavoritesScreen(
     onRemove: (Favorite) -> Unit,
 ) {
     if (favorites.isEmpty()) {
+        // as tall as the message: an empty sheet over the whole map says nothing more
         Box(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 32.dp),
+                .fillMaxWidth()
+                .padding(start = 32.dp, top = 16.dp, end = 32.dp, bottom = 40.dp),
             contentAlignment = Alignment.Center,
         ) {
             EmptyState(
                 painter = rememberVectorPainter(Icons.Filled.Favorite),
                 title = "Your places, one tap away",
                 message = "Tap the heart on a destination to keep it here.",
-                modifier = Modifier.padding(bottom = 48.dp),
             )
         }
         return

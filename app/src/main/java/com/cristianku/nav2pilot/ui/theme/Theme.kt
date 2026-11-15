@@ -38,6 +38,15 @@ private val LightColors = lightColorScheme(
     surfaceVariant = Color(0xFFEAF0F6),
     onSurfaceVariant = Color(0xFF4E5D74),
     surfaceTint = Color.White,
+    // menus, dialogs and sheets take these, lilac by default
+    surfaceContainerLowest = Color.White,
+    surfaceContainerLow = Color.White,
+    surfaceContainer = Color.White,
+    surfaceContainerHigh = Color.White,
+    surfaceContainerHighest = Color(0xFFEAF0F6),
+    // the short messages over the map
+    inverseSurface = NightBlue,
+    inverseOnSurface = Color.White,
     outline = Color(0xFF8592A3),
     outlineVariant = Color(0xFFDCE2EB),
 )
@@ -60,6 +69,13 @@ private val DarkColors = darkColorScheme(
     surfaceVariant = NightBlueRaised,
     onSurfaceVariant = Color(0xFFAAB8D4),
     surfaceTint = NightBlueSurface,
+    surfaceContainerLowest = NightBlue,
+    surfaceContainerLow = NightBlueSurface,
+    surfaceContainer = NightBlueSurface,
+    surfaceContainerHigh = NightBlueRaised,
+    surfaceContainerHighest = NightBlueRaised,
+    inverseSurface = Color(0xFFF2F6FC),
+    inverseOnSurface = NightBlue,
     outline = Color(0xFF6B7A9A),
     outlineVariant = Color(0xFF22336A),
 )
@@ -77,6 +93,12 @@ object StatusColors {
         if (isSystemInDarkTheme()) {
             return Color(0xFF6FD38A)
         }
+        return Color(0xFF1E7D3A)
+    }
+
+    /** The Send button while it says "Sent": dark enough for white text in both themes. */
+    @Composable
+    fun sentButton(): Color {
         return Color(0xFF1E7D3A)
     }
 

@@ -21,7 +21,8 @@ private val FRICK = LatLng(47.506, 8.016)
 
 private const val LEFT_OUT = "&osm_tag=!highway:bus_stop&osm_tag=!highway:platform&osm_tag=!railway:platform" +
     "&osm_tag=!railway:stop&osm_tag=!railway:tram_stop&osm_tag=!railway:halt&osm_tag=!public_transport" +
-    "&osm_tag=!tourism:information"
+    "&osm_tag=!tourism:information&osm_tag=!emergency:defibrillator&osm_tag=!emergency:fire_hydrant" +
+    "&osm_tag=!emergency:phone&osm_tag=!amenity:vending_machine"
 
 // "ikea" near Frick, shortened from Photon's answer of 2026-11-07, plus an address without a name and a town
 private const val IKEA_ANSWER = """{"features": [

@@ -6,9 +6,18 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -60,6 +69,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -78,6 +88,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -94,13 +105,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -134,6 +150,7 @@ import com.cristianku.nav2pilot.ui.map.NavMap
 import com.cristianku.nav2pilot.ui.map.STOP_COLOR
 import com.cristianku.nav2pilot.ui.map.placeSymbol
 import com.cristianku.nav2pilot.ui.theme.StatusColors
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 import java.util.Locale
@@ -198,6 +215,14 @@ fun MapScreen(
     var mapArea by remember { mutableStateOf<MapArea?>(null) }
     // a place tapped while there is a destination: as a stop, or instead of it
     var tappedPlace by remember { mutableStateOf<Place?>(null) }
+    // the panel keeps showing the destination while it slides away
+    var lastDestination by remember { mutableStateOf(state.destination) }
+    if (state.destination != null) {
+        lastDestination = state.destination
+    }
+    val haptics = LocalHapticFeedback.current
+    // "none found" and the errors of the places, shown for a few seconds under the chips
+    var placesNotice by remember { mutableStateOf("") }
 
     val hasDestination = state.destination != null
     val searchVisible = !hasDestination || searchShown || searchEditing
@@ -218,12 +243,14 @@ fun MapScreen(
     // side system bars: the Carlinkit dock on the left, the 3-button bar of a phone in landscape
     val sideBarLeftPx = WindowInsets.safeDrawing.getLeft(density, layoutDirection)
     val sideBarRightPx = WindowInsets.safeDrawing.getRight(density, layoutDirection)
-    // a second row: the car under the search when it is shown, the places under the settings
+    // a second row under the search: the kinds of places
     var topBarHeight = TOP_BAR_HEIGHT
     if (!searchEditing) {
-        topBarHeight = TOP_BAR_HEIGHT + MAP_BUTTON_SIZE + 10.dp
+        topBarHeight = TOP_BAR_HEIGHT + CHIPS_ROW_HEIGHT
     }
     val topBarPx = with(density) { topBarHeight.roundToPx() }
+    // favorites, the car and the recentre button along the bottom, without a destination
+    val bottomRowPx = with(density) { BOTTOM_ROW_HEIGHT.roundToPx() }
     val insets: MapInsets
     if (wide && hasDestination) {
         insets = MapInsets(
@@ -244,8 +271,17 @@ fun MapScreen(
             left = sideBarLeftPx,
             top = statusBarPx + topBarPx,
             right = sideBarRightPx,
-            bottom = navigationBarPx,
+            bottom = navigationBarPx + bottomRowPx,
         )
+    }
+
+    // the map shows much that the places on it were not looked up in: offer to look again
+    val movedSincePlaces by remember(state.placesArea) {
+        derivedStateOf {
+            val searched = state.placesArea
+            val shown = mapArea
+            searched != null && shown != null && shown.movedFrom(searched)
+        }
     }
 
     val mapColors = MapColors(
@@ -270,6 +306,7 @@ fun MapScreen(
                 }
             },
             onLongPress = { latitude, longitude ->
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                 if (state.destination == null) {
                     actions.onPickOnMap(latitude, longitude)
                 } else {
@@ -311,48 +348,58 @@ fun MapScreen(
             }
 
             // the destination panel: a column on the left in landscape, a sheet at the bottom on a phone
-            val destination = state.destination
-            if (destination != null) {
-                if (wide) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.CenterStart)
-                            .fillMaxHeight()
-                            .width(widePanelWidth)
-                            .onSizeChanged { size -> panelSizePx = size.width },
-                    ) {
-                        DestinationPanel(
-                            state = state,
-                            destination = destination,
-                            devices = devices,
-                            selectedDevice = selectedDevice,
-                            isFavorite = isFavorite,
-                            wide = true,
-                            actions = actions,
-                        )
+            val destination = lastDestination
+            if (wide) {
+                AnimatedVisibility(
+                    visible = hasDestination,
+                    enter = slideInHorizontally { width -> -width } + fadeIn(),
+                    exit = slideOutHorizontally { width -> -width } + fadeOut(),
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .fillMaxHeight()
+                        .width(widePanelWidth),
+                ) {
+                    if (destination != null) {
+                        Box(modifier = Modifier.onSizeChanged { size -> panelSizePx = size.width }) {
+                            DestinationPanel(
+                                state = state,
+                                destination = destination,
+                                devices = devices,
+                                selectedDevice = selectedDevice,
+                                isFavorite = isFavorite,
+                                wide = true,
+                                actions = actions,
+                            )
+                        }
                     }
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .fillMaxWidth()
-                            .onSizeChanged { size -> panelSizePx = size.height },
-                    ) {
-                        DestinationPanel(
-                            state = state,
-                            destination = destination,
-                            devices = devices,
-                            selectedDevice = selectedDevice,
-                            isFavorite = isFavorite,
-                            wide = false,
-                            actions = actions,
-                        )
+                }
+            } else {
+                AnimatedVisibility(
+                    visible = hasDestination,
+                    enter = slideInVertically { height -> height } + fadeIn(),
+                    exit = slideOutVertically { height -> height } + fadeOut(),
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth(),
+                ) {
+                    if (destination != null) {
+                        Box(modifier = Modifier.onSizeChanged { size -> panelSizePx = size.height }) {
+                            DestinationPanel(
+                                state = state,
+                                destination = destination,
+                                devices = devices,
+                                selectedDevice = selectedDevice,
+                                isFavorite = isFavorite,
+                                wide = false,
+                                actions = actions,
+                            )
+                        }
                     }
                 }
             }
 
-            // top: the search and the settings; the car under the search (in its place when the search is hidden), the
-            // points of interest under the settings
+            // top: the search and the settings (the car in the search's place when it is hidden), under them the
+            // kinds of places to show on the map
             var topRowStart = 0.dp
             if (wide && hasDestination) {
                 topRowStart = widePanelWidth
@@ -371,9 +418,12 @@ fun MapScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(start = topRowStart + 12.dp, end = 12.dp, top = 8.dp),
+                    .padding(start = topRowStart, top = 8.dp),
             ) {
-                Row(verticalAlignment = Alignment.Top) {
+                Row(
+                    verticalAlignment = Alignment.Top,
+                    modifier = Modifier.padding(horizontal = 12.dp),
+                ) {
                     Box(modifier = Modifier.weight(1f)) {
                         if (searchVisible) {
                             SearchBox(
@@ -402,53 +452,78 @@ fun MapScreen(
                     }
                 }
                 if (!searchEditing) {
-                    Spacer(Modifier.height(10.dp))
-                    Row(verticalAlignment = Alignment.Top) {
-                        Box(modifier = Modifier.weight(1f)) {
-                            if (searchVisible) {
-                                carButton()
-                            }
-                        }
-                        Spacer(Modifier.width(8.dp))
-                        PlacesButton(
-                            category = state.placesCategory,
-                            loading = state.placesLoading,
-                            onShow = { category -> actions.onShowPlaces(category, mapArea) },
-                            onHide = actions.onHidePlaces,
+                    PlaceChips(
+                        category = state.placesCategory,
+                        loading = state.placesLoading,
+                        onShow = { category -> actions.onShowPlaces(category, mapArea) },
+                        onHide = actions.onHidePlaces,
+                    )
+                    val shownCategory = state.placesCategory
+                    AnimatedVisibility(
+                        visible = shownCategory != null && !state.placesLoading && movedSincePlaces,
+                        enter = fadeIn() + scaleIn(initialScale = 0.9f),
+                        exit = fadeOut() + scaleOut(targetScale = 0.9f),
+                        modifier = Modifier.align(Alignment.CenterHorizontally),
+                    ) {
+                        SearchAreaButton(
+                            onClick = {
+                                if (shownCategory != null) {
+                                    actions.onShowPlaces(shownCategory, mapArea)
+                                }
+                            },
                         )
+                    }
+                    AnimatedVisibility(
+                        visible = placesNotice.isNotEmpty(),
+                        enter = fadeIn() + slideInVertically { height -> -height / 2 },
+                        exit = fadeOut(),
+                        modifier = Modifier.align(Alignment.CenterHorizontally),
+                    ) {
+                        MapNotice(text = placesNotice)
                     }
                 }
             }
 
-            // favorites bottom left, recentre bottom right; hidden with a destination, the panel is enough
-            if (!hasDestination) {
-                val buttonsModifier = Modifier
-                    .padding(bottom = 16.dp)
-                    .navigationBarsPadding()
-                MapButton(
-                    painter = rememberVectorPainter(Icons.Filled.Favorite),
-                    description = "Favorites",
-                    onClick = actions.onOpenFavorites,
+            // along the bottom: favorites, the car, recentre; hidden with a destination (the panel is enough) and
+            // while typing (they would sit on the keyboard, over the results)
+            AnimatedVisibility(
+                visible = !hasDestination && !searchEditing,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier.align(Alignment.BottomCenter),
+            ) {
+                Row(
                     modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .then(buttonsModifier)
-                        .padding(start = 12.dp),
-                )
-                MapButton(
-                    painter = painterResource(R.drawable.ic_my_location),
-                    description = "Show my position",
-                    onClick = {
-                        if (hasLocationPermission(context)) {
-                            actions.onRefreshMyLocation(true)
-                        } else {
-                            requestLocation()
-                        }
-                    },
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .then(buttonsModifier)
-                        .padding(end = 12.dp),
-                )
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(start = 12.dp, end = 12.dp, bottom = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    MapButton(
+                        painter = rememberVectorPainter(Icons.Filled.Favorite),
+                        description = "Favorites",
+                        onClick = actions.onOpenFavorites,
+                    )
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 8.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        carButton()
+                    }
+                    MapButton(
+                        painter = painterResource(R.drawable.ic_my_location),
+                        description = "Show my position",
+                        onClick = {
+                            if (hasLocationPermission(context)) {
+                                actions.onRefreshMyLocation(true)
+                            } else {
+                                requestLocation()
+                            }
+                        },
+                    )
+                }
             }
         }
     }
@@ -475,7 +550,9 @@ fun MapScreen(
     LaunchedEffect(state.placesMessageRequest) {
         if (state.placesMessageRequest != placesMessageShown) {
             placesMessageShown = state.placesMessageRequest
-            Toast.makeText(context, state.placesMessage, Toast.LENGTH_LONG).show()
+            placesNotice = state.placesMessage
+            delay(NOTICE_MILLIS)
+            placesNotice = ""
         }
     }
 
@@ -592,65 +669,124 @@ private fun MapButton(
     }
 }
 
-/** Points of interest: the categories in a menu; the one picked is looked up in the part of the map in view. */
+/**
+ * The kinds of places in a row that scrolls sideways; the one tapped is looked up in the part of the map in
+ * view and drawn there, a second tap hides it.
+ */
 @Composable
-private fun PlacesButton(
+private fun PlaceChips(
     category: PlaceCategory?,
     loading: Boolean,
     onShow: (PlaceCategory) -> Unit,
     onHide: () -> Unit,
 ) {
-    var menuExpanded by remember { mutableStateOf(false) }
-    Box {
-        MapButton(
-            painter = painterResource(R.drawable.ic_places),
-            description = "Points of interest",
-            onClick = { menuExpanded = true },
-            active = category != null,
-            busy = loading,
-        )
-        DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-            for (entry in PlaceCategory.entries) {
-                var shownMark: (@Composable () -> Unit)? = null
-                if (entry == category) {
-                    shownMark = { Icon(Icons.Filled.Check, contentDescription = "Shown") }
-                }
-                DropdownMenuItem(
-                    text = { Text(entry.label) },
-                    leadingIcon = {
-                        Icon(
-                            painterResource(placeSymbol(entry)),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(22.dp),
-                        )
-                    },
-                    trailingIcon = shownMark,
-                    onClick = {
-                        menuExpanded = false
-                        onShow(entry)
-                    },
-                )
-            }
-            HorizontalDivider()
-            DropdownMenuItem(
-                text = { Text("Hide places") },
-                leadingIcon = { Icon(Icons.Filled.Close, contentDescription = null, modifier = Modifier.size(22.dp)) },
-                enabled = category != null,
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            // inside the scrolling row, so that the shadows are not cut
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        for (entry in PlaceCategory.entries) {
+            val selected = entry == category
+            PlaceChip(
+                entry = entry,
+                selected = selected,
+                busy = selected && loading,
                 onClick = {
-                    menuExpanded = false
-                    onHide()
+                    if (selected) {
+                        onHide()
+                    } else {
+                        onShow(entry)
+                    }
                 },
             )
-            Text(
-                "From OpenStreetMap, in the part of the map you see. Tap a place on the map to go there.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .widthIn(max = PLACES_NOTE_MAX_WIDTH),
-            )
         }
+    }
+}
+
+@Composable
+private fun PlaceChip(entry: PlaceCategory, selected: Boolean, busy: Boolean, onClick: () -> Unit) {
+    var targetBackground = MaterialTheme.colorScheme.surface
+    var targetForeground = MaterialTheme.colorScheme.onSurface
+    var targetIcon = MaterialTheme.colorScheme.primary
+    if (selected) {
+        targetBackground = MaterialTheme.colorScheme.primary
+        targetForeground = MaterialTheme.colorScheme.onPrimary
+        targetIcon = MaterialTheme.colorScheme.onPrimary
+    }
+    val background by animateColorAsState(targetBackground, label = "chip background")
+    val foreground by animateColorAsState(targetForeground, label = "chip text")
+    val iconTint by animateColorAsState(targetIcon, label = "chip icon")
+    Surface(
+        selected = selected,
+        onClick = onClick,
+        shape = RoundedCornerShape(20.dp),
+        color = background,
+        contentColor = foreground,
+        shadowElevation = 3.dp,
+        modifier = Modifier.height(CHIP_HEIGHT),
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 12.dp, end = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (busy) {
+                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = iconTint)
+            } else {
+                Icon(painterResource(placeSymbol(entry)), contentDescription = null, tint = iconTint, modifier = Modifier.size(18.dp))
+            }
+            Spacer(Modifier.width(8.dp))
+            Text(entry.label, style = MaterialTheme.typography.labelLarge, maxLines = 1)
+        }
+    }
+}
+
+/** Shown once the map has moved away from where the places on it were looked up. */
+@Composable
+private fun SearchAreaButton(onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.primary,
+        shadowElevation = 4.dp,
+        modifier = Modifier
+            .padding(top = 2.dp, bottom = 6.dp)
+            .height(CHIP_HEIGHT),
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 12.dp, end = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Filled.Search, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Search this area", style = MaterialTheme.typography.labelLarge, maxLines = 1)
+        }
+    }
+}
+
+/** A short message over the map, in the app's own look; screen readers read it out when it appears. */
+@Composable
+private fun MapNotice(text: String) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.inverseSurface,
+        contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+        shadowElevation = 4.dp,
+        modifier = Modifier
+            .padding(horizontal = 24.dp, vertical = 4.dp)
+            .widthIn(max = NOTICE_MAX_WIDTH)
+            .semantics { liveRegion = LiveRegionMode.Polite },
+    ) {
+        Text(
+            text,
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+        )
     }
 }
 
@@ -1067,6 +1203,24 @@ private fun DestinationPanel(
     var detailsVisible by rememberSaveable(destination.latitude, destination.longitude) { mutableStateOf(false) }
     val info = state.placeInfo[destination.osmId]
     val now = currentMinute()
+    val haptics = LocalHapticFeedback.current
+
+    // the answer of the car: felt, and for a moment the button itself says "Sent"
+    var justSent by remember { mutableStateOf(false) }
+    val feedback = state.feedback
+    LaunchedEffect(feedback) {
+        justSent = false
+        if (feedback != null && System.currentTimeMillis() - feedback.timeMillis < SENT_MILLIS) {
+            if (feedback.success) {
+                haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+                justSent = true
+                delay(SENT_MILLIS)
+                justSent = false
+            } else {
+                haptics.performHapticFeedback(HapticFeedbackType.Reject)
+            }
+        }
+    }
 
     var shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
     var panelModifier = Modifier.fillMaxWidth()
@@ -1136,7 +1290,16 @@ private fun DestinationPanel(
                         Text(line, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = lineModifier)
                     }
                 }
-                IconButton(onClick = actions.onToggleFavorite) {
+                IconButton(
+                    onClick = {
+                        if (isFavorite) {
+                            haptics.performHapticFeedback(HapticFeedbackType.ToggleOff)
+                        } else {
+                            haptics.performHapticFeedback(HapticFeedbackType.ToggleOn)
+                        }
+                        actions.onToggleFavorite()
+                    },
+                ) {
                     if (isFavorite) {
                         Icon(Icons.Filled.Favorite, contentDescription = "Remove from favorites", tint = MaterialTheme.colorScheme.primary)
                     } else {
@@ -1173,12 +1336,14 @@ private fun DestinationPanel(
                 devices = devices,
                 selectedDevice = selectedDevice,
                 destinationOnly = needsMapbox,
+                justSent = justSent,
                 actions = actions,
             )
 
-            val feedback = state.feedback
-            if (feedback != null) {
-                FeedbackRow(feedback = feedback)
+            AnimatedVisibility(visible = feedback != null, enter = fadeIn() + scaleIn(initialScale = 0.92f), exit = fadeOut()) {
+                if (feedback != null) {
+                    FeedbackRow(feedback = feedback)
+                }
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1356,6 +1521,7 @@ private fun SendButton(
     devices: List<PairedDevice>,
     selectedDevice: PairedDevice?,
     destinationOnly: Boolean,
+    justSent: Boolean,
     actions: MapActions,
 ) {
     if (!state.hasToken || devices.isEmpty() || selectedDevice == null) {
@@ -1376,10 +1542,19 @@ private fun SendButton(
         return
     }
 
+    // green for the moment it says "Sent"
+    var targetColor = MaterialTheme.colorScheme.primary
+    var contentColor = MaterialTheme.colorScheme.onPrimary
+    if (justSent) {
+        targetColor = StatusColors.sentButton()
+        contentColor = Color.White
+    }
+    val buttonColor by animateColorAsState(targetColor, label = "send button")
     Button(
         onClick = actions.onSend,
         enabled = !state.sending,
         shape = RoundedCornerShape(16.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = buttonColor, contentColor = contentColor),
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = SEND_BUTTON_HEIGHT),
@@ -1388,15 +1563,21 @@ private fun SendButton(
             CircularProgressIndicator(
                 modifier = Modifier.size(20.dp),
                 strokeWidth = 2.dp,
-                color = MaterialTheme.colorScheme.onPrimary,
+                color = contentColor,
             )
+        } else if (justSent) {
+            Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(22.dp))
         } else {
             Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(22.dp))
         }
         Spacer(Modifier.width(12.dp))
         Column {
+            var label = "Send to " + Formatting.carName(selectedDevice)
+            if (justSent) {
+                label = "Sent to " + Formatting.carName(selectedDevice)
+            }
             Text(
-                "Send to " + Formatting.carName(selectedDevice),
+                label,
                 style = MaterialTheme.typography.titleMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -1500,7 +1681,15 @@ private val WIDE_PANEL_MAX_WIDTH = 360.dp
 private val SEARCH_MAX_WIDTH = 520.dp
 private val RESULTS_MAX_HEIGHT = 320.dp
 private val CAR_LABEL_MAX_WIDTH = 140.dp
-private val PLACES_NOTE_MAX_WIDTH = 240.dp
+private val CHIP_HEIGHT = 40.dp
+// the chips' row: the 48 dp touch height and its padding
+private val CHIPS_ROW_HEIGHT = 60.dp
+// the bottom buttons with their margin
+private val BOTTOM_ROW_HEIGHT = 72.dp
+private val NOTICE_MAX_WIDTH = 420.dp
+private const val NOTICE_MILLIS = 4_000L
+// the button says "Sent" this long, and a feedback older than this is not announced again (a rotated screen)
+private const val SENT_MILLIS = 2_500L
 private val PANEL_MAX_HEIGHT = 440.dp
 private val SEND_BUTTON_HEIGHT = 56.dp
 private const val UNPICKED_ROUTE_COLOR = 0xFF9AA5B1.toInt()

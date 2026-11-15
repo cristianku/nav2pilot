@@ -149,7 +149,7 @@ fun Nav2PilotRoot(viewModel: MainViewModel) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 200.dp, max = 560.dp),
+                    .heightIn(max = 560.dp),
             ) {
                 FavoritesScreen(
                     favorites = favorites,
