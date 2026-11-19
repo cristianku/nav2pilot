@@ -107,6 +107,7 @@ fun Nav2PilotRoot(viewModel: MainViewModel) {
             actions = MapActions(
                 onSearch = { text -> viewModel.search(text) },
                 onTypeSearch = { text -> viewModel.typeSearch(text) },
+                onVoiceSearch = viewModel::voiceSearch,
                 onChooseCandidate = { destination -> viewModel.chooseCandidate(destination) },
                 onDismissChoices = { viewModel.dismissChoices() },
                 onClearSelection = { viewModel.clearSelection() },

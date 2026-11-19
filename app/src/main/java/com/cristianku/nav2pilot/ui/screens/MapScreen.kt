@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
+import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -161,6 +162,7 @@ class MapActions(
     val onSearch: (String) -> Unit,
     /** The text in the search field changed: suggestions follow. */
     val onTypeSearch: (String) -> Unit,
+    val onVoiceSearch: (String) -> Unit,
     val onChooseCandidate: (Destination) -> Unit,
     val onDismissChoices: () -> Unit,
     val onClearSelection: () -> Unit,
@@ -873,6 +875,26 @@ private fun SearchBox(
     onStopEditing: () -> Unit,
     actions: MapActions,
 ) {
+    val context = LocalContext.current
+    val speech = remember {
+        Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+            .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            .putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toLanguageTag())
+            .putExtra(RecognizerIntent.EXTRA_PROMPT, "Where to?")
+    }
+    val canDictate = remember(context) { speech.resolveActivity(context.packageManager) != null }
+    val dictate = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull { it.isNotBlank() }?.let(actions.onVoiceSearch)
+        }
+    }
+    val mic: @Composable () -> Unit = {
+        if (canDictate) {
+            IconButton(onClick = { dictate.launch(speech) }) {
+                Icon(painterResource(R.drawable.ic_mic), contentDescription = "Dictate a destination")
+            }
+        }
+    }
     if (!editing) {
         Surface(
             onClick = onStartEditing,
@@ -899,7 +921,9 @@ private fun SearchBox(
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
+                    modifier = Modifier.weight(1f),
                 )
+                mic()
             }
         }
         return
@@ -969,6 +993,8 @@ private fun SearchBox(
                     ) {
                         Icon(Icons.Filled.Clear, contentDescription = "Clear search")
                     }
+                } else {
+                    mic()
                 }
             }
 

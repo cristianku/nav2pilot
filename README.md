@@ -150,6 +150,8 @@ reading. Source: [Parkhäuser Basel-Stadt](https://data.bs.ch/explore/dataset/10
 Use **Details → Set as Home / Work** on a destination. These shortcuts and the last five successfully sent places
 appear in the empty search field and are kept on your device. Compatible assistants can open search results
 through an Android App Action; selecting a result and sending it are still separate steps.
+If your assistant doesn't pass the destination to Nav2Pilot, tap the microphone in **Where to?** to dictate it
+with your phone's speech service. The microphone is shown on phones with a speech recognizer installed.
 
 The places come from OpenStreetMap, through a public Overpass server: free, no account, with or without a
 Mapbox token.

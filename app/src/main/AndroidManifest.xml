@@ -12,6 +12,10 @@
     <uses-permission android:name="androidx.car.app.MAP_TEMPLATES" />
     <uses-permission android:name="androidx.car.app.ACCESS_SURFACE" />
 
+    <queries>
+        <intent><action android:name="android.speech.action.RECOGNIZE_SPEECH" /></intent>
+    </queries>
+
     <!-- Backups are disabled: the token key lives in the Android Keystore and cannot be restored anyway. -->
     <application
         android:name=".Nav2PilotApplication"
