@@ -32,6 +32,8 @@ The first time you open a new feature edition, **What’s new** gives you a shor
 **Next**, skip it at any time, and replay it under **Settings → What’s new**. Opening a share, a map link or a
 voice search takes you straight to your destination or results.
 
+<img src="docs/screenshots/whats-new.png" width="760" alt="The three pages of the update tour: inspect a pin, check garage availability in Basel and find your usual destinations.">
+
 For the next feature release, update the slides and `NEWS_EDITION` in `ui/screens/WhatsNew.kt` together with the
 English and Italian `whats_new.xml` resources. Rebuilds with the same slides keep the same edition.
 
