@@ -6,11 +6,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.runtime.mutableStateOf
 import com.cristianku.nav2pilot.ui.MainViewModel
 import com.cristianku.nav2pilot.ui.Nav2PilotRoot
 import com.cristianku.nav2pilot.ui.theme.Nav2PilotTheme
 
 class MainActivity : ComponentActivity() {
+    private val regularLaunch = mutableStateOf(false)
 
     private val viewModel: MainViewModel by viewModels {
         MainViewModel.factory((application as Nav2PilotApplication).container)
@@ -20,13 +22,14 @@ class MainActivity : ComponentActivity() {
         // Android 15+ always draws under the system bars; the same on older versions, the Compose insets do the rest
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        regularLaunch.value = intent?.action == Intent.ACTION_MAIN || intent?.action == null
         // A recreated activity (rotation) already handled its intent; the ViewModel kept the result.
         if (savedInstanceState == null) {
             handleIntent(intent)
         }
         setContent {
             Nav2PilotTheme {
-                Nav2PilotRoot(viewModel)
+                Nav2PilotRoot(viewModel, regularLaunch.value)
             }
         }
     }
@@ -34,6 +37,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        regularLaunch.value = intent.action == Intent.ACTION_MAIN || intent.action == null
         handleIntent(intent)
     }
 

@@ -78,6 +78,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun DevicesScreen(
+    onWhatsNew: () -> Unit,
     state: MainUiState,
     devices: List<PairedDevice>,
     selectedDongleId: String,
@@ -142,7 +143,7 @@ fun DevicesScreen(
         }
         ConnectionCard(selectedDevice = selectedDevice, connection = state.connection)
 
-        AboutCard()
+        AboutCard(onWhatsNew)
     }
 
     val removing = deviceToRemove
@@ -625,7 +626,7 @@ private fun appVersion(context: Context): String {
 }
 
 @Composable
-private fun AboutCard() {
+private fun AboutCard(onWhatsNew: () -> Unit) {
     val context = LocalContext.current
     val version = appVersion(context)
     var noMailApp by remember { mutableStateOf(false) }
@@ -652,6 +653,9 @@ private fun AboutCard() {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
+        TextButton(onClick = onWhatsNew) {
+            Text(androidx.compose.ui.res.stringResource(com.cristianku.nav2pilot.R.string.news_name))
+        }
         // an e-mail in the user's own mail app: the app sends nothing by itself
         TextButton(
             onClick = {

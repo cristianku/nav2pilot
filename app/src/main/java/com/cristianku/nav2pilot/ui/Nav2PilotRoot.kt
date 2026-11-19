@@ -24,13 +24,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cristianku.nav2pilot.data.Favorite
 import com.cristianku.nav2pilot.model.Destination
@@ -39,6 +43,8 @@ import com.cristianku.nav2pilot.ui.screens.DevicesScreen
 import com.cristianku.nav2pilot.ui.screens.FavoritesScreen
 import com.cristianku.nav2pilot.ui.screens.MapActions
 import com.cristianku.nav2pilot.ui.screens.MapScreen
+import com.cristianku.nav2pilot.ui.screens.NEWS_EDITION
+import com.cristianku.nav2pilot.ui.screens.WhatsNew
 
 // narrower than this, or taller than wide, stays the phone layout
 private const val WIDE_MIN_WIDTH_DP = 600
@@ -68,7 +74,7 @@ private fun findSelectedDevice(devices: List<PairedDevice>, selectedDongleId: St
 /** The map is the app; favorites come up in a sheet over it, the settings open as a page with a back arrow. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Nav2PilotRoot(viewModel: MainViewModel) {
+fun Nav2PilotRoot(viewModel: MainViewModel, regularLaunch: Boolean) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val favorites by viewModel.favorites.collectAsStateWithLifecycle()
     val shortcuts by viewModel.shortcuts.collectAsStateWithLifecycle()
@@ -77,15 +83,29 @@ fun Nav2PilotRoot(viewModel: MainViewModel) {
     val selectedDongleId by viewModel.selectedDongleId.collectAsStateWithLifecycle()
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
     var favoritesOpen by rememberSaveable { mutableStateOf(false) }
+    val context = LocalContext.current
+    val prefs = remember(context) { context.getSharedPreferences("release_highlights", android.content.Context.MODE_PRIVATE) }
+    var unseen by remember { mutableStateOf(prefs.getString("edition", "") != NEWS_EDITION) }
+    var replay by rememberSaveable { mutableStateOf(false) }
 
     // a shared place or a picked favorite: back to the map
     LaunchedEffect(state.showSendTabRequest) {
         if (state.showSendTabRequest > 0) {
             settingsOpen = false
             favoritesOpen = false
+            replay = false
         }
     }
 
+    val finishTour = {
+        prefs.edit().putString("edition", NEWS_EDITION).apply()
+        unseen = false
+        replay = false
+    }
+    if (regularLaunch && unseen && state.showSendTabRequest == 0) {
+        WhatsNew(onClose = finishTour)
+        return
+    }
     val selectedDevice = findSelectedDevice(devices, selectedDongleId)
 
     // landscape and large screens (car head units, tablets, a phone on its side)
@@ -184,6 +204,7 @@ fun Nav2PilotRoot(viewModel: MainViewModel) {
             onBack = { settingsOpen = false },
         ) {
             DevicesScreen(
+                onWhatsNew = { replay = true },
                 state = state,
                 devices = devices,
                 selectedDongleId = selectedDongleId,
@@ -201,7 +222,12 @@ fun Nav2PilotRoot(viewModel: MainViewModel) {
             )
         }
     }
-
+    // Replay is presented over Settings: its scroll position and the map underneath are preserved.
+    if (replay) {
+        Dialog(onDismissRequest = finishTour, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+            WhatsNew(onClose = finishTour)
+        }
+    }
 }
 
 /** A page over the map with a title and a back arrow. */

@@ -1,0 +1,20 @@
+<resources>
+    <string name="news_name">Novità</string>
+    <string name="news_skip">Salta</string>
+    <string name="news_back">Indietro</string>
+    <string name="news_next">Avanti</string>
+    <string name="news_done">Fine</string>
+    <string name="news_counter">%1$d di %2$d</string>
+    <string name="news_explore_label">Sulla mappa</string>
+    <string name="news_explore_title">Prima guarda, poi scegli</string>
+    <string name="news_explore_body">Tocca un segnaposto per scoprire cosa c’è. Puoi confrontarlo con un altro punto o chiudere la scheda: il percorso cambia solo se scegli una destinazione o aggiungi una tappa.</string>
+    <string name="news_parking_label">Parcheggi a Basilea</string>
+    <string name="news_parking_title">C’è posto in autosilo?</string>
+    <string name="news_parking_body">Tocca un autosilo di Basilea che pubblica la disponibilità: vedrai i posti liberi e l’ora del rilevamento. Se manca un dato recente, l’app te lo dice.</string>
+    <string name="news_search_label">Nella ricerca</string>
+    <string name="news_search_title">I tuoi posti a portata di mano</string>
+    <string name="news_search_body">Salva Casa o Lavoro nei dettagli di una destinazione. Apri la ricerca per ritrovarli insieme agli ultimi luoghi inviati. Sui telefoni compatibili puoi anche dettare un indirizzo con il microfono.</string>
+    <string name="news_example">Esempio</string>
+    <string name="news_free">12 posti liberi</string>
+    <string name="news_shortcuts">Casa  ·  Lavoro</string>
+</resources>
