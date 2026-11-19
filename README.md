@@ -147,6 +147,10 @@ For public garages in Basel the card can also show free spaces, capacity, openin
 reading. Source: [Parkhäuser Basel-Stadt](https://data.bs.ch/explore/dataset/100088/),
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Unknown, ambiguous or outdated availability is never shown as “Full”.
 
+<img src="docs/screenshots/parking-preview.png" width="270" alt="Inspecting Parkhaus Rebgasse: the selected parking pin is teal, the original destination is still red, and the card shows the address, occupancy and update time.">
+
+Map: © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), [OpenFreeMap](https://openfreemap.org/).
+
 Use **Details → Set as Home / Work** on a destination. These shortcuts and the last five successfully sent places
 appear in the empty search field and are kept on your device. Compatible assistants can open search results
 through an Android App Action; selecting a result and sending it are still separate steps.
