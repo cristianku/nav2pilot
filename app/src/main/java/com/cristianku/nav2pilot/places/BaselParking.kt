@@ -11,6 +11,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.IOException
 import java.time.Instant
+import java.time.OffsetDateTime
 import java.time.format.DateTimeParseException
 import java.util.Locale
 
@@ -91,7 +92,9 @@ class BaselParking(private val http: HttpClient, private val io: CoroutineDispat
                     val lat = point.optDouble("lat")
                     val lon = point.optDouble("lon")
                     if (lat !in 47.52..47.59 || lon !in 7.55..7.63) continue
-                    val published = try { Instant.parse(row.optString("published")) } catch (_: DateTimeParseException) { continue }
+                    val published = try {
+                        OffsetDateTime.parse(row.optString("published")).toInstant()
+                    } catch (_: DateTimeParseException) { continue }
                     add(Garage(row.getString("title"), row.optString("address"), LatLng(lat, lon), published,
                         row.optString("status"), row.opt("free")?.toString()?.toIntOrNull(), row.opt("total")?.toString()?.toIntOrNull()))
                 }

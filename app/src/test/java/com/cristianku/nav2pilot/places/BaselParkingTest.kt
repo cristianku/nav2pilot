@@ -12,7 +12,7 @@ import java.time.Instant
 class BaselParkingTest {
     private val pin = Place(PlaceCategory.PARKING, 47.56, 7.59, "City", "")
     private fun row(free: String, status: String = "offen", at: Instant = Instant.now()) =
-        """{"name":"City","title":"Parkhaus City","address":"Uferstrasse 3","geo_point_2d":{"lat":47.56,"lon":7.59},"published":"$at","free":$free,"total":10,"status":"$status"}"""
+        """{"name":"City","title":"Parkhaus City","address":"Uferstrasse 3","geo_point_2d":{"lat":47.56,"lon":7.59},"published":"${at.toString().replace("Z", "+00:00")}","free":$free,"total":10,"status":"$status"}"""
 
     @Test fun onlyAnIdentifiedGarageCanReportFull() = runTest {
         val http = FakeHttpClient()
