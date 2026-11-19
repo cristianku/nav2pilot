@@ -100,6 +100,7 @@ class AndroidGeocoderSearch(
             longitude = address.longitude,
             name = name,
             details = details,
+            locality = address.locality.orEmpty(),
         )
     }
 }

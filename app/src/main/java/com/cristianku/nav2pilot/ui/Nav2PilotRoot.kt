@@ -71,6 +71,8 @@ private fun findSelectedDevice(devices: List<PairedDevice>, selectedDongleId: St
 fun Nav2PilotRoot(viewModel: MainViewModel) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val favorites by viewModel.favorites.collectAsStateWithLifecycle()
+    val shortcuts by viewModel.shortcuts.collectAsStateWithLifecycle()
+    val recent by viewModel.recentSent.collectAsStateWithLifecycle()
     val devices by viewModel.devices.collectAsStateWithLifecycle()
     val selectedDongleId by viewModel.selectedDongleId.collectAsStateWithLifecycle()
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
@@ -124,15 +126,27 @@ fun Nav2PilotRoot(viewModel: MainViewModel) {
                 onSaveMapboxToken = { token -> viewModel.saveMapboxToken(token) },
                 onHideMapboxDialog = { viewModel.hideMapboxDialog() },
                 onOpenSettings = { settingsOpen = true },
+                onConnect = { viewModel.showTokenDialog() },
                 onOpenFavorites = { favoritesOpen = true },
                 onShowPlaces = { category, area -> viewModel.showPlaces(category, area) },
                 onHidePlaces = { viewModel.hidePlaces() },
                 onChoosePlace = { place -> viewModel.choosePlace(place) },
+                parkingInfo = viewModel::parkingInfo,
+                shortcuts = shortcuts.associate { it.id to it.destination },
+                recent = recent.map { it.destination },
+                setShortcut = viewModel::setShortcut,
+                clearRecent = viewModel::clearRecent,
                 onMapAreaChange = { area -> viewModel.mapAreaChanged(area) },
             ),
         )
     }
 
+    if (state.tokenDialogVisible && !settingsOpen) {
+        com.cristianku.nav2pilot.ui.screens.TokenDialog(
+            busy = state.accountBusy, message = state.accountMessage,
+            onSave = viewModel::saveToken, onDismiss = viewModel::hideTokenDialog,
+        )
+    }
     if (favoritesOpen) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ModalBottomSheet(

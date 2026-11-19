@@ -49,6 +49,10 @@ class MainActivity : ComponentActivity() {
             }
             return
         }
+        if (intent.action == Intent.ACTION_SEARCH) {
+            viewModel.voiceSearch(intent.getStringExtra(android.app.SearchManager.QUERY).orEmpty())
+            return
+        }
         if (intent.action == Intent.ACTION_VIEW) {
             val link = intent.dataString
             if (link != null && link.isNotBlank()) {

@@ -172,6 +172,7 @@ class PhotonSearch(
                 details = details.joinToString(", "),
                 kind = PlaceKinds.fromPhoton(properties),
                 osmId = PlaceKinds.osmIdFromPhoton(properties),
+                locality = stringField(properties, "city"),
             )
         }
 

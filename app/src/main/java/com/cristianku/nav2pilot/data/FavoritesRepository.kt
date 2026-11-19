@@ -9,6 +9,30 @@ class FavoritesRepository(private val store: KeyValueStore) {
 
     private val favoritesState = MutableStateFlow(load())
     val favorites: StateFlow<List<Favorite>> = favoritesState
+    private fun readPlaces(key: String) = JsonCodec.favoritesFromJson(store.getString(key) ?: "[]")
+    private val savedSlots = MutableStateFlow(readPlaces("shortcuts"))
+    val shortcuts: StateFlow<List<Favorite>> = savedSlots
+    private val sent = MutableStateFlow(readPlaces("recentSent"))
+    val recentSent: StateFlow<List<Favorite>> = sent
+
+    fun setShortcut(slot: String, destination: Destination?) {
+        require(slot == "Home" || slot == "Work")
+        val updated = savedSlots.value.filterNot { it.id == slot } + listOfNotNull(destination?.let { Favorite(slot, it) })
+        store.putString("shortcuts", JsonCodec.favoritesToJson(updated))
+        savedSlots.value = updated
+    }
+
+    fun recordSent(destination: Destination) {
+        val updated = (listOf(Favorite(UUID.randomUUID().toString(), destination)) +
+            sent.value.filterNot { it.destination.sameLocationAs(destination) }).take(5)
+        store.putString("recentSent", JsonCodec.favoritesToJson(updated))
+        sent.value = updated
+    }
+
+    fun clearRecent() {
+        store.remove("recentSent")
+        sent.value = emptyList()
+    }
 
     /** Adds [destination]; a favorite at the same location is returned instead of duplicated. */
     fun add(destination: Destination): Favorite {

@@ -67,7 +67,8 @@ import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.AlertDialog
+import androidx.activity.compose.BackHandler
+import com.cristianku.nav2pilot.places.BaselParking
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -179,11 +180,17 @@ class MapActions(
     val onSaveMapboxToken: (String) -> Unit,
     val onHideMapboxDialog: () -> Unit,
     val onOpenSettings: () -> Unit,
+    val onConnect: () -> Unit,
     val onOpenFavorites: () -> Unit,
     /** The area is the part of the map in view, null before the map has reported it. */
     val onShowPlaces: (PlaceCategory, MapArea?) -> Unit,
     val onHidePlaces: () -> Unit,
     val onChoosePlace: (Place) -> Unit,
+    val parkingInfo: suspend (Place) -> BaselParking.Garage?,
+    val shortcuts: Map<String, Destination>,
+    val recent: List<Destination>,
+    val setShortcut: (String, Destination?) -> Unit,
+    val clearRecent: () -> Unit,
     val onMapAreaChange: (MapArea) -> Unit,
 )
 
@@ -210,11 +217,15 @@ fun MapScreen(
     // the search pill: always there without a destination; with one, a tap on the map shows or hides it
     var searchShown by rememberSaveable { mutableStateOf(false) }
     var searchEditing by rememberSaveable { mutableStateOf(false) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    var seenVoice by rememberSaveable { mutableIntStateOf(0) }
     var panelSizePx by remember { mutableIntStateOf(0) }
+    var previewSizePx by remember { mutableIntStateOf(0) }
     // read only when a category is picked, so a moving map does not recompose the screen
     var mapArea by remember { mutableStateOf<MapArea?>(null) }
     // a place tapped while there is a destination: as a stop, or instead of it
-    var tappedPlace by remember { mutableStateOf<Place?>(null) }
+    var tappedPlace by remember(state.placesCategory, state.showSendTabRequest) { mutableStateOf<Place?>(null) }
+    BackHandler(tappedPlace != null) { tappedPlace = null }
     // the panel keeps showing the destination while it slides away
     var lastDestination by remember { mutableStateOf(state.destination) }
     if (state.destination != null) {
@@ -235,6 +246,14 @@ fun MapScreen(
             focusManager.clearFocus()
         }
     }
+    LaunchedEffect(state.voiceRequest) {
+        if (state.voiceRequest != seenVoice) {
+            seenVoice = state.voiceRequest
+            tappedPlace = null
+            searchQuery = state.voiceQuery
+            searchEditing = true
+        }
+    }
 
     val requestLocation = locationPermission(state = state, actions = actions)
 
@@ -252,7 +271,10 @@ fun MapScreen(
     // favorites, the car and the recentre button along the bottom, without a destination
     val bottomRowPx = with(density) { BOTTOM_ROW_HEIGHT.roundToPx() }
     val insets: MapInsets
-    if (wide && hasDestination) {
+    if (tappedPlace != null && !wide) {
+        insets = MapInsets(left = sideBarLeftPx, top = statusBarPx + topBarPx,
+            right = sideBarRightPx, bottom = navigationBarPx + previewSizePx)
+    } else if (wide && hasDestination) {
         insets = MapInsets(
             left = sideBarLeftPx + panelSizePx,
             top = statusBarPx + topBarPx,
@@ -293,11 +315,14 @@ fun MapScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         NavMap(
             state = state,
+            preview = tappedPlace,
             darkTheme = darkTheme,
             insets = insets,
             colors = mapColors,
             onTap = {
-                if (searchEditing) {
+                if (tappedPlace != null) {
+                    tappedPlace = null
+                } else if (searchEditing) {
                     searchEditing = false
                     focusManager.clearFocus()
                     actions.onDismissChoices()
@@ -306,23 +331,20 @@ fun MapScreen(
                 }
             },
             onLongPress = { latitude, longitude ->
-                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                if (state.destination == null) {
-                    actions.onPickOnMap(latitude, longitude)
-                } else {
-                    actions.onAddStop(latitude, longitude)
+                if (tappedPlace == null) {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    if (state.destination == null) actions.onPickOnMap(latitude, longitude)
+                    else actions.onAddStop(latitude, longitude)
                 }
             },
-            onSelectRoute = actions.onSelectRoute,
+            onSelectRoute = { index ->
+                if (tappedPlace == null) actions.onSelectRoute(index) else tappedPlace = null
+            },
             onTapPlace = { index ->
-                if (index < state.places.size) {
-                    val place = state.places[index]
-                    val current = state.destination
-                    if (current == null) {
-                        actions.onChoosePlace(place)
-                    } else if (!place.toDestination().sameLocationAs(current)) {
-                        tappedPlace = place
-                    }
+                state.places.getOrNull(index)?.let { place ->
+                    searchEditing = false
+                    focusManager.clearFocus()
+                    tappedPlace = place
                 }
             },
             onAreaChange = { area ->
@@ -351,7 +373,7 @@ fun MapScreen(
             val destination = lastDestination
             if (wide) {
                 AnimatedVisibility(
-                    visible = hasDestination,
+                    visible = hasDestination && tappedPlace == null,
                     enter = slideInHorizontally { width -> -width } + fadeIn(),
                     exit = slideOutHorizontally { width -> -width } + fadeOut(),
                     modifier = Modifier
@@ -375,7 +397,7 @@ fun MapScreen(
                 }
             } else {
                 AnimatedVisibility(
-                    visible = hasDestination,
+                    visible = hasDestination && tappedPlace == null,
                     enter = slideInVertically { height -> height } + fadeIn(),
                     exit = slideOutVertically { height -> height } + fadeOut(),
                     modifier = Modifier
@@ -429,7 +451,9 @@ fun MapScreen(
                             SearchBox(
                                 state = state,
                                 editing = searchEditing,
-                                onStartEditing = { searchEditing = true },
+                                query = searchQuery,
+                                setQuery = { searchQuery = it },
+                                onStartEditing = { tappedPlace = null; searchQuery = ""; searchEditing = true },
                                 onStopEditing = {
                                     searchEditing = false
                                     focusManager.clearFocus()
@@ -437,7 +461,7 @@ fun MapScreen(
                                 },
                                 actions = actions,
                             )
-                        } else {
+                        } else if (selectedDevice != null) {
                             carButton()
                         }
                     }
@@ -455,7 +479,7 @@ fun MapScreen(
                     PlaceChips(
                         category = state.placesCategory,
                         loading = state.placesLoading,
-                        onShow = { category -> actions.onShowPlaces(category, mapArea) },
+                        onShow = { category -> tappedPlace = null; actions.onShowPlaces(category, mapArea) },
                         onHide = actions.onHidePlaces,
                     )
                     val shownCategory = state.placesCategory
@@ -467,8 +491,9 @@ fun MapScreen(
                     ) {
                         SearchAreaButton(
                             onClick = {
-                                if (shownCategory != null) {
-                                    actions.onShowPlaces(shownCategory, mapArea)
+                                 if (shownCategory != null) {
+                                    tappedPlace = null
+                                     actions.onShowPlaces(shownCategory, mapArea)
                                 }
                             },
                         )
@@ -487,7 +512,7 @@ fun MapScreen(
             // along the bottom: favorites, the car, recentre; hidden with a destination (the panel is enough) and
             // while typing (they would sit on the keyboard, over the results)
             AnimatedVisibility(
-                visible = !hasDestination && !searchEditing,
+                visible = !hasDestination && !searchEditing && tappedPlace == null,
                 enter = fadeIn(),
                 exit = fadeOut(),
                 modifier = Modifier.align(Alignment.BottomCenter),
@@ -525,24 +550,22 @@ fun MapScreen(
                     )
                 }
             }
+            tappedPlace?.let { place ->
+                val same = state.destination?.sameLocationAs(place.toDestination()) == true
+                PlacePreview(
+                    place, actions.parkingInfo, canGo = !same,
+                    canAddStop = !same && hasDestination && state.stops.size < MainViewModel.MAX_STOPS,
+                    onAddStop = { tappedPlace = null; actions.onAddStop(place.latitude, place.longitude) },
+                    onGoHere = { tappedPlace = null; actions.onChoosePlace(place) },
+                    onDismiss = { tappedPlace = null },
+                    modifier = Modifier.align(if (wide) Alignment.BottomStart else Alignment.BottomCenter)
+                        .navigationBarsPadding().padding(8.dp)
+                        .onSizeChanged { previewSizePx = it.height }
+                        .widthIn(max = if (wide) widePanelWidth else 520.dp)
+                        .heightIn(max = maxHeight * 0.65f),
+                )
+            }
         }
-    }
-
-    val place = tappedPlace
-    if (place != null) {
-        PlaceDialog(
-            place = place,
-            canAddStop = state.destination != null && state.stops.size < MainViewModel.MAX_STOPS,
-            onAddStop = {
-                tappedPlace = null
-                actions.onAddStop(place.latitude, place.longitude)
-            },
-            onGoHere = {
-                tappedPlace = null
-                actions.onChoosePlace(place)
-            },
-            onDismiss = { tappedPlace = null },
-        )
     }
 
     // "none found" and the errors of the places menu, once each (not again when the screen rotates)
@@ -790,51 +813,53 @@ private fun MapNotice(text: String) {
     }
 }
 
-/** A place tapped while there is already a destination: a stop on the way, or the destination instead. */
+/** Non-modal: another pin can replace this preview without touching the current itinerary. */
 @Composable
-private fun PlaceDialog(
+private fun PlacePreview(
     place: Place,
+    lookup: suspend (Place) -> BaselParking.Garage?,
+    canGo: Boolean,
     canAddStop: Boolean,
     onAddStop: () -> Unit,
     onGoHere: () -> Unit,
     onDismiss: () -> Unit,
+    modifier: Modifier,
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        icon = { Icon(painterResource(placeSymbol(place.category)), contentDescription = null) },
-        title = { Text(place.name, maxLines = 2, overflow = TextOverflow.Ellipsis) },
-        text = {
-            Column {
-                if (place.details.isNotEmpty()) {
-                    Text(place.details, style = MaterialTheme.typography.bodyMedium)
-                }
-                // an unnamed place is already called by its category
-                var label = PlaceKinds.label(place.kind)
-                if (label.isEmpty()) {
-                    label = place.category.singular
-                }
-                if (place.name == label || place.name == place.category.singular) {
-                    label = ""
-                }
-                val line = kindAndStatus(label, place.info?.openingHours ?: "", currentMinute())
-                if (line.isNotEmpty()) {
-                    Text(line, style = MaterialTheme.typography.bodySmall)
+    var garage by remember(place) { mutableStateOf<BaselParking.Garage?>(null) }
+    LaunchedEffect(place) {
+        if (place.category == PlaceCategory.PARKING) {
+            while (true) {
+                garage = lookup(place)
+                delay(60_000)
+            }
+        }
+    }
+    Surface(modifier = modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), shadowElevation = 8.dp) {
+        Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                val title = garage?.title ?: if (place.name == place.category.singular && place.details.isNotBlank())
+                    "${place.name} · ${place.details.substringBefore(',')}" else place.name
+                Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
+                IconButton(onClick = onDismiss) { Icon(Icons.Filled.Close, "Close place preview") }
+            }
+            Text(garage?.address?.takeIf { it.isNotBlank() } ?: place.details.ifBlank { place.toDestination().coordinatesText() })
+            val kind = PlaceKinds.label(place.kind).ifBlank { place.category.singular }
+            Text(kindAndStatus(kind, if (garage == null) place.info?.openingHours.orEmpty() else "", currentMinute()))
+            if (place.parkingNotes.isNotEmpty()) Text(place.parkingNotes)
+            if (place.category == PlaceCategory.PARKING) {
+                val reading = garage
+                Text(reading?.availability() ?: "Availability unknown", fontWeight = FontWeight.SemiBold)
+                if (reading != null) {
+                    val time = java.time.format.DateTimeFormatter.ofPattern("HH:mm z").withZone(java.time.ZoneId.of("Europe/Zurich"))
+                    Text("Parkhäuser Basel-Stadt · ${time.format(reading.published)}", style = MaterialTheme.typography.bodySmall)
                 }
             }
-        },
-        confirmButton = {
-            if (canAddStop) {
-                TextButton(onClick = onAddStop) {
-                    Text("Add as stop")
-                }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (canGo) Button(onClick = onGoHere) { Text("Go here") }
+                if (canAddStop) TextButton(onClick = onAddStop) { Text("Add as stop") }
             }
-        },
-        dismissButton = {
-            TextButton(onClick = onGoHere) {
-                Text("Go here instead")
-            }
-        },
-    )
+        }
+    }
 }
 
 /** The pill "Where to?"; tapped, it becomes the search field with the results under it. */
@@ -842,6 +867,8 @@ private fun PlaceDialog(
 private fun SearchBox(
     state: MainUiState,
     editing: Boolean,
+    query: String,
+    setQuery: (String) -> Unit,
     onStartEditing: () -> Unit,
     onStopEditing: () -> Unit,
     actions: MapActions,
@@ -878,7 +905,6 @@ private fun SearchBox(
         return
     }
 
-    var query by rememberSaveable { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
@@ -907,7 +933,7 @@ private fun SearchBox(
                 TextField(
                     value = query,
                     onValueChange = { text ->
-                        query = text
+                        setQuery(text)
                         actions.onTypeSearch(text)
                     },
                     placeholder = { Text("Search or paste a link", maxLines = 1, overflow = TextOverflow.Ellipsis) },
@@ -937,7 +963,7 @@ private fun SearchBox(
                 } else if (query.isNotEmpty()) {
                     IconButton(
                         onClick = {
-                            query = ""
+                            setQuery("")
                             actions.onTypeSearch("")
                         },
                     ) {
@@ -948,12 +974,31 @@ private fun SearchBox(
 
             if (query.isEmpty()) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                var hint by remember { mutableStateOf("") }
+                Row {
+                    for (slot in listOf("Home", "Work")) {
+                        val saved = actions.shortcuts[slot]
+                        TextButton(onClick = {
+                            if (saved != null) { onStopEditing(); actions.onChooseCandidate(saved) }
+                            else hint = "Choose a destination, then open Details → Set as $slot."
+                        }) { Text(if (saved == null) "Set $slot" else slot) }
+                    }
+                }
+                if (hint.isNotEmpty()) Text(hint, Modifier.padding(horizontal = 12.dp), style = MaterialTheme.typography.bodySmall)
+                if (actions.recent.isNotEmpty()) {
+                    Column(Modifier.heightIn(max = 150.dp).verticalScroll(rememberScrollState())) {
+                        for (d in actions.recent) {
+                            TextButton(onClick = { onStopEditing(); actions.onChooseCandidate(d) }) { Text(d.displayName()) }
+                        }
+                        TextButton(onClick = actions.clearRecent) { Text("Clear recently sent") }
+                    }
+                }
                 TextButton(
                     onClick = {
                         scope.launch {
                             val clip = readClipboardText(clipboard)
                             if (clip != null && clip.isNotBlank()) {
-                                query = clip
+                                setQuery(clip)
                                 actions.onSearch(clip)
                             }
                         }
@@ -1048,7 +1093,13 @@ private fun ChoiceRow(choice: Destination, near: LatLng?, info: PlaceInfo?, now:
         KindIcon(choice.kind)
         Spacer(Modifier.width(16.dp))
         Column(Modifier.weight(1f)) {
-            Text(choice.displayName(), style = MaterialTheme.typography.bodyLarge)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                val city = choice.locality.takeUnless { it.equals(choice.displayName(), true) }.orEmpty()
+                Text(choice.displayName() + if (city.isEmpty()) "" else " · $city",
+                    Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+                if (near != null) Text(RouteFormatting.distance(RouteShaping.distanceMeters(near, LatLng(choice.latitude, choice.longitude))),
+                    style = MaterialTheme.typography.labelMedium)
+            }
             val parts = mutableListOf<String>()
             val label = PlaceKinds.label(choice.kind)
             // "Zürich", a city: the label says nothing the name does not
@@ -1060,9 +1111,6 @@ private fun ChoiceRow(choice: Destination, near: LatLng?, info: PlaceInfo?, now:
                 parts.add(choice.details)
             } else if (choice.displayName() != choice.coordinatesText()) {
                 parts.add(choice.coordinatesText())
-            }
-            if (near != null) {
-                parts.add(RouteFormatting.distance(RouteShaping.distanceMeters(near, LatLng(choice.latitude, choice.longitude))))
             }
             if (parts.isNotEmpty()) {
                 Text(
@@ -1362,6 +1410,14 @@ private fun DestinationPanel(
                 }
             }
             if (detailsVisible) {
+                Row {
+                    for (slot in listOf("Home", "Work")) {
+                        val assigned = actions.shortcuts[slot]?.sameLocationAs(destination) == true
+                        TextButton(onClick = { actions.setShortcut(slot, if (assigned) null else destination) }) {
+                            Text(if (assigned) "Remove $slot" else "Set as $slot")
+                        }
+                    }
+                }
                 if (info != null && !info.isEmpty()) {
                     Column(modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 6.dp)) {
                         PlaceInfoBlock(info = info, now = now)
@@ -1525,12 +1581,12 @@ private fun SendButton(
     actions: MapActions,
 ) {
     if (!state.hasToken || devices.isEmpty() || selectedDevice == null) {
-        var text = "Connect your comma account"
+        var text = "Connect your car to send"
         if (state.hasToken) {
             text = "Choose your car"
         }
         Button(
-            onClick = actions.onOpenSettings,
+            onClick = if (state.hasToken) actions.onOpenSettings else actions.onConnect,
             shape = RoundedCornerShape(16.dp),
             modifier = Modifier
                 .fillMaxWidth()

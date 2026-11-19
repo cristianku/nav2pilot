@@ -46,6 +46,7 @@ data class Place(
     val osmId: String = "",
     /** Its opening hours, phone and website, as they came with it from Overpass; null from Photon, which has none. */
     val info: PlaceInfo? = null,
+    val parkingNotes: String = "",
 ) {
     fun toDestination(): Destination {
         return Destination(latitude = latitude, longitude = longitude, name = name, details = details, kind = kind, osmId = osmId)

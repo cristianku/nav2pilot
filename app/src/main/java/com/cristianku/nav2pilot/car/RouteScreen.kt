@@ -201,6 +201,7 @@ class RouteScreen(
         }
         lifecycleScope.launch {
             val outcome = model.sender.send(device, destination, waypoints)
+            if (outcome.success) model.favorites.recordSent(destination)
             sending = false
             screenManager.push(SentScreen(carContext, outcome) { send(device) })
         }

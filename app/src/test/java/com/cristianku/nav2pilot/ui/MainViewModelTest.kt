@@ -74,6 +74,20 @@ class MainViewModelTest {
     }
 
     @Test
+    fun assistantSearchEvenForOneResultKeepsDestinationAndStops() {
+        val vm = createViewModel()
+        vm.pickOnMap(47.55, 7.63)
+        vm.addStop(47.57, 7.61)
+        val before = vm.uiState.value
+        vm.voiceSearch("47.56,7.59")
+        val after = vm.uiState.value
+        assertEquals(1, after.choices.size)
+        assertEquals(before.destination, after.destination)
+        assertEquals(before.stops, after.stops)
+        assertTrue(http.requests.isEmpty())
+    }
+
+    @Test
     fun shareThenSendReportsConfirmation() {
         tokenStore.save(Fixtures.TEST_JWT)
         deviceRepository.addManual(PairedDevice(Fixtures.DONGLE_ID, "Peugeot 3008"))
@@ -97,6 +111,7 @@ class MainViewModelTest {
 
         val feedback = viewModel.uiState.value.feedback!!
         assertTrue(feedback.success)
+        assertEquals(listOf(destination), favoritesRepository.recentSent.value.map { it.destination })
         assertEquals("Destination sent to Peugeot 3008.", feedback.message)
         assertFalse(viewModel.uiState.value.sending)
         val body = JSONObject(http.requests.last().body!!)

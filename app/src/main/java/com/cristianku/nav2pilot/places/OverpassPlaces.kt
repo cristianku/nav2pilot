@@ -194,6 +194,13 @@ class OverpassPlaces(
                         kind = PlaceKinds.fromTags(tags, category),
                         osmId = osmId,
                         info = PlaceInfo.fromTags(tags),
+                        parkingNotes = if (category == PlaceCategory.PARKING) listOfNotNull(
+                            when (tags.optString("parking")) {
+                                "underground" -> "Underground"; "multi-storey" -> "Multi-storey"; "surface" -> "Outdoor"
+                                else -> if (tags.optString("covered") == "yes") "Covered" else null
+                            },
+                            when (tags.optString("fee")) { "yes" -> "Paid parking"; "no" -> "Free parking"; else -> null },
+                        ).joinToString(" · ") else "",
                     ),
                 )
             }

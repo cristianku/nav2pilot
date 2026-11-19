@@ -43,6 +43,8 @@ import com.cristianku.nav2pilot.transport.TransportRegistry
 import com.cristianku.nav2pilot.transport.TransportResult
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import com.cristianku.nav2pilot.places.BaselParking
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -65,6 +67,8 @@ data class SendFeedback(
 )
 
 data class MainUiState(
+    val voiceRequest: Int = 0,
+    val voiceQuery: String = "",
     val destination: Destination? = null,
     val destinationSource: String = "",
     val resolving: Boolean = false,
@@ -137,6 +141,7 @@ class MainViewModel(
     private val suggestionSearch: PlaceSearch? = null,
     /** Opening hours and the like of the results, from OpenStreetMap; null in tests that do not need them. */
     private val placeInfoLookup: PlaceInfoLookup? = null,
+    private val parking: BaselParking? = null,
     private val clock: () -> Long = { System.currentTimeMillis() },
 ) : ViewModel() {
 
@@ -144,6 +149,11 @@ class MainViewModel(
     val uiState: StateFlow<MainUiState> = state
 
     val favorites: StateFlow<List<Favorite>> = favoritesRepository.favorites
+    suspend fun parkingInfo(place: Place) = parking?.lookup(place)
+    val shortcuts = favoritesRepository.shortcuts
+    val recentSent = favoritesRepository.recentSent
+    fun setShortcut(slot: String, place: Destination?) = favoritesRepository.setShortcut(slot, place)
+    fun clearRecent() = favoritesRepository.clearRecent()
     val devices: StateFlow<List<PairedDevice>> = deviceRepository.devices
     val selectedDongleId: StateFlow<String> = deviceRepository.selectedDongleId
 
@@ -188,6 +198,27 @@ class MainViewModel(
         val near = searchCenter()
         state.value = state.value.copy(searchCenter = near)
         startResolve { resolver.resolveTyped(text, near) }
+    }
+
+    /** Assistant only brings up candidates, even for an unambiguous address. */
+    fun voiceSearch(text: String) {
+        val query = text.trim().take(500)
+        state.value = state.value.copy(voiceRequest = state.value.voiceRequest + 1, voiceQuery = query)
+        requestSendTab()
+        if (query.isBlank()) {
+            resolveJob?.cancel()
+            dismissChoices()
+            state.value = state.value.copy(resolving = false)
+            return
+        }
+        val near = searchCenter()
+        state.value = state.value.copy(searchCenter = near)
+        startResolve {
+            when (val result = resolver.resolveTyped(query, near)) {
+                is ResolveOutcome.Resolved -> ResolveOutcome.Choices(query, listOf(result.destination))
+                else -> result
+            }
+        }
     }
 
     /** The text in the search field changed: after a short pause, the places that match it, the nearest first. */
@@ -410,6 +441,7 @@ class MainViewModel(
         val waypoints = plannedWaypoints()
         viewModelScope.launch {
             val outcome = sender.send(device, destination, waypoints)
+            if (outcome.success) favoritesRepository.recordSent(destination)
             state.value = state.value.copy(sending = false, feedback = SendFeedback(outcome.success, outcome.message, clock()))
         }
     }
@@ -766,15 +798,20 @@ class MainViewModel(
         val limited = area.limitedTo(PLACES_MAX_HALF_METERS)
         state.value = state.value.copy(placesCategory = category, places = emptyList(), placesLoading = true, placesArea = area)
         placesJob = viewModelScope.launch {
-            val result = source.search(category, limited)
+            val osm = async { source.search(category, limited) }
+            val official = if (category == PlaceCategory.PARKING) parking?.placesIn(limited).orEmpty() else emptyList()
+            if (official.isNotEmpty()) state.value = state.value.copy(places = official)
+            val result = osm.await()
             if (result is TransportResult.Ok) {
-                val found = result.value
+                val found = BaselParking.merge(official, result.value)
                 if (found.isEmpty()) {
                     noPlaces()
                     placesNotice(category.label + ": none in this part of the map.")
                     return@launch
                 }
                 state.value = state.value.copy(places = found, placesLoading = false)
+            } else if (official.isNotEmpty()) {
+                state.value = state.value.copy(placesLoading = false)
             } else {
                 val error = (result as TransportResult.Failed).error
                 noPlaces()
@@ -931,6 +968,7 @@ class MainViewModel(
                         places = container.places,
                         suggestionSearch = container.nearbySearch,
                         placeInfoLookup = container.placeInfo,
+                        parking = container.parking,
                     )
                     return viewModel as T
                 }

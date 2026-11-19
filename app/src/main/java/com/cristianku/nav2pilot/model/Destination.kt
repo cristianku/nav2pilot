@@ -27,6 +27,7 @@ data class Destination(
     val kind: String = "",
     /** Its OpenStreetMap element, "way/26343678", for its opening hours; "" when it comes from elsewhere. */
     val osmId: String = "",
+    val locality: String = "",
 ) {
     fun coordinatesText(): String {
         return String.format(Locale.US, "%.6f, %.6f", latitude, longitude)

@@ -812,13 +812,14 @@ internal fun MapboxTokenDialog(
 
 
 @Composable
-private fun TokenDialog(
+internal fun TokenDialog(
     busy: Boolean,
     message: String,
     onSave: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var token by remember { mutableStateOf("") }
+    val uriHandler = LocalUriHandler.current
     AlertDialog(
         onDismissRequest = {
             if (!busy) {
@@ -832,6 +833,7 @@ private fun TokenDialog(
                     "The token is checked with the comma API, then stored encrypted on this phone only.",
                     style = MaterialTheme.typography.bodySmall,
                 )
+                TextButton(onClick = { uriHandler.openUri(CommaEndpoints.TOKEN_PAGE_URL) }) { Text("Get your comma token") }
                 OutlinedTextField(
                     value = token,
                     onValueChange = { text -> token = text },

@@ -30,7 +30,7 @@ you as a tester.
 
 1. **Get your comma token.** Open [jwt.comma.ai](https://jwt.comma.ai), sign in with the account your comma
    device is paired to, and copy the token.
-2. **Add it to the app.** **Devices → Add token**, paste it, **Verify and save**. Your devices show up in the
+2. **Add it to the app.** Tap **Add your car**, or **Connect your car to send** if a place is already open. Paste the token and tap **Verify and save**. Your devices show up in the
    list.
 3. **Send a place.** In Google Maps open a place, tap **Share**, choose **Nav2Pilot**, then **Send to …**.
    That's it.
@@ -137,13 +137,19 @@ destinations. No manual environment setup is needed for these builds.
 
 ## Points of interest
 
-The small button under the settings, at the top right of the map, opens a menu of places: fuel stations, EV
-charging, parking, rest areas, restaurants, cafés, supermarkets, hotels and pharmacies. Pick one and they show
-up on the part of the map you see (when the map shows a whole region, its middle, about 50 × 50 km). The
-button stays filled while they are on the map; **Hide places** in the same menu takes them away.
+Tap a category below the search field to show places on the visible map. Swipe the row for more categories;
+tap the active category again to hide them or **Search this area** after moving the map.
 
-Tap a place to make it your destination. If you already have one, the app asks whether to add the place as a
-stop on the way (a fuel station on a long drive) or to go there instead.
+Tap a pin to inspect it. Its card shows the name, address and available details. Tap another pin to compare:
+your destination and stops only change if you choose **Go here** or **Add as stop**. Sending is a separate action.
+
+For public garages in Basel the card can also show free spaces, capacity, opening status and the time of the
+reading. Source: [Parkhäuser Basel-Stadt](https://data.bs.ch/explore/dataset/100088/),
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Unknown, ambiguous or outdated availability is never shown as “Full”.
+
+Use **Details → Set as Home / Work** on a destination. These shortcuts and the last five successfully sent places
+appear in the empty search field and are kept on your device. Compatible assistants can open search results
+through an Android App Action; selecting a result and sending it are still separate steps.
 
 The places come from OpenStreetMap, through a public Overpass server: free, no account, with or without a
 Mapbox token.

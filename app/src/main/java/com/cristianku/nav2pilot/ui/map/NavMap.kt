@@ -29,6 +29,7 @@ import com.cristianku.nav2pilot.model.Destination
 import com.cristianku.nav2pilot.model.LatLng
 import com.cristianku.nav2pilot.places.MapArea
 import com.cristianku.nav2pilot.places.PlaceCategory
+import com.cristianku.nav2pilot.places.Place
 import com.cristianku.nav2pilot.ui.MainUiState
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraUpdateFactory
@@ -82,6 +83,7 @@ fun NavMap(
     onSelectRoute: (Int) -> Unit,
     onTapPlace: (Int) -> Unit,
     onAreaChange: (MapArea) -> Unit,
+    preview: Place? = null,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -166,6 +168,7 @@ fun NavMap(
         modifier = modifier,
         update = {
             holder.state = state
+            holder.preview = preview
             holder.styleKey = styleKey(state, darkTheme)
             holder.insets = insets
             holder.colors = colors
@@ -178,6 +181,7 @@ fun NavMap(
 private class MapHolder {
     var map: MapLibreMap? = null
     var state: MainUiState? = null
+    var preview: Place? = null
     var styleKey: String = ""
     var loadedStyleKey: String = ""
     var styleLoaded = false
@@ -233,7 +237,7 @@ private fun render(holder: MapHolder, context: Context) {
         return
     }
     val style = map.style ?: return
-    drawData(style, state)
+    drawData(style, state, holder.preview)
     moveCamera(holder, map, state, context)
 }
 
@@ -279,6 +283,7 @@ private fun addOverlayLayers(style: Style, context: Context, colors: MapColors) 
     }
     for (category in PlaceCategory.entries) {
         style.addImage(IMAGE_PLACE_PREFIX + category.name, placeIcon(context, PLACE_COLOR, placeSymbol(category)))
+        style.addImage(IMAGE_PLACE_PREFIX + "preview-" + category.name, placeIcon(context, colors.selectedRoute, placeSymbol(category)))
     }
 
     // MapLibre widths and radii are already in dp
@@ -322,7 +327,7 @@ private fun addOverlayLayers(style: Style, context: Context, colors: MapColors) 
     )
 }
 
-private fun drawData(style: Style, state: MainUiState) {
+private fun drawData(style: Style, state: MainUiState, preview: Place?) {
     val others = mutableListOf<Feature>()
     val selected = mutableListOf<Feature>()
     for (index in state.routes.indices) {
@@ -341,7 +346,8 @@ private fun drawData(style: Style, state: MainUiState) {
     for (index in state.places.indices) {
         val place = state.places[index]
         val feature = Feature.fromGeometry(Point.fromLngLat(place.longitude, place.latitude))
-        feature.addStringProperty(PROPERTY_ICON, IMAGE_PLACE_PREFIX + place.category.name)
+        val highlighted = preview?.let { it.latitude == place.latitude && it.longitude == place.longitude && it.name == place.name } == true
+        feature.addStringProperty(PROPERTY_ICON, IMAGE_PLACE_PREFIX + (if (highlighted) "preview-" else "") + place.category.name)
         feature.addNumberProperty(PROPERTY_PLACE_INDEX, index)
         places.add(feature)
     }
@@ -454,6 +460,17 @@ private fun indexAt(map: MapLibreMap, point: MapLatLng, context: Context, layer:
     val reach = dp(context, 14).toFloat()
     val area = RectF(screen.x - reach, screen.y - reach, screen.x + reach, screen.y + reach)
     val features = map.queryRenderedFeatures(area, layer)
+    if (layer == LAYER_PLACES) {
+        // In dense car parks the query box often hits two icons. Pick the centre nearest the finger.
+        return features.mapNotNull { feature ->
+            val pin = feature.geometry() as? Point ?: return@mapNotNull null
+            val index = feature.getNumberProperty(property)?.toInt() ?: return@mapNotNull null
+            val xy = map.projection.toScreenLocation(MapLatLng(pin.latitude(), pin.longitude()))
+            val dx = xy.x - screen.x
+            val dy = xy.y - screen.y
+            index to (dx * dx + dy * dy)
+        }.minByOrNull { it.second }?.first ?: -1
+    }
     for (feature in features) {
         if (feature.hasProperty(property)) {
             return feature.getNumberProperty(property).toInt()
