@@ -35,7 +35,7 @@ you as a tester.
 3. **Send a place.** In Google Maps open a place, tap **Share**, choose **Nav2Pilot**, then **Send to …**.
    That's it.
 
-You can also type an address, paste a map link or coordinates in the **Send** tab, and keep your favourite
+You can also tap **Where to?** on the map, type an address or paste a map link or coordinates, and keep your favourite
 places one tap away.
 
 ## What you need on the car
@@ -55,7 +55,7 @@ You can keep official openpilot / sunnypilot and configure `MAPBOX_TOKEN` manual
 build for automatic token transfer. Follow [Configure Mapbox on the comma](#configure-mapbox-on-the-comma)
 below. The guide links `cristianku/openpilot:nav-alpha` and `cristianku/openpilot:sunny-nav-alpha`.
 
-Set it up in **Devices → Mapbox → Set up Mapbox**, the app walks you through it:
+Set it up in **Settings → Mapbox → Set up Mapbox**. The app walks you through it:
 
 1. Create a free Mapbox account. Without a payment card Mapbox only gives you a trial token with low limits;
    with a card you get the free tier, which is plenty for personal use.
@@ -63,7 +63,7 @@ Set it up in **Devices → Mapbox → Set up Mapbox**, the app walks you through
 3. Paste it in the app. Compatible builds receive it automatically with every destination; official
    software needs the manual setup below.
 
-With the token the Send tab also shows the route on a map, starting from your phone's position (the app asks
+With the token the map also shows the route, starting from your phone's position (the app asks
 for location access the first time). You see the fastest route and up to two alternatives, and you pick the
 one the car should drive. Long-press the map to add a stop. The car follows the route you picked; this needs
 a build with waypoint support. Other software gets the destination only and picks its own route.

@@ -83,8 +83,8 @@ fun NavMap(
     onSelectRoute: (Int) -> Unit,
     onTapPlace: (Int) -> Unit,
     onAreaChange: (MapArea) -> Unit,
-    preview: Place? = null,
     modifier: Modifier = Modifier,
+    preview: Place? = null,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
