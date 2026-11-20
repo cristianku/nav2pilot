@@ -189,7 +189,7 @@ Live coverage depends on the operator. Current data sources:
 `scripts/update-parking-directories.py` rebuilds the bundled facility IDs and positions for Singapore (HDB)
 and [Zurich (Stadt Zürich)](https://www.stadt-zuerich.ch/geodaten/download/Oeffentlich_zugaengliche_Parkhaeuser).
 
-<img src="docs/screenshots/parking-nantes.png" width="270" alt="Nantes: a garage card showing free spaces, total capacity, the municipal source and time."> <img src="docs/screenshots/parking-preview.png" width="270" alt="Inspecting Parkhaus Rebgasse in Basel with a destination already selected.">
+<img src="docs/screenshots/parking-details-basel.png" width="270" alt="Expanded Parkhaus Anfos card with the drag handle, favorite heart, reported availability and visitor reviews section."> <img src="docs/screenshots/parking-favorites-basel.png" width="270" alt="Parkhaus Anfos saved in Favorites with 155 free spaces reported at the time of the screenshot.">
 
 Map: © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), [OpenFreeMap](https://openfreemap.org/).
 
