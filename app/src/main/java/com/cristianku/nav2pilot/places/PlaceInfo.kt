@@ -26,9 +26,14 @@ data class PlaceInfo(
     /** A dedicated booking link, never inferred from a restaurant homepage or order/delivery link. */
     val reservationUrl: String = "",
     val noReservations: Boolean = false,
+    val description: String = "",
+    val commonsFile: String = "",
+    val wikidata: String = "",
+    val imagePage: String = "",
 ) {
     fun isEmpty(): Boolean {
-        return openingHours.isEmpty() && phone.isEmpty() && website.isEmpty() && reservationUrl.isEmpty() && !noReservations
+        return openingHours.isEmpty() && phone.isEmpty() && website.isEmpty() && reservationUrl.isEmpty() && !noReservations &&
+            description.isEmpty() && commonsFile.isEmpty() && wikidata.isEmpty() && imagePage.isEmpty()
     }
 
     companion object {
@@ -44,6 +49,11 @@ data class PlaceInfo(
                     "website:booking", "reservation:url", "booking:website")
                     .map { webAddress(firstTag(tags, it).substringBefore(';').trim()) }.firstOrNull { it.isNotEmpty() }.orEmpty(),
                 noReservations = noReservations,
+                description = firstTag(tags, "description:${Locale.getDefault().language}", "description").take(900),
+                commonsFile = firstTag(tags, "wikimedia_commons", "image").takeIf { it.startsWith("File:", true) }
+                    ?.substringAfter(':')?.take(250).orEmpty(),
+                wikidata = firstTag(tags, "wikidata").takeIf { it.matches(Regex("Q[1-9][0-9]{0,12}")) }.orEmpty(),
+                imagePage = webAddress(firstTag(tags, "image").takeIf { it.startsWith("https://", true) }.orEmpty()),
             )
         }
 

@@ -27,4 +27,14 @@
     <string name="restaurant_call">Call</string>
     <string name="restaurant_website">Restaurant website</string>
     <string name="restaurant_no_reservations">This restaurant does not take reservations.</string>
+    <string name="place_expand">Expand place details</string>
+    <string name="place_collapse">Collapse place details</string>
+    <string name="place_details">Place details</string>
+    <string name="place_photo">Photo</string>
+    <string name="place_open_photo">Open the photo at its source</string>
+    <string name="place_no_photo">No photo available for this place.</string>
+    <string name="place_reviews">Visitor reviews</string>
+    <string name="place_media_loading">Loading…</string>
+    <string name="place_no_reviews">No Mangrove reviews found for this place.</string>
+    <string name="place_reviews_retry">Couldn’t load reviews · Retry</string>
 </resources>

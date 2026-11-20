@@ -7,7 +7,7 @@
     <string name="news_counter">%1$d of %2$d</string>
     <string name="news_explore_label">On the map</string>
     <string name="news_explore_title">Take a look before you go</string>
-    <string name="news_explore_body">Tap a pin to see what’s there. Compare another place or close the card: your route stays as it is until you choose a destination or add a stop.</string>
+    <string name="news_explore_body">Tap a pin, then pull up the handle to see details, photos and visitor reviews when available. Pull down to return to the map. Your route only changes if you pick a destination or add a stop.</string>
     <string name="news_parking_label">Parking on the map</string>
     <string name="news_parking_title">Find a free parking space</string>
     <string name="news_parking_body">Tap Parking below the search bar to see reported free spaces. Tap a pin, then the heart to save it. Next time, check the count right in Favorites.</string>

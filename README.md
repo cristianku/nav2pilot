@@ -157,7 +157,9 @@ Swipe the categories below the search field and tap **Parking** to show car park
 icon below Settings opens the full category list. Tap the active category again to hide its pins,
 or **Search this area** after moving the map.
 
-Tap a pin to inspect it. Its card shows the name, address and available details. The heart on the card
+Tap a pin to inspect it. Drag or tap the handle to expand the card for opening hours, contacts, and
+a credited [Wikimedia Commons](https://commons.wikimedia.org/) photo and [Mangrove](https://mangrove.reviews/)
+visitor reviews when linked to that specific place. Drag down to collapse it. The heart on the card
 saves or removes the place without selecting a destination. For restaurants, **Book a table** opens the
 booking URL listed in OpenStreetMap. Where available, **Call** opens the dialer and **Restaurant website**
 opens the regular site; neither is presented as a confirmed reservation. Tap another pin to compare:

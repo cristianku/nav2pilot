@@ -143,6 +143,7 @@ class MainViewModel(
     private val placeInfoLookup: PlaceInfoLookup? = null,
     private val parking: ParkingAvailability? = null,
     private val clock: () -> Long = { System.currentTimeMillis() },
+    val placeMedia: com.cristianku.nav2pilot.places.PlaceMedia? = null,
 ) : ViewModel() {
 
     private val state = MutableStateFlow(MainUiState())
@@ -364,7 +365,7 @@ class MainViewModel(
 
     suspend fun favoriteParking(destination: Destination) = parking?.favorite(destination)
 
-    suspend fun restaurantInfo(place: Place): PlaceInfo? = place.info ?: state.value.placeInfo[place.osmId]
+    suspend fun previewInfo(place: Place): PlaceInfo? = place.info ?: state.value.placeInfo[place.osmId]
         ?: placeInfoLookup?.lookup(listOf(place.toDestination()))?.get(place.osmId)
 
     fun removeFavorite(id: String) {
@@ -994,6 +995,7 @@ class MainViewModel(
                         suggestionSearch = container.nearbySearch,
                         placeInfoLookup = container.placeInfo,
                         parking = container.parking,
+                        placeMedia = container.placeMedia,
                     )
                     return viewModel as T
                 }

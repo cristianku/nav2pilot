@@ -7,7 +7,7 @@
     <string name="news_counter">%1$d di %2$d</string>
     <string name="news_explore_label">Sulla mappa</string>
     <string name="news_explore_title">Prima guarda, poi scegli</string>
-    <string name="news_explore_body">Tocca un segnaposto per scoprire cosa c’è. Puoi confrontarlo con un altro punto o chiudere la scheda: il percorso cambia solo se scegli una destinazione o aggiungi una tappa.</string>
+    <string name="news_explore_body">Tocca un segnaposto e tira su la linguetta per vedere dettagli, foto e recensioni, quando disponibili. Trascinala in basso per tornare alla mappa. Il percorso cambia solo se scegli una destinazione o aggiungi una tappa.</string>
     <string name="news_parking_label">Parcheggi sulla mappa</string>
     <string name="news_parking_title">Trova un posto libero</string>
     <string name="news_parking_body">Tocca Parcheggi sotto la ricerca per vedere i posti liberi segnalati. Tocca un parcheggio e poi il cuore per salvarlo: la prossima volta vedrai il conteggio direttamente nei Preferiti.</string>

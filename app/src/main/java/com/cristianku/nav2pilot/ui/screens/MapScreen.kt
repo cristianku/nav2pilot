@@ -21,6 +21,9 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -93,6 +96,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -122,12 +126,15 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -141,6 +148,7 @@ import com.cristianku.nav2pilot.places.MapArea
 import com.cristianku.nav2pilot.places.Place
 import com.cristianku.nav2pilot.places.PlaceCategory
 import com.cristianku.nav2pilot.places.PlaceInfo
+import com.cristianku.nav2pilot.places.PlaceMedia
 import com.cristianku.nav2pilot.places.PlaceKinds
 import com.cristianku.nav2pilot.ui.ConnectionState
 import com.cristianku.nav2pilot.ui.Formatting
@@ -194,7 +202,8 @@ class MapActions(
     val onHidePlaces: () -> Unit,
     val onChoosePlace: (Place) -> Unit,
     val refreshParking: suspend (MapArea) -> Unit,
-    val restaurantInfo: suspend (Place) -> PlaceInfo?,
+    val previewInfo: suspend (Place) -> PlaceInfo?,
+    val placeMedia: PlaceMedia?,
     val shortcuts: Map<String, Destination>,
     val recent: List<Destination>,
     val setShortcut: (String, Destination?) -> Unit,
@@ -594,21 +603,23 @@ fun MapScreen(
                         state.places.firstOrNull { it.osmId == place.osmId } ?: place
                     else -> place
                 }
-                PlacePreview(
-                    current, parkingNow, canGo = !same,
-                    saved = actions.isPlaceFavorite(current.toDestination()),
-                    restaurantInfo = actions.restaurantInfo,
-                    onToggleFavorite = { actions.onTogglePlaceFavorite(current.toDestination()) },
-                    canAddStop = !same && hasDestination && state.stops.size < MainViewModel.MAX_STOPS,
-                    onAddStop = { tappedPlace = null; actions.onAddStop(place.latitude, place.longitude) },
-                    onGoHere = { tappedPlace = null; actions.onChoosePlace(current) },
-                    onDismiss = { tappedPlace = null },
-                    modifier = Modifier.align(if (wide) Alignment.BottomStart else Alignment.BottomCenter)
-                        .navigationBarsPadding().padding(8.dp)
-                        .onSizeChanged { previewSizePx = it.height }
-                        .widthIn(max = if (wide) widePanelWidth else 520.dp)
-                        .heightIn(max = maxHeight * 0.65f),
-                )
+                key(place.osmId, place.latitude, place.longitude, place.name) {
+                    PlacePreview(
+                        current, parkingNow, canGo = !same,
+                        saved = actions.isPlaceFavorite(current.toDestination()),
+                        previewInfo = actions.previewInfo, media = actions.placeMedia,
+                        compactLimit = maxHeight * 0.65f, expandedHeight = maxHeight * 0.85f,
+                        onToggleFavorite = { actions.onTogglePlaceFavorite(current.toDestination()) },
+                        canAddStop = !same && hasDestination && state.stops.size < MainViewModel.MAX_STOPS,
+                        onAddStop = { tappedPlace = null; actions.onAddStop(place.latitude, place.longitude) },
+                        onGoHere = { tappedPlace = null; actions.onChoosePlace(current) },
+                        onDismiss = { tappedPlace = null },
+                        modifier = Modifier.align(if (wide) Alignment.BottomStart else Alignment.BottomCenter)
+                            .navigationBarsPadding().padding(8.dp)
+                            .onSizeChanged { previewSizePx = it.height }
+                            .widthIn(max = if (wide) widePanelWidth else 520.dp),
+                    )
+                }
             }
         }
     }
@@ -910,7 +921,10 @@ private fun PlacePreview(
     now: Instant,
     canGo: Boolean,
     saved: Boolean,
-    restaurantInfo: suspend (Place) -> PlaceInfo?,
+    previewInfo: suspend (Place) -> PlaceInfo?,
+    media: PlaceMedia?,
+    compactLimit: Dp,
+    expandedHeight: Dp,
     onToggleFavorite: () -> Unit,
     canAddStop: Boolean,
     onAddStop: () -> Unit,
@@ -920,12 +934,59 @@ private fun PlacePreview(
 ) {
     val garage = place.parkingReading
     val isRestaurant = place.category == PlaceCategory.RESTAURANT
-    var contacts by remember(place) { mutableStateOf(place.info) }
-    LaunchedEffect(place) {
-        if (isRestaurant && contacts == null && place.osmId.isNotEmpty()) contacts = restaurantInfo(place)
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    var compact by remember(compactLimit) { mutableStateOf(0.dp) }
+    var dragged by remember { mutableStateOf<Dp?>(null) }
+    val density = LocalDensity.current
+    val dragState = rememberDraggableState { dy ->
+        val base = dragged ?: if (expanded) expandedHeight else compact
+        dragged = (base - with(density) { dy.toDp() }).coerceIn(compact.coerceAtMost(expandedHeight), expandedHeight)
     }
-    Surface(modifier = modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), shadowElevation = 8.dp) {
-        Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    BackHandler(expanded) { expanded = false }
+    var contacts by remember(place.osmId, place.info) { mutableStateOf(place.info) }
+    LaunchedEffect(place.osmId, isRestaurant, expanded) {
+        if ((isRestaurant || expanded) && contacts == null && place.osmId.isNotEmpty()) contacts = previewInfo(place)
+    }
+    val sheetSize = dragged?.let { Modifier.height(it) } ?: if (expanded) Modifier.height(expandedHeight) else Modifier.heightIn(max = compactLimit)
+    Surface(modifier = modifier.fillMaxWidth().then(sheetSize).onSizeChanged {
+        if (!expanded && dragged == null) compact = with(density) { it.height.toDp() }.coerceAtMost(compactLimit)
+    }, shape = RoundedCornerShape(20.dp), shadowElevation = 8.dp) {
+        Column {
+            val handle = stringResource(if (expanded) R.string.place_collapse else R.string.place_expand)
+            Box(Modifier.fillMaxWidth().height(48.dp)
+                .draggable(dragState, Orientation.Vertical, onDragStopped = { velocity ->
+                    dragged?.let { height ->
+                        val fling = with(density) { 264.dp.toPx() }
+                        expanded = when {
+                            velocity < -fling -> true
+                            velocity > fling -> false
+                            expanded -> expandedHeight - height < 22.dp
+                            else -> height - compact >= 22.dp
+                        }
+                    }
+                    dragged = null
+                })
+                .clickable(role = Role.Button, onClickLabel = handle) { expanded = !expanded }
+                .semantics { contentDescription = handle }, contentAlignment = Alignment.Center) {
+                Spacer(Modifier.size(44.dp, 5.dp).background(MaterialTheme.colorScheme.outline, CircleShape))
+            }
+            PlaceCardBody(place, garage, contacts, now, isRestaurant, saved, onToggleFavorite, onDismiss, canGo, onGoHere, canAddStop, onAddStop) {
+                if (expanded) {
+                    HorizontalDivider()
+                    ExpandedPlaceDetails(place, contacts, media)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlaceCardBody(place: Place, garage: com.cristianku.nav2pilot.places.ParkingReading?, contacts: PlaceInfo?,
+                          now: Instant, isRestaurant: Boolean, saved: Boolean, onToggleFavorite: () -> Unit, onDismiss: () -> Unit,
+                          canGo: Boolean, onGoHere: () -> Unit, canAddStop: Boolean, onAddStop: () -> Unit,
+                          extra: @Composable () -> Unit) {
+    Column(Modifier.verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val title = garage?.title ?: if (place.name == place.category.singular && place.details.isNotBlank())
                     "${place.name} · ${place.details.substringBefore(',')}" else place.name
@@ -957,7 +1018,7 @@ private fun PlacePreview(
                 if (canGo) Button(onClick = onGoHere) { Text("Go here") }
                 if (canAddStop) TextButton(onClick = onAddStop) { Text("Add as stop") }
             }
-        }
+            extra()
     }
 }
 

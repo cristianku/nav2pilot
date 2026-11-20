@@ -25,4 +25,14 @@
     <string name="restaurant_call">Chiama</string>
     <string name="restaurant_website">Sito del ristorante</string>
     <string name="restaurant_no_reservations">Questo ristorante non accetta prenotazioni.</string>
+    <string name="place_expand">Espandi i dettagli del luogo</string>
+    <string name="place_collapse">Riduci la scheda del luogo</string>
+    <string name="place_details">Dettagli del luogo</string>
+    <string name="place_photo">Foto</string>
+    <string name="place_open_photo">Apri la foto alla fonte</string>
+    <string name="place_no_photo">Nessuna foto disponibile per questo luogo.</string>
+    <string name="place_reviews">Recensioni dei visitatori</string>
+    <string name="place_media_loading">Caricamento…</string>
+    <string name="place_no_reviews">Nessuna recensione trovata su Mangrove per questo luogo.</string>
+    <string name="place_reviews_retry">Impossibile caricare le recensioni · Riprova</string>
 </resources>
