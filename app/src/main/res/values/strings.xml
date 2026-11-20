@@ -2,4 +2,11 @@
 <resources>
     <string name="app_name" translatable="false">Nav2Pilot</string>
     <string name="share_target_label">Send to comma device</string>
+    <string name="parking_show">Show parking on the map</string>
+    <string name="parking_hide">Hide parking</string>
+    <string name="parking_closed">Closed</string>
+    <string name="parking_full">Full · 0 free spaces</string>
+    <string name="parking_free">Free spaces: %1$d</string>
+    <string name="parking_total">Total spaces: %1$d</string>
+    <string name="parking_unknown">Live availability unavailable</string>
 </resources>

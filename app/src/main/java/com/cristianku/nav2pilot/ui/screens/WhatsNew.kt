@@ -35,7 +35,7 @@ import com.cristianku.nav2pilot.R
 import kotlinx.coroutines.launch
 
 // Change this id with the slides, not on every build of the same release.
-internal const val NEWS_EDITION = "places-and-parking-1"
+internal const val NEWS_EDITION = "places-and-parking-2"
 
 private data class Slide(val label: Int, val title: Int, val body: Int)
 private val slides = listOf(

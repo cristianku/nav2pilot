@@ -69,7 +69,10 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Warning
 import androidx.activity.compose.BackHandler
-import com.cristianku.nav2pilot.places.BaselParking
+import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.repeatOnLifecycle
+import com.cristianku.nav2pilot.places.ParkingStatus
+import java.time.Instant
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -188,7 +191,7 @@ class MapActions(
     val onShowPlaces: (PlaceCategory, MapArea?) -> Unit,
     val onHidePlaces: () -> Unit,
     val onChoosePlace: (Place) -> Unit,
-    val parkingInfo: suspend (Place) -> BaselParking.Garage?,
+    val refreshParking: suspend (MapArea) -> Unit,
     val shortcuts: Map<String, Destination>,
     val recent: List<Destination>,
     val setShortcut: (String, Destination?) -> Unit,
@@ -208,6 +211,7 @@ fun MapScreen(
     selectedDevice: PairedDevice?,
     isFavorite: Boolean,
     wide: Boolean,
+    mapVisible: Boolean,
     actions: MapActions,
 ) {
     val context = LocalContext.current
@@ -227,6 +231,21 @@ fun MapScreen(
     var mapArea by remember { mutableStateOf<MapArea?>(null) }
     // a place tapped while there is a destination: as a stop, or instead of it
     var tappedPlace by remember(state.placesCategory, state.showSendTabRequest) { mutableStateOf<Place?>(null) }
+    var parkingNow by remember { mutableStateOf(Instant.now()) }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(state.placesCategory, state.placesArea, state.placesLoading, lifecycle, mapVisible) {
+        parkingNow = Instant.now()
+        val area = state.placesArea
+        if (mapVisible && state.placesCategory == PlaceCategory.PARKING && area != null && !state.placesLoading) {
+            lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                while (true) {
+                    parkingNow = Instant.now()
+                    actions.refreshParking(area)
+                    delay(60_000)
+                }
+            }
+        }
+    }
     BackHandler(tappedPlace != null) { tappedPlace = null }
     // the panel keeps showing the destination while it slides away
     var lastDestination by remember { mutableStateOf(state.destination) }
@@ -318,6 +337,7 @@ fun MapScreen(
         NavMap(
             state = state,
             preview = tappedPlace,
+            parkingNow = parkingNow,
             darkTheme = darkTheme,
             insets = insets,
             colors = mapColors,
@@ -478,12 +498,26 @@ fun MapScreen(
                     }
                 }
                 if (!searchEditing) {
-                    PlaceChips(
-                        category = state.placesCategory,
-                        loading = state.placesLoading,
-                        onShow = { category -> tappedPlace = null; actions.onShowPlaces(category, mapArea) },
-                        onHide = actions.onHidePlaces,
-                    )
+                    Row(Modifier.fillMaxWidth().padding(end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.weight(1f)) {
+                            PlaceChips(
+                                category = state.placesCategory,
+                                loading = state.placesLoading,
+                                onShow = { category -> tappedPlace = null; actions.onShowPlaces(category, mapArea) },
+                                onHide = actions.onHidePlaces,
+                            )
+                        }
+                        val selected = state.placesCategory == PlaceCategory.PARKING
+                        MapButton(
+                            painter = painterResource(R.drawable.ic_place_parking),
+                            description = stringResource(if (selected) R.string.parking_hide else R.string.parking_show),
+                            active = selected,
+                            onClick = {
+                                tappedPlace = null
+                                if (selected) actions.onHidePlaces() else actions.onShowPlaces(PlaceCategory.PARKING, mapArea)
+                            },
+                        )
+                    }
                     val shownCategory = state.placesCategory
                     AnimatedVisibility(
                         visible = shownCategory != null && !state.placesLoading && movedSincePlaces,
@@ -554,8 +588,16 @@ fun MapScreen(
             }
             tappedPlace?.let { place ->
                 val same = state.destination?.sameLocationAs(place.toDestination()) == true
+                // The selected pin stays open across refreshes, but its previous count does not.
+                val id = place.parkingReading?.id
+                val current = when {
+                    id != null -> state.places.firstOrNull { it.parkingReading?.id == id } ?: place.copy(parkingReading = null)
+                    place.category == PlaceCategory.PARKING && place.osmId.isNotEmpty() ->
+                        state.places.firstOrNull { it.osmId == place.osmId } ?: place
+                    else -> place
+                }
                 PlacePreview(
-                    place, actions.parkingInfo, canGo = !same,
+                    current, parkingNow, canGo = !same,
                     canAddStop = !same && hasDestination && state.stops.size < MainViewModel.MAX_STOPS,
                     onAddStop = { tappedPlace = null; actions.onAddStop(place.latitude, place.longitude) },
                     onGoHere = { tappedPlace = null; actions.onChoosePlace(place) },
@@ -715,6 +757,7 @@ private fun PlaceChips(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         for (entry in PlaceCategory.entries) {
+            if (entry == PlaceCategory.PARKING) continue // fixed P next to this scrolling row
             val selected = entry == category
             PlaceChip(
                 entry = entry,
@@ -819,7 +862,7 @@ private fun MapNotice(text: String) {
 @Composable
 private fun PlacePreview(
     place: Place,
-    lookup: suspend (Place) -> BaselParking.Garage?,
+    now: Instant,
     canGo: Boolean,
     canAddStop: Boolean,
     onAddStop: () -> Unit,
@@ -827,15 +870,7 @@ private fun PlacePreview(
     onDismiss: () -> Unit,
     modifier: Modifier,
 ) {
-    var garage by remember(place) { mutableStateOf<BaselParking.Garage?>(null) }
-    LaunchedEffect(place) {
-        if (place.category == PlaceCategory.PARKING) {
-            while (true) {
-                garage = lookup(place)
-                delay(60_000)
-            }
-        }
-    }
+    val garage = place.parkingReading
     Surface(modifier = modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), shadowElevation = 8.dp) {
         Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -846,14 +881,23 @@ private fun PlacePreview(
             }
             Text(garage?.address?.takeIf { it.isNotBlank() } ?: place.details.ifBlank { place.toDestination().coordinatesText() })
             val kind = PlaceKinds.label(place.kind).ifBlank { place.category.singular }
-            Text(kindAndStatus(kind, if (garage == null) place.info?.openingHours.orEmpty() else "", currentMinute()))
+            Text(kindAndStatus(kind, place.info?.openingHours.orEmpty(), currentMinute()))
             if (place.parkingNotes.isNotEmpty()) Text(place.parkingNotes)
             if (place.category == PlaceCategory.PARKING) {
-                val reading = garage
-                Text(reading?.availability() ?: "Availability unknown", fontWeight = FontWeight.SemiBold)
-                if (reading != null) {
-                    val time = java.time.format.DateTimeFormatter.ofPattern("HH:mm z").withZone(java.time.ZoneId.of("Europe/Zurich"))
-                    Text("Parkhäuser Basel-Stadt · ${time.format(reading.published)}", style = MaterialTheme.typography.bodySmall)
+                val reading = garage?.takeIf { it.isFresh(now) }
+                val free = reading?.vacancies(now)
+                val total = garage?.total?.takeIf { it > 0 } ?: place.parkingCapacity
+                Text(when {
+                    reading?.status == ParkingStatus.CLOSED -> stringResource(R.string.parking_closed)
+                    free == 0 -> stringResource(R.string.parking_full)
+                    free != null -> stringResource(R.string.parking_free, free)
+                    else -> stringResource(R.string.parking_unknown)
+                }, fontWeight = FontWeight.SemiBold)
+                if (total != null) Text(stringResource(R.string.parking_total, total))
+                if (garage != null) {
+                    val time = java.time.format.DateTimeFormatter.ofPattern("HH:mm z").withZone(java.time.ZoneId.of(garage.zone))
+                    Text(if (reading == null) garage.source else "${garage.source} · ${time.format(reading.published)}",
+                        style = MaterialTheme.typography.bodySmall)
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

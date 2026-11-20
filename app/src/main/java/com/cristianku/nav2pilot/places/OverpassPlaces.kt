@@ -201,6 +201,8 @@ class OverpassPlaces(
                             },
                             when (tags.optString("fee")) { "yes" -> "Paid parking"; "no" -> "Free parking"; else -> null },
                         ).joinToString(" · ") else "",
+                        parkingCapacity = if (category == PlaceCategory.PARKING)
+                            tags.optString("capacity").toIntOrNull()?.takeIf { it > 0 } else null,
                     ),
                 )
             }

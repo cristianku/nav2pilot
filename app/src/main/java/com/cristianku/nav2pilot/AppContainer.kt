@@ -58,7 +58,7 @@ class AppContainer(context: Context) {
     val places = OverpassPlaces(httpClient, ioDispatcher, reserve = PhotonPlaces(httpClient, ioDispatcher))
     // opening hours, phone and website of the search results, from the same servers
     val placeInfo = PlaceInfoLookup(httpClient, ioDispatcher)
-    val parking = com.cristianku.nav2pilot.places.BaselParking(httpClient, ioDispatcher)
+    val parking = com.cristianku.nav2pilot.places.ParkingAvailability(httpClient, ioDispatcher)
     val favoritesRepository = FavoritesRepository(dataStore)
     val deviceRepository = DeviceRepository(dataStore)
 

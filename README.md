@@ -151,17 +151,34 @@ destinations. No manual environment setup is needed for these builds.
 
 ## Points of interest
 
-Tap a category below the search field to show places on the visible map. Swipe the row for more categories;
+Tap the fixed **P** below Settings for parking, or a category below the search field for other places. Swipe the row for more categories;
 tap the active category again to hide them or **Search this area** after moving the map.
 
 Tap a pin to inspect it. Its card shows the name, address and available details. Tap another pin to compare:
 your destination and stops only change if you choose **Go here** or **Add as stop**. Sending is a separate action.
 
-For public garages in Basel the card can also show free spaces, capacity, opening status and the time of the
-reading. Source: [Parkhäuser Basel-Stadt](https://data.bs.ch/explore/dataset/100088/),
-[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Unknown, ambiguous or outdated availability is never shown as “Full”.
+Parking locations come from OpenStreetMap worldwide. **P 12** means a provider recently reported 12 free car
+spaces; a plain **P** means no confirmed count. Tap to see total capacity (if known), source and local update
+time. Counts refresh every minute while the parking layer is visible. Neither an old reading nor the capacity
+of an unmonitored car park is used as its vacancy count.
 
-<img src="docs/screenshots/parking-preview.png" width="270" alt="Inspecting Parkhaus Rebgasse: the selected parking pin is teal, the original destination is still red, and the card shows the address, occupancy and update time.">
+Live coverage depends on the operator. Current data sources:
+
+- Switzerland: [Basel-Stadt](https://data.bs.ch/explore/dataset/100088/) ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)),
+  [Stadt Zürich, Parkleitsystem](https://data.stadt-zuerich.ch/dataset/parkleitsystem) (CC0) and [Stadt St.Gallen, PLS](https://daten.stadt.sg.ch/explore/dataset/freie-parkplatze-in-der-stadt-stgallen-pls/).
+- Germany: [MobiData BW®, participating operators and data sources](https://api.mobidata-bw.de/park-api/api/public/v3/sources).
+- France: [Nantes Métropole](https://data.nantesmetropole.fr/explore/dataset/244400404_parkings-publics-nantes-disponibilites/) (ODbL; counts for short-stay customers).
+- Italy: [Open Data Hub Mobility](https://opendatahub.com/datasets/) and participating South Tyrol operators.
+- USA: [City of Asheville and Buncombe County](https://wheresparking.ashevillenc.gov/), using the timestamp of the published snapshot.
+- Hong Kong: [Transport Department via DATA.GOV.HK](https://data.gov.hk/en-data/dataset/hk-td-tis_7-real-time-parking-vacancy-data) (exact private-car counts only).
+- Singapore: [HDB car park availability](https://data.gov.sg/datasets/d_ca933a644e55d34fe21f28b8052fac63/view)
+  and [HDB car park information](https://data.gov.sg/datasets/d_23f946fa557947f93a8043bbef41dd09/view),
+  under the [Singapore Open Data Licence](https://data.gov.sg/open-data-licence).
+
+`scripts/update-parking-directories.py` rebuilds the bundled facility IDs and positions for Singapore (HDB)
+and [Zurich (Stadt Zürich)](https://www.stadt-zuerich.ch/geodaten/download/Oeffentlich_zugaengliche_Parkhaeuser).
+
+<img src="docs/screenshots/parking-nantes.png" width="270" alt="Nantes: the fixed parking button below Settings and a garage card showing 231 free spaces out of 320, with the municipal source and time."> <img src="docs/screenshots/parking-preview.png" width="270" alt="Inspecting Parkhaus Rebgasse in Basel with a destination already selected.">
 
 Map: © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), [OpenFreeMap](https://openfreemap.org/).
 

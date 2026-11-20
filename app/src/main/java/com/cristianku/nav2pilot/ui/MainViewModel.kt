@@ -44,7 +44,7 @@ import com.cristianku.nav2pilot.transport.TransportResult
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
-import com.cristianku.nav2pilot.places.BaselParking
+import com.cristianku.nav2pilot.places.ParkingAvailability
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -141,7 +141,7 @@ class MainViewModel(
     private val suggestionSearch: PlaceSearch? = null,
     /** Opening hours and the like of the results, from OpenStreetMap; null in tests that do not need them. */
     private val placeInfoLookup: PlaceInfoLookup? = null,
-    private val parking: BaselParking? = null,
+    private val parking: ParkingAvailability? = null,
     private val clock: () -> Long = { System.currentTimeMillis() },
 ) : ViewModel() {
 
@@ -149,7 +149,16 @@ class MainViewModel(
     val uiState: StateFlow<MainUiState> = state
 
     val favorites: StateFlow<List<Favorite>> = favoritesRepository.favorites
-    suspend fun parkingInfo(place: Place) = parking?.lookup(place)
+    private var parkingOsm = emptyList<Place>()
+
+    suspend fun refreshParking(area: MapArea) {
+        val service = parking ?: return
+        fun sameSearch() = state.value.placesCategory == PlaceCategory.PARKING &&
+            state.value.placesArea == area && !state.value.placesLoading
+        if (!sameSearch()) return
+        val updated = service.placesIn(area.limitedTo(PLACES_MAX_HALF_METERS))
+        if (sameSearch()) state.value = state.value.copy(places = ParkingAvailability.merge(updated, parkingOsm))
+    }
     val shortcuts = favoritesRepository.shortcuts
     val recentSent = favoritesRepository.recentSent
     fun setShortcut(slot: String, place: Destination?) = favoritesRepository.setShortcut(slot, place)
@@ -796,14 +805,22 @@ class MainViewModel(
             return
         }
         val limited = area.limitedTo(PLACES_MAX_HALF_METERS)
+        parkingOsm = emptyList()
         state.value = state.value.copy(placesCategory = category, places = emptyList(), placesLoading = true, placesArea = area)
         placesJob = viewModelScope.launch {
-            val osm = async { source.search(category, limited) }
+            val osm = async {
+                source.search(category, limited).also { early ->
+                    if (early is TransportResult.Ok && state.value.places.isEmpty()) {
+                        state.value = state.value.copy(places = early.value)
+                    }
+                }
+            }
             val official = if (category == PlaceCategory.PARKING) parking?.placesIn(limited).orEmpty() else emptyList()
             if (official.isNotEmpty()) state.value = state.value.copy(places = official)
             val result = osm.await()
             if (result is TransportResult.Ok) {
-                val found = BaselParking.merge(official, result.value)
+                if (category == PlaceCategory.PARKING) parkingOsm = result.value
+                val found = ParkingAvailability.merge(official, result.value)
                 if (found.isEmpty()) {
                     noPlaces()
                     placesNotice(category.label + ": none in this part of the map.")

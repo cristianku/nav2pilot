@@ -133,6 +133,7 @@ fun Nav2PilotRoot(viewModel: MainViewModel, regularLaunch: Boolean) {
             selectedDevice = selectedDevice,
             isFavorite = isFavorite(state.destination, favorites),
             wide = wide,
+            mapVisible = !settingsOpen && !favoritesOpen && !replay,
             actions = MapActions(
                 onSearch = { text -> viewModel.search(text) },
                 onTypeSearch = { text -> viewModel.typeSearch(text) },
@@ -161,7 +162,7 @@ fun Nav2PilotRoot(viewModel: MainViewModel, regularLaunch: Boolean) {
                 onShowPlaces = { category, area -> viewModel.showPlaces(category, area) },
                 onHidePlaces = { viewModel.hidePlaces() },
                 onChoosePlace = { place -> viewModel.choosePlace(place) },
-                parkingInfo = viewModel::parkingInfo,
+                refreshParking = viewModel::refreshParking,
                 shortcuts = shortcuts.associate { it.id to it.destination },
                 recent = recent.map { it.destination },
                 setShortcut = viewModel::setShortcut,

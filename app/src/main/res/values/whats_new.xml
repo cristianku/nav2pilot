@@ -8,9 +8,9 @@
     <string name="news_explore_label">On the map</string>
     <string name="news_explore_title">Take a look before you go</string>
     <string name="news_explore_body">Tap a pin to see what’s there. Compare another place or close the card: your route stays as it is until you choose a destination or add a stop.</string>
-    <string name="news_parking_label">Parking in Basel</string>
+    <string name="news_parking_label">Parking on the map</string>
     <string name="news_parking_title">Is there room to park?</string>
-    <string name="news_parking_body">Tap a participating garage in Basel to see how many spaces are free and when the count was updated. If there’s no recent reading, the app tells you.</string>
+    <string name="news_parking_body">Tap the P below Settings to find parking anywhere on the map. A number beside a P means free spaces. Tap the pin for capacity and the time of the reading, when available.</string>
     <string name="news_search_label">In search</string>
     <string name="news_search_title">Your usual places, one tap away</string>
     <string name="news_search_body">Save Home or Work in a destination’s details. Open search to find them alongside your recently sent places, or tap the microphone to dictate a new one on supported phones.</string>

@@ -9,6 +9,7 @@ import android.graphics.RectF
 import android.graphics.Typeface
 import android.net.Uri
 import android.view.Gravity
+import java.time.Instant
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -85,6 +86,7 @@ fun NavMap(
     onAreaChange: (MapArea) -> Unit,
     modifier: Modifier = Modifier,
     preview: Place? = null,
+    parkingNow: Instant,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -169,6 +171,7 @@ fun NavMap(
         update = {
             holder.state = state
             holder.preview = preview
+            holder.parkingNow = parkingNow
             holder.styleKey = styleKey(state, darkTheme)
             holder.insets = insets
             holder.colors = colors
@@ -182,6 +185,8 @@ private class MapHolder {
     var map: MapLibreMap? = null
     var state: MainUiState? = null
     var preview: Place? = null
+    var parkingNow: Instant = Instant.EPOCH
+    val parkingIcons = mutableSetOf<String>()
     var styleKey: String = ""
     var loadedStyleKey: String = ""
     var styleLoaded = false
@@ -228,6 +233,7 @@ private fun render(holder: MapHolder, context: Context) {
         holder.styleLoaded = false
         map.setStyle(styleBuilder(holder.styleKey, state.mapboxMapToken)) { style ->
             addOverlayLayers(style, context, holder.colors)
+            holder.parkingIcons.clear()
             holder.styleLoaded = true
             render(holder, context)
         }
@@ -237,7 +243,7 @@ private fun render(holder: MapHolder, context: Context) {
         return
     }
     val style = map.style ?: return
-    drawData(style, state, holder.preview)
+    drawData(style, state, holder, context)
     moveCamera(holder, map, state, context)
 }
 
@@ -306,6 +312,8 @@ private fun addOverlayLayers(style: Style, context: Context, colors: MapColors) 
     style.addLayer(
         SymbolLayer(LAYER_PLACES, SOURCE_PLACES).withProperties(
             PropertyFactory.iconImage(Expression.get(PROPERTY_ICON)),
+            PropertyFactory.symbolZOrder(Property.SYMBOL_Z_ORDER_SOURCE),
+            PropertyFactory.symbolSortKey(Expression.get("priority")),
             // all of them, even when they touch: a hidden place could not be tapped
             PropertyFactory.iconAllowOverlap(true),
         ),
@@ -327,7 +335,7 @@ private fun addOverlayLayers(style: Style, context: Context, colors: MapColors) 
     )
 }
 
-private fun drawData(style: Style, state: MainUiState, preview: Place?) {
+private fun drawData(style: Style, state: MainUiState, holder: MapHolder, context: Context) {
     val others = mutableListOf<Feature>()
     val selected = mutableListOf<Feature>()
     for (index in state.routes.indices) {
@@ -343,15 +351,31 @@ private fun drawData(style: Style, state: MainUiState, preview: Place?) {
     setFeatures(style, SOURCE_SELECTED_ROUTE, selected)
 
     val places = mutableListOf<Feature>()
+    val visibleCounts = mutableSetOf<String>()
     for (index in state.places.indices) {
         val place = state.places[index]
         val feature = Feature.fromGeometry(Point.fromLngLat(place.longitude, place.latitude))
-        val highlighted = preview?.let { it.latitude == place.latitude && it.longitude == place.longitude && it.name == place.name } == true
-        feature.addStringProperty(PROPERTY_ICON, IMAGE_PLACE_PREFIX + (if (highlighted) "preview-" else "") + place.category.name)
+        val highlighted = holder.preview?.let { it.latitude == place.latitude && it.longitude == place.longitude && it.name == place.name } == true
+        var image = IMAGE_PLACE_PREFIX + (if (highlighted) "preview-" else "") + place.category.name
+        val count = place.parkingReading?.vacancies(holder.parkingNow)
+        // Draw confirmed counts above plain P's, and the selected pin above both.
+        feature.addNumberProperty("priority", if (highlighted) 2 else if (count != null) 1 else 0)
+        count?.let { free ->
+            image += "-$free"
+            visibleCounts.add(image)
+            if (holder.parkingIcons.add(image)) {
+                style.addImage(image, parkingBadge(context, if (highlighted) holder.colors.selectedRoute else PLACE_COLOR, free))
+            }
+        }
+        feature.addStringProperty(PROPERTY_ICON, image)
         feature.addNumberProperty(PROPERTY_PLACE_INDEX, index)
         places.add(feature)
     }
     setFeatures(style, SOURCE_PLACES, places)
+    for (unused in holder.parkingIcons - visibleCounts) {
+        style.removeImage(unused)
+        holder.parkingIcons.remove(unused)
+    }
 
     val position = mutableListOf<Feature>()
     val origin = state.origin
@@ -540,6 +564,25 @@ private fun circleIcon(context: Context, color: Int, label: String): Bitmap {
         canvas.drawText(label, center, baseline, text)
     }
     return bitmap
+}
+
+/** One image per distinct visible count; also works with raster basemaps without a glyph server. */
+private fun parkingBadge(context: Context, color: Int, free: Int): Bitmap {
+    val d = context.resources.displayMetrics.density
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 13 * d; typeface = Typeface.DEFAULT_BOLD }
+    val label = "P $free"
+    val w = kotlin.math.ceil(paint.measureText(label) + 14 * d).toInt()
+    val h = (26 * d).toInt()
+    return Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).also {
+        val canvas = Canvas(it)
+        paint.color = android.graphics.Color.WHITE
+        canvas.drawRoundRect(0f, 0f, w.toFloat(), h.toFloat(), h/2f, h/2f, paint)
+        paint.color = color
+        canvas.drawRoundRect(2*d, 2*d, w-2*d, h-2*d, h/2f, h/2f, paint)
+        paint.color = android.graphics.Color.WHITE
+        paint.textAlign = Paint.Align.CENTER
+        canvas.drawText(label, w/2f, (h - paint.ascent() - paint.descent())/2, paint)
+    }
 }
 
 /** The white symbol of a place's category on a small coloured disc, like the points of interest of map apps. */
