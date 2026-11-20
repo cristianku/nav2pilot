@@ -65,7 +65,6 @@ import com.cristianku.nav2pilot.transport.CommaEndpoints
 import com.cristianku.nav2pilot.transport.SunnylinkTransport
 import com.cristianku.nav2pilot.ui.ConnectionState
 import com.cristianku.nav2pilot.ui.Formatting
-import com.cristianku.nav2pilot.ui.FeedbackMail
 import com.cristianku.nav2pilot.ui.MainUiState
 import com.cristianku.nav2pilot.ui.components.BrandCard
 import com.cristianku.nav2pilot.ui.components.BrandLogo
@@ -79,6 +78,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun DevicesScreen(
     onWhatsNew: () -> Unit,
+    onFeedback: () -> Unit,
     state: MainUiState,
     devices: List<PairedDevice>,
     selectedDongleId: String,
@@ -143,7 +143,7 @@ fun DevicesScreen(
         }
         ConnectionCard(selectedDevice = selectedDevice, connection = state.connection)
 
-        AboutCard(onWhatsNew)
+        AboutCard(onWhatsNew, onFeedback)
     }
 
     val removing = deviceToRemove
@@ -626,10 +626,9 @@ private fun appVersion(context: Context): String {
 }
 
 @Composable
-private fun AboutCard(onWhatsNew: () -> Unit) {
+private fun AboutCard(onWhatsNew: () -> Unit, onFeedback: () -> Unit) {
     val context = LocalContext.current
     val version = appVersion(context)
-    var noMailApp by remember { mutableStateOf(false) }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -656,23 +655,8 @@ private fun AboutCard(onWhatsNew: () -> Unit) {
         TextButton(onClick = onWhatsNew) {
             Text(androidx.compose.ui.res.stringResource(com.cristianku.nav2pilot.R.string.news_name))
         }
-        // an e-mail in the user's own mail app: the app sends nothing by itself
-        TextButton(
-            onClick = {
-                if (!FeedbackMail.open(context, version)) {
-                    noMailApp = true
-                }
-            },
-        ) {
-            Text("Send feedback")
-        }
-        if (noMailApp) {
-            Text(
-                "No mail app on this phone. Write to " + FeedbackMail.ADDRESS + ".",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
+        TextButton(onClick = onFeedback) {
+            Text(androidx.compose.ui.res.stringResource(com.cristianku.nav2pilot.R.string.fb_title))
         }
     }
 }

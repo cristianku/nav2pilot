@@ -4,7 +4,6 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import java.net.URLEncoder
 
 /**
@@ -51,17 +50,17 @@ object FeedbackMail {
         return "mailto:" + ADDRESS + "?subject=" + encode(subject) + "&body=" + encode(body)
     }
 
-    /** Opens the mail app on the feedback e-mail; false when the phone has none. */
-    fun open(context: Context, version: String): Boolean {
-        val body = body(version, Build.VERSION.RELEASE ?: "", phoneName(Build.MANUFACTURER ?: "", Build.MODEL ?: ""))
+    /** Offer the exact same report via mail, or the share sheet when there is no mail handler. */
+    fun share(context: Context, version: String, body: String) {
         val intent = Intent(Intent.ACTION_SENDTO, Uri.parse(mailto(subject(version), body)))
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         try {
             context.startActivity(intent)
         } catch (noMailApp: ActivityNotFoundException) {
-            return false
+            val share = Intent(Intent.ACTION_SEND).setType("text/plain")
+                .putExtra(Intent.EXTRA_SUBJECT, subject(version)).putExtra(Intent.EXTRA_TEXT, body)
+            context.startActivity(Intent.createChooser(share, null))
         }
-        return true
     }
 
     // a mailto link takes %20 for a space, not the "+" of a form

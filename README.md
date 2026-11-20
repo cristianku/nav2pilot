@@ -28,6 +28,11 @@ you as a tester.
 
 ## Getting started
 
+**Settings → Send feedback** sends your message directly to the Nav2Pilot inbox. You see the version, build and
+platform before sending. On the third distinct day you open the map normally, the app may invite you to write.
+“Maybe later” gives you at least 60 days; “Don’t ask again” or a confirmed submission stops invitations on that
+installation. You can always send another message from Settings.
+
 The first time you open a new feature edition, **What’s new** gives you a short illustrated tour. Swipe or use
 **Next**, skip it at any time, and replay it under **Settings → What’s new**. Opening a share, a map link or a
 voice search takes you straight to your destination or results.

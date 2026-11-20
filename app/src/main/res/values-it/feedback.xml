@@ -1,0 +1,15 @@
+<resources>
+    <string name="fb_invite">Come ti trovi con Nav2Pilot?</string>
+    <string name="fb_question">Raccontaci cosa funziona e cosa potremmo migliorare. Il tuo messaggio arriva direttamente a noi.</string>
+    <string name="fb_write">Scrivi un feedback</string>
+    <string name="fb_title">Invia un feedback</string>
+    <string name="fb_later">Più tardi</string>
+    <string name="fb_stop">Non chiedermelo più</string>
+    <string name="fb_notice">Il messaggio e i dati qui sotto saranno inviati al server feedback di Nav2Pilot.</string>
+    <string name="fb_message">Il tuo feedback</string>
+    <string name="fb_failed">Non abbiamo ricevuto conferma. Il tuo messaggio è ancora qui.</string>
+    <string name="fb_mail">Invia per e-mail o condividi</string>
+    <string name="fb_send">Invia</string>
+    <string name="fb_sending">Invio…</string>
+    <string name="fb_thanks">Feedback ricevuto. Grazie!</string>
+</resources>

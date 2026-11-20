@@ -87,6 +87,13 @@ fun Nav2PilotRoot(viewModel: MainViewModel, regularLaunch: Boolean) {
     val prefs = remember(context) { context.getSharedPreferences("release_highlights", android.content.Context.MODE_PRIVATE) }
     var unseen by remember { mutableStateOf(prefs.getString("edition", "") != NEWS_EDITION) }
     var replay by rememberSaveable { mutableStateOf(false) }
+    val tester: TesterFeedback = androidx.lifecycle.viewmodel.compose.viewModel()
+    // Only evaluate on an ordinary map launch, never while sharing, routing or finishing the new-edition tour.
+    var hadTour by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(regularLaunch) {
+        if (regularLaunch && !unseen && !hadTour && !settingsOpen && !favoritesOpen &&
+            state.destination == null && state.voiceRequest == 0 && state.showSendTabRequest == 0) tester.visit()
+    }
 
     // a shared place or a picked favorite: back to the map
     LaunchedEffect(state.showSendTabRequest) {
@@ -94,11 +101,13 @@ fun Nav2PilotRoot(viewModel: MainViewModel, regularLaunch: Boolean) {
             settingsOpen = false
             favoritesOpen = false
             replay = false
+            tester.hide()
         }
     }
 
     val finishTour = {
         prefs.edit().putString("edition", NEWS_EDITION).apply()
+        hadTour = true
         unseen = false
         replay = false
     }
@@ -205,6 +214,7 @@ fun Nav2PilotRoot(viewModel: MainViewModel, regularLaunch: Boolean) {
         ) {
             DevicesScreen(
                 onWhatsNew = { replay = true },
+                onFeedback = tester::write,
                 state = state,
                 devices = devices,
                 selectedDongleId = selectedDongleId,
@@ -228,6 +238,7 @@ fun Nav2PilotRoot(viewModel: MainViewModel, regularLaunch: Boolean) {
             WhatsNew(onClose = finishTour)
         }
     }
+    TesterFeedbackDialog(tester)
 }
 
 /** A page over the map with a title and a back arrow. */

@@ -58,6 +58,10 @@ val releaseStoreFile = signingValue("ANDROID_KEYSTORE_PATH", "storeFile")
 val releaseStorePassword = signingValue("ANDROID_KEYSTORE_PASSWORD", "storePassword")
 val releaseKeyAlias = signingValue("ANDROID_KEY_ALIAS", "keyAlias")
 val releaseKeyPassword = signingValue("ANDROID_KEY_PASSWORD", "keyPassword")
+val feedbackKeyFile = File(machineSecretsDir, "feedback-client-key")
+val feedbackClientKey = providers.environmentVariable("NAV2PILOT_FEEDBACK_KEY").orNull
+    ?: if (feedbackKeyFile.isFile) feedbackKeyFile.readText().trim() else ""
+require(feedbackClientKey.matches(Regex("[A-Za-z0-9_-]*"))) { "Invalid feedback client key format" }
 
 android {
     namespace = "com.cristianku.nav2pilot"
@@ -70,6 +74,7 @@ android {
         targetSdk = 36
         versionCode = releaseVersionCode ?: 1
         versionName = releaseVersion ?: "0.1.0"
+        buildConfigField("String", "FEEDBACK_KEY", "\"$feedbackClientKey\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -103,6 +108,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {
@@ -147,6 +153,7 @@ kotlin {
 tasks.matching { it.name == "preReleaseBuild" }.configureEach {
     doFirst {
         check(releaseVersion != null) { "Release builds require -PreleaseVersion=MAJOR.MINOR.PATCH" }
+        check(feedbackClientKey.isNotEmpty()) { "Provide the Nav2Pilot feedback client key before releasing" }
         check(listOf(releaseStoreFile, releaseStorePassword, releaseKeyAlias, releaseKeyPassword).all { it != null }) {
             "Release signing is missing: configure ANDROID_KEYSTORE_PATH, ANDROID_KEYSTORE_PASSWORD, " +
                 "ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD, or local keystore.properties (see README)"
