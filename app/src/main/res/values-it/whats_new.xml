@@ -9,12 +9,14 @@
     <string name="news_explore_title">Prima guarda, poi scegli</string>
     <string name="news_explore_body">Tocca un segnaposto per scoprire cosa c’è. Puoi confrontarlo con un altro punto o chiudere la scheda: il percorso cambia solo se scegli una destinazione o aggiungi una tappa.</string>
     <string name="news_parking_label">Parcheggi sulla mappa</string>
-    <string name="news_parking_title">C’è posto in autosilo?</string>
-    <string name="news_parking_body">Tocca la P sotto l’ingranaggio per cercare parcheggi in qualsiasi zona. Il numero accanto alla P indica i posti liberi. Tocca il segnaposto per vedere la capienza e l’ora del conteggio, quando disponibili.</string>
+    <string name="news_parking_title">Trova un posto libero</string>
+    <string name="news_parking_body">Tocca Parcheggi sotto la ricerca per vedere i posti liberi segnalati. Tocca un parcheggio e poi il cuore per salvarlo: la prossima volta vedrai il conteggio direttamente nei Preferiti.</string>
     <string name="news_search_label">Nella ricerca</string>
     <string name="news_search_title">I tuoi posti a portata di mano</string>
     <string name="news_search_body">Salva Casa o Lavoro nei dettagli di una destinazione. Apri la ricerca per ritrovarli insieme agli ultimi luoghi inviati. Sui telefoni compatibili puoi anche dettare un indirizzo con il microfono.</string>
     <string name="news_example">Esempio</string>
     <string name="news_free">12 posti liberi</string>
+    <string name="news_low">Solo 3 posti liberi</string>
+    <string name="news_no_count">Parcheggio senza conteggio recente</string>
     <string name="news_shortcuts">Casa  ·  Lavoro</string>
 </resources>

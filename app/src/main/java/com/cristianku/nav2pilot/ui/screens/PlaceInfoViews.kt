@@ -3,6 +3,7 @@ package com.cristianku.nav2pilot.ui.screens
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
@@ -15,6 +16,8 @@ import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -108,7 +112,29 @@ fun kindAndStatus(label: String, openingHours: String, now: LocalDateTime): Anno
     }
 }
 
-/** The opening hours of the week (today in bold), the phone and the website, each when OpenStreetMap has it. */
+/** Booking, the general website and a call are distinct actions. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+internal fun RestaurantActions(info: PlaceInfo) {
+    val context = LocalContext.current
+    if (info.noReservations) Text(stringResource(R.string.restaurant_no_reservations), style = MaterialTheme.typography.bodySmall)
+    if (info.reservationUrl.isEmpty() && info.phone.isEmpty() && info.website.isEmpty()) return
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        if (info.reservationUrl.isNotEmpty()) OutlinedButton(onClick = { MapIntents.openWebsite(context, info.reservationUrl) }) {
+            Text(stringResource(R.string.restaurant_book))
+        }
+        if (info.phone.isNotBlank()) TextButton(onClick = { MapIntents.dial(context, info.phone) }) {
+            Icon(Icons.Filled.Phone, null, Modifier.size(16.dp))
+            Spacer(Modifier.width(5.dp))
+            Text(stringResource(R.string.restaurant_call))
+        }
+        if (info.website.isNotEmpty() && info.website != info.reservationUrl) TextButton(onClick = { MapIntents.openWebsite(context, info.website) }) {
+            Text(stringResource(R.string.restaurant_website))
+        }
+    }
+}
+
+/** The opening hours of the week (today in bold), the phone and website when available. */
 @Composable
 fun PlaceInfoBlock(info: PlaceInfo, now: LocalDateTime) {
     val context = LocalContext.current

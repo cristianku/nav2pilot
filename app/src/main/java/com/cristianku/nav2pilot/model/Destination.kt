@@ -28,7 +28,16 @@ data class Destination(
     /** Its OpenStreetMap element, "way/26343678", for its opening hours; "" when it comes from elsewhere. */
     val osmId: String = "",
     val locality: String = "",
+    /** Stable provider ID for a saved car park; occupancy itself is never persisted. */
+    val parkingId: String = "",
 ) {
+    val isParking: Boolean get() = kind == "amenity:parking" || parkingId.isNotEmpty()
+
+    fun sameFavoriteAs(other: Destination): Boolean {
+        if (parkingId.isNotEmpty() && other.parkingId.isNotEmpty()) return parkingId == other.parkingId
+        if (osmId.isNotEmpty() && other.osmId.isNotEmpty()) return osmId == other.osmId
+        return sameLocationAs(other)
+    }
     fun coordinatesText(): String {
         return String.format(Locale.US, "%.6f, %.6f", latitude, longitude)
     }

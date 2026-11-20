@@ -51,7 +51,9 @@ data class Place(
     val parkingReading: ParkingReading? = null,
 ) {
     fun toDestination(): Destination {
-        return Destination(latitude = latitude, longitude = longitude, name = name, details = details, kind = kind, osmId = osmId)
+        return Destination(latitude = latitude, longitude = longitude, name = name, details = details,
+            kind = if (category == PlaceCategory.PARKING) "amenity:parking" else kind, osmId = osmId,
+            parkingId = parkingReading?.id.orEmpty())
     }
 }
 

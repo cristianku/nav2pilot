@@ -31,6 +31,9 @@ import com.cristianku.nav2pilot.model.LatLng
 import com.cristianku.nav2pilot.places.MapArea
 import com.cristianku.nav2pilot.places.PlaceCategory
 import com.cristianku.nav2pilot.places.Place
+import com.cristianku.nav2pilot.places.ParkingLevel
+import com.cristianku.nav2pilot.places.stateAt
+import com.cristianku.nav2pilot.ui.theme.pinColor
 import com.cristianku.nav2pilot.ui.MainUiState
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraUpdateFactory
@@ -357,14 +360,13 @@ private fun drawData(style: Style, state: MainUiState, holder: MapHolder, contex
         val feature = Feature.fromGeometry(Point.fromLngLat(place.longitude, place.latitude))
         val highlighted = holder.preview?.let { it.latitude == place.latitude && it.longitude == place.longitude && it.name == place.name } == true
         var image = IMAGE_PLACE_PREFIX + (if (highlighted) "preview-" else "") + place.category.name
-        val count = place.parkingReading?.vacancies(holder.parkingNow)
-        // Draw confirmed counts above plain P's, and the selected pin above both.
-        feature.addNumberProperty("priority", if (highlighted) 2 else if (count != null) 1 else 0)
-        count?.let { free ->
-            image += "-$free"
+        val parking = if (place.category == PlaceCategory.PARKING) place.parkingReading.stateAt(holder.parkingNow) else null
+        feature.addNumberProperty("priority", if (highlighted) 2 else if (parking != null && parking.level != ParkingLevel.UNKNOWN) 1 else 0)
+        parking?.let {
+            image += "-${it.level}-${it.free ?: "x"}"
             visibleCounts.add(image)
             if (holder.parkingIcons.add(image)) {
-                style.addImage(image, parkingBadge(context, if (highlighted) holder.colors.selectedRoute else PLACE_COLOR, free))
+                style.addImage(image, parkingBadge(context, it.level.pinColor, it.pinLabel, highlighted))
             }
         }
         feature.addStringProperty(PROPERTY_ICON, image)
@@ -567,18 +569,21 @@ private fun circleIcon(context: Context, color: Int, label: String): Bitmap {
 }
 
 /** One image per distinct visible count; also works with raster basemaps without a glyph server. */
-private fun parkingBadge(context: Context, color: Int, free: Int): Bitmap {
+private fun parkingBadge(context: Context, color: Int, label: String, highlighted: Boolean): Bitmap {
     val d = context.resources.displayMetrics.density
     val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 13 * d; typeface = Typeface.DEFAULT_BOLD }
-    val label = "P $free"
-    val w = kotlin.math.ceil(paint.measureText(label) + 14 * d).toInt()
-    val h = (26 * d).toInt()
+    val inset = if (highlighted) 3 * d else 0f
+    val w = kotlin.math.ceil(maxOf(26 * d, paint.measureText(label) + 14 * d) + 2 * inset).toInt()
+    val h = (26 * d + 2 * inset).toInt()
     return Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).also {
         val canvas = Canvas(it)
-        paint.color = android.graphics.Color.WHITE
+        paint.color = if (highlighted) 0xFF122338.toInt() else android.graphics.Color.WHITE
         canvas.drawRoundRect(0f, 0f, w.toFloat(), h.toFloat(), h/2f, h/2f, paint)
+        paint.color = android.graphics.Color.WHITE
+        canvas.drawRoundRect(inset, inset, w-inset, h-inset, h/2f, h/2f, paint)
         paint.color = color
-        canvas.drawRoundRect(2*d, 2*d, w-2*d, h-2*d, h/2f, h/2f, paint)
+        val edge = inset + 2*d
+        canvas.drawRoundRect(edge, edge, w-edge, h-edge, h/2f, h/2f, paint)
         paint.color = android.graphics.Color.WHITE
         paint.textAlign = Paint.Align.CENTER
         canvas.drawText(label, w/2f, (h - paint.ascent() - paint.descent())/2, paint)

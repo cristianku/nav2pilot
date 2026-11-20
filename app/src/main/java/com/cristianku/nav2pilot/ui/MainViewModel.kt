@@ -350,7 +350,10 @@ class MainViewModel(
     }
 
     fun toggleFavorite() {
-        val destination = state.value.destination ?: return
+        state.value.destination?.let(::toggleFavorite)
+    }
+
+    fun toggleFavorite(destination: Destination) {
         val existing = favoritesRepository.findByLocation(destination)
         if (existing != null) {
             favoritesRepository.remove(existing.id)
@@ -358,6 +361,11 @@ class MainViewModel(
             favoritesRepository.add(destination)
         }
     }
+
+    suspend fun favoriteParking(destination: Destination) = parking?.favorite(destination)
+
+    suspend fun restaurantInfo(place: Place): PlaceInfo? = place.info ?: state.value.placeInfo[place.osmId]
+        ?: placeInfoLookup?.lookup(listOf(place.toDestination()))?.get(place.osmId)
 
     fun removeFavorite(id: String) {
         favoritesRepository.remove(id)

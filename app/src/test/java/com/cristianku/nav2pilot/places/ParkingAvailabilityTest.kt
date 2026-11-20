@@ -1,6 +1,7 @@
 package com.cristianku.nav2pilot.places
 
 import com.cristianku.nav2pilot.model.LatLng
+import com.cristianku.nav2pilot.model.Destination
 import com.cristianku.nav2pilot.net.HttpResponse
 import com.cristianku.nav2pilot.testing.FakeHttpClient
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -43,6 +44,37 @@ class ParkingAvailabilityTest {
         for (invalid in listOf(r.copy(free = null), r.copy(free = -1), r.copy(free = 11),
             r.copy(status = ParkingStatus.CLOSED), r.copy(status = ParkingStatus.UNKNOWN), r.copy(published = null),
             r.copy(published = now.minusSeconds(301)), r.copy(published = now.plusSeconds(61)))) assertNull(invalid.vacancies(now))
+    }
+
+    @Test fun trafficLightsDistinguishLowFullClosedUnknownAndCapacityWithoutCounts() {
+        val r = basel().copy(total = 200)
+        assertEquals(ParkingState(ParkingLevel.AVAILABLE, 150), r.copy(free = 150).stateAt(now))
+        assertEquals(ParkingLevel.LOW, r.copy(free = 20).stateAt(now).level)
+        assertEquals(ParkingLevel.AVAILABLE, r.copy(free = 21).stateAt(now).level)
+        assertEquals(ParkingLevel.LOW, r.copy(total = null, free = 5).stateAt(now).level)
+        assertEquals(ParkingState(ParkingLevel.FULL, 0), r.copy(free = 0).stateAt(now))
+        assertEquals("P ×", r.copy(status = ParkingStatus.CLOSED, free = 0).stateAt(now).pinLabel)
+        for (reading in listOf(null, r.copy(free = null), r.copy(free = 210), r.copy(free = 0, published = now.minusSeconds(301)))) {
+            assertEquals(ParkingState(ParkingLevel.UNKNOWN), reading.stateAt(now))
+        }
+    }
+
+    @Test fun favoriteUsesStableIdOrUniqueLegacyMatchAndNeverLooksUpAddresses() = runTest {
+        val http = FakeHttpClient()
+        val service = ParkingAvailability(http, UnconfinedTestDispatcher(testScheduler))
+        val address = Destination(47.21,-1.56,"Home")
+        assertNull(service.favorite(address))
+        assertTrue(http.requests.isEmpty())
+        http.respond(200, """{"results":[{"grp_identifiant":6,"grp_nom":"Garage","location":{"lat":47.21,"lon":-1.56},"grp_statut":5,"grp_horodatage":"$now","grp_disponible":6}]}""")
+        val pin = service.placesIn(MapArea.around(LatLng(47.21,-1.56), 300.0)).single()
+        val saved = pin.toDestination().copy(name = "My old name")
+        assertEquals(6, service.favorite(saved)?.vacancies(now))
+        assertNull(service.favorite(saved.copy(parkingId = "different provider")))
+        val legacy = basel()
+        val old = Destination(47.56, 7.59, "City", kind = "amenity:parking")
+        assertEquals(legacy, ParkingAvailability.matchFavorite(old, listOf(legacy)))
+        assertNull(ParkingAvailability.matchFavorite(old, listOf(legacy, legacy.copy(id = "other"))))
+        assertEquals(1, http.requests.size)
     }
 
     @Test fun singaporeUsesOnlyCarLotsAndLocalTimestampByStableDirectoryId() {

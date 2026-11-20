@@ -59,7 +59,7 @@ class FavoritesRepository(private val store: KeyValueStore) {
 
     fun findByLocation(destination: Destination): Favorite? {
         for (favorite in favoritesState.value) {
-            if (favorite.destination.sameLocationAs(destination)) {
+            if (favorite.destination.sameFavoriteAs(destination)) {
                 return favorite
             }
         }

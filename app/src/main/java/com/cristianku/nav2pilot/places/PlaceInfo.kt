@@ -13,6 +13,7 @@ import org.json.JSONException
 import org.json.JSONObject
 import java.io.IOException
 import java.net.URLEncoder
+import java.net.URI
 import java.util.Locale
 
 /** What OpenStreetMap says about a place besides its name and address; "" for what it does not say. */
@@ -22,19 +23,27 @@ data class PlaceInfo(
     val phone: String = "",
     /** An http or https address, nothing else. */
     val website: String = "",
+    /** A dedicated booking link, never inferred from a restaurant homepage or order/delivery link. */
+    val reservationUrl: String = "",
+    val noReservations: Boolean = false,
 ) {
     fun isEmpty(): Boolean {
-        return openingHours.isEmpty() && phone.isEmpty() && website.isEmpty()
+        return openingHours.isEmpty() && phone.isEmpty() && website.isEmpty() && reservationUrl.isEmpty() && !noReservations
     }
 
     companion object {
         /** From an element's OpenStreetMap tags. */
         fun fromTags(tags: JSONObject): PlaceInfo {
+            val noReservations = firstTag(tags, "reservation").equals("no", ignoreCase = true)
             return PlaceInfo(
                 openingHours = firstTag(tags, "opening_hours"),
                 // several numbers are separated by ";": the first is the main one
                 phone = firstTag(tags, "phone", "contact:phone").substringBefore(';').trim(),
                 website = webAddress(firstTag(tags, "website", "contact:website", "url").substringBefore(';').trim()),
+                reservationUrl = if (noReservations) "" else sequenceOf("website:reservation", "reservation:website",
+                    "website:booking", "reservation:url", "booking:website")
+                    .map { webAddress(firstTag(tags, it).substringBefore(';').trim()) }.firstOrNull { it.isNotEmpty() }.orEmpty(),
+                noReservations = noReservations,
             )
         }
 
@@ -44,14 +53,13 @@ data class PlaceInfo(
                 return ""
             }
             val lower = text.lowercase(Locale.ROOT)
-            if (lower.startsWith("https://") || lower.startsWith("http://")) {
-                return text
+            val url = when {
+                lower.startsWith("https://") || lower.startsWith("http://") -> text
+                !text.contains(':') && text.contains('.') -> "https://$text"
+                else -> return ""
             }
-            // "www.ikea.ch" is often mapped so
-            if (!text.contains(':') && text.contains('.')) {
-                return "https://$text"
-            }
-            return ""
+            val uri = try { URI(url) } catch (_: java.net.URISyntaxException) { return "" }
+            return url.takeIf { !uri.host.isNullOrBlank() && uri.rawUserInfo == null }.orEmpty()
         }
 
         private fun firstTag(tags: JSONObject, vararg keys: String): String {

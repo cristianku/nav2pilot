@@ -1,10 +1,28 @@
 <resources>
     <string name="share_target_label">Invia al dispositivo comma</string>
-    <string name="parking_show">Mostra i parcheggi sulla mappa</string>
-    <string name="parking_hide">Nascondi i parcheggi</string>
+    <string name="places_menu">Punti di interesse</string>
+    <string name="places_shown">Visibile sulla mappa</string>
+    <string name="places_hide">Nascondi i punti di interesse</string>
+    <string name="places_fuel">Distributori</string>
+    <string name="places_charging">Ricarica elettrica</string>
+    <string name="places_parking">Parcheggi</string>
+    <string name="places_rest_area">Aree di sosta</string>
+    <string name="places_restaurant">Ristoranti</string>
+    <string name="places_cafe">Bar e caffè</string>
+    <string name="places_supermarket">Supermercati</string>
+    <string name="places_hotel">Hotel</string>
+    <string name="places_pharmacy">Farmacie</string>
     <string name="parking_closed">Chiuso</string>
     <string name="parking_full">Completo · 0 posti liberi</string>
     <string name="parking_free">Posti liberi: %1$d</string>
     <string name="parking_total">Posti totali: %1$d</string>
     <string name="parking_unknown">Disponibilità in tempo reale non disponibile</string>
+    <string name="parking_low">Pochi posti liberi: %1$d</string>
+    <string name="parking_checking">Controllo dei posti liberi…</string>
+    <string name="favorite_add">Aggiungi ai preferiti</string>
+    <string name="favorite_remove">Rimuovi dai preferiti</string>
+    <string name="restaurant_book">Prenota un tavolo</string>
+    <string name="restaurant_call">Chiama</string>
+    <string name="restaurant_website">Sito del ristorante</string>
+    <string name="restaurant_no_reservations">Questo ristorante non accetta prenotazioni.</string>
 </resources>

@@ -24,6 +24,7 @@ object JsonCodec {
         json.put("details", destination.details)
         json.put("approximate", destination.approximate)
         if (destination.locality.isNotEmpty()) json.put("locality", destination.locality)
+        if (destination.parkingId.isNotEmpty()) json.put("parkingId", destination.parkingId)
         // older versions have neither: read as ""
         if (destination.kind.isNotEmpty()) {
             json.put("kind", destination.kind)
@@ -52,6 +53,7 @@ object JsonCodec {
             kind = stringField(json, "kind"),
             osmId = stringField(json, "osmId"),
             locality = stringField(json, "locality"),
+            parkingId = stringField(json, "parkingId"),
         )
     }
 

@@ -62,6 +62,20 @@ class PlaceInfoLookupTest {
         assertEquals("", PlaceInfo.webAddress("see the sign"))
     }
 
+    @Test fun tableBookingRequiresADedicatedWebLink() {
+        fun parse(tags: String) = PlaceInfo.fromTags(JSONObject(tags))
+        assertEquals("https://tables.example/basel", parse("""{"website:reservation":"tel:123","website:booking":"tables.example/basel"}""").reservationUrl)
+        assertEquals("https://tables.example/4", parse("""{"reservation:website":"https://tables.example/4"}""").reservationUrl)
+        val kaisin = parse("""{"website":"https://kaisin.ch/","contact:phone":"+41 61 271 41 60","reservation":"yes","website:menu":"https://kaisin.ch/menu"}""")
+        assertEquals("", kaisin.reservationUrl)
+        assertEquals("+41 61 271 41 60", kaisin.phone)
+        val walkIn = parse("""{"reservation":"no","website:reservation":"https://tables.example/4"}""")
+        assertTrue(walkIn.noReservations)
+        assertEquals("", walkIn.reservationUrl)
+        for (bad in listOf("https://", "https://a.example@b.example", "javascript:alert(1)", "//bad.example"))
+            assertEquals("", parse(JSONObject().put("website:reservation", bad).toString()).reservationUrl)
+    }
+
     @Test
     fun oneRequestForTheListThenFromMemory() = runTest {
         val http = FakeHttpClient()

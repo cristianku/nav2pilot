@@ -180,6 +180,20 @@ class MainViewModelTest {
         assertTrue(favoritesRepository.favorites.value.isEmpty())
     }
 
+    @Test fun savingThenRemovingAPreviewLeavesTheItineraryAloneAndRestoresItsGarageId() {
+        val vm = createViewModel()
+        vm.handleShare("45.1, 9.2", "")
+        vm.addStop(45.4, 9.4)
+        val before = vm.uiState.value
+        val preview = Destination(47.55, 7.59, "Parkhaus Anfos", kind = "amenity:parking", parkingId = "Basel:Anfos")
+        vm.toggleFavorite(preview)
+        assertEquals(before, vm.uiState.value)
+        assertEquals(preview, FavoritesRepository(storage).favorites.value.single().destination)
+        vm.toggleFavorite(preview.copy(latitude = 47.551))
+        assertTrue(vm.favorites.value.isEmpty())
+        assertEquals(before, vm.uiState.value)
+    }
+
     @Test
     fun suggestionsComeAfterAPauseInTheTyping() {
         val viewModel = createViewModel()

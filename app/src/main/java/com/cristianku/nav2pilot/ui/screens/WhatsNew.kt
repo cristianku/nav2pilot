@@ -31,17 +31,16 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.cristianku.nav2pilot.BuildConfig
 import com.cristianku.nav2pilot.R
 import kotlinx.coroutines.launch
 
-// Change this id with the slides, not on every build of the same release.
-internal const val NEWS_EDITION = "places-and-parking-2"
-
-private data class Slide(val label: Int, val title: Int, val body: Int)
+private enum class Artwork { PARKING, PREVIEW, SHORTCUTS }
+private data class Slide(val label: Int, val title: Int, val body: Int, val art: Artwork)
 private val slides = listOf(
-    Slide(R.string.news_explore_label, R.string.news_explore_title, R.string.news_explore_body),
-    Slide(R.string.news_parking_label, R.string.news_parking_title, R.string.news_parking_body),
-    Slide(R.string.news_search_label, R.string.news_search_title, R.string.news_search_body),
+    Slide(R.string.news_parking_label, R.string.news_parking_title, R.string.news_parking_body, Artwork.PARKING),
+    Slide(R.string.news_explore_label, R.string.news_explore_title, R.string.news_explore_body, Artwork.PREVIEW),
+    Slide(R.string.news_search_label, R.string.news_search_title, R.string.news_search_body, Artwork.SHORTCUTS),
 )
 
 @Composable
@@ -52,9 +51,17 @@ internal fun WhatsNew(onClose: () -> Unit) {
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         BoxWithConstraints(Modifier.safeDrawingPadding().fillMaxSize(), contentAlignment = Alignment.Center) {
             val short = maxHeight < 480.dp
+            val coverHeight = if (short) 146.dp else (maxHeight * 0.36f).coerceIn(188.dp, 280.dp)
             Column(Modifier.widthIn(max = 540.dp).fillMaxSize().padding(horizontal = 24.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(R.string.news_name), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                    Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(stringResource(R.string.news_name), style = MaterialTheme.typography.titleMedium)
+                        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                            Text(BuildConfig.VERSION_NAME, Modifier.padding(horizontal = 9.dp, vertical = 3.dp),
+                                style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
                     TextButton(onClick = onClose) { Text(stringResource(R.string.news_skip)) }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(5.dp), modifier = Modifier.padding(vertical = 8.dp)) {
@@ -67,7 +74,9 @@ internal fun WhatsNew(onClose: () -> Unit) {
                     val slide = slides[index]
                     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(vertical = 12.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        NewsArt(index, Modifier.fillMaxWidth().height(if (short) 100.dp else 180.dp))
+                        if (slide.art == Artwork.PARKING) {
+                            ParkingCover(Modifier.fillMaxWidth().height(coverHeight))
+                        } else NewsArt(slide.art, Modifier.fillMaxWidth().height(if (short) 100.dp else 180.dp))
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(stringResource(slide.label), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                             Text(stringResource(R.string.news_counter, index + 1, slides.size), color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -76,6 +85,7 @@ internal fun WhatsNew(onClose: () -> Unit) {
                             style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
                         Text(stringResource(slide.body), style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        if (slide.art == Artwork.PARKING) ParkingLegend()
                     }
                 }
                 Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -96,9 +106,9 @@ internal fun WhatsNew(onClose: () -> Unit) {
 }
 
 @Composable
-private fun NewsArt(index: Int, modifier: Modifier) {
+private fun NewsArt(art: Artwork, modifier: Modifier) {
     val ink = Color(0xFF061D35)
-    val accent = listOf(Color(0xFF65E7E3), Color(0xFF86EDD0), Color(0xFFA7CFFF))[index]
+    val accent = if (art == Artwork.PREVIEW) Color(0xFF65E7E3) else Color(0xFFA7CFFF)
     Box(modifier.clip(RoundedCornerShape(24.dp)).background(Brush.linearGradient(listOf(ink, Color(0xFF0D495A))))
         .clearAndSetSemantics { }, contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
@@ -117,13 +127,11 @@ private fun NewsArt(index: Int, modifier: Modifier) {
         Row(Modifier.padding(12.dp).background(ink, RoundedCornerShape(16.dp)).padding(horizontal = 16.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(34.dp).background(accent, CircleShape), contentAlignment = Alignment.Center) {
-                if (index == 1) Text("P", color = ink, fontWeight = FontWeight.Bold)
-                else Icon(if (index == 0) Icons.Filled.Place else Icons.Filled.Favorite, null, tint = ink, modifier = Modifier.size(20.dp))
+                Icon(if (art == Artwork.PREVIEW) Icons.Filled.Place else Icons.Filled.Favorite, null,
+                    tint = ink, modifier = Modifier.size(20.dp))
             }
-            Text(when (index) { 0 -> "Rebgasse"; 1 -> stringResource(R.string.news_free); else -> stringResource(R.string.news_shortcuts) },
+            Text(if (art == Artwork.PREVIEW) "Rebgasse" else stringResource(R.string.news_shortcuts),
                 color = Color.White, style = MaterialTheme.typography.titleMedium)
         }
-        if (index == 1) Text(stringResource(R.string.news_example), Modifier.align(Alignment.BottomEnd).padding(10.dp),
-            color = Color.White, style = MaterialTheme.typography.labelSmall)
     }
 }

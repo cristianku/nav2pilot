@@ -33,14 +33,16 @@ platform before sending. On the third distinct day you open the map normally, th
 “Maybe later” gives you at least 60 days; “Don’t ask again” or a confirmed submission stops invitations on that
 installation. You can always send another message from Settings.
 
-The first time you open a new feature edition, **What’s new** gives you a short illustrated tour. Swipe or use
+On the first ordinary launch after installation or a version update, **What’s new** gives you a short illustrated tour.
+Parking leads version 1.0.33: an illustrated waterfront map shows the **Parking** category chip
+and explains the color-coded counts. Swipe or use
 **Next**, skip it at any time, and replay it under **Settings → What’s new**. Opening a share, a map link or a
 voice search takes you straight to your destination or results.
 
-<img src="docs/screenshots/whats-new.png" width="760" alt="The three pages of the update tour: inspect a pin, check garage availability in Basel and find your usual destinations.">
+<img src="docs/screenshots/whats-new-parking.png" width="290" alt="The first page of the update tour, with an illustrated waterfront parking map and a guide to the markers.">
 
-For the next feature release, update the slides and `NEWS_EDITION` in `ui/screens/WhatsNew.kt` together with the
-English and Italian `whats_new.xml` resources. Rebuilds with the same slides keep the same edition.
+For the next release, lead with its main feature in `ui/screens/WhatsNew.kt` and update the English and Italian
+`whats_new.xml` resources. Completion is remembered for the installed version code.
 
 1. **Get your comma token.** Open [jwt.comma.ai](https://jwt.comma.ai), sign in with the account your comma
    device is paired to, and copy the token.
@@ -151,16 +153,23 @@ destinations. No manual environment setup is needed for these builds.
 
 ## Points of interest
 
-Tap the fixed **P** below Settings for parking, or a category below the search field for other places. Swipe the row for more categories;
-tap the active category again to hide them or **Search this area** after moving the map.
+Swipe the categories below the search field and tap **Parking** to show car parks. The **Points of interest**
+icon below Settings opens the full category list. Tap the active category again to hide its pins,
+or **Search this area** after moving the map.
 
-Tap a pin to inspect it. Its card shows the name, address and available details. Tap another pin to compare:
+Tap a pin to inspect it. Its card shows the name, address and available details. The heart on the card
+saves or removes the place without selecting a destination. For restaurants, **Book a table** opens the
+booking URL listed in OpenStreetMap. Where available, **Call** opens the dialer and **Restaurant website**
+opens the regular site; neither is presented as a confirmed reservation. Tap another pin to compare:
 your destination and stops only change if you choose **Go here** or **Add as stop**. Sending is a separate action.
 
 Parking locations come from OpenStreetMap worldwide. **P 12** means a provider recently reported 12 free car
 spaces; a plain **P** means no confirmed count. Tap to see total capacity (if known), source and local update
-time. Counts refresh every minute while the parking layer is visible. Neither an old reading nor the capacity
-of an unmonitored car park is used as its vacancy count.
+time. Green means available, orange means 5 or fewer free spaces or at most 10% of capacity, red means a
+confirmed zero. Gray **P** means no recent reliable count; **P ×** means closed. Selecting a pin adds an
+outline without changing its status color. The same counts refresh on the map and in visible parking
+favorite rows, even with the map layer off. Neither an old reading nor the capacity of an unmonitored car
+park is used as its vacancy count.
 
 Live coverage depends on the operator. Current data sources:
 
@@ -178,7 +187,7 @@ Live coverage depends on the operator. Current data sources:
 `scripts/update-parking-directories.py` rebuilds the bundled facility IDs and positions for Singapore (HDB)
 and [Zurich (Stadt Zürich)](https://www.stadt-zuerich.ch/geodaten/download/Oeffentlich_zugaengliche_Parkhaeuser).
 
-<img src="docs/screenshots/parking-nantes.png" width="270" alt="Nantes: the fixed parking button below Settings and a garage card showing 231 free spaces out of 320, with the municipal source and time."> <img src="docs/screenshots/parking-preview.png" width="270" alt="Inspecting Parkhaus Rebgasse in Basel with a destination already selected.">
+<img src="docs/screenshots/parking-nantes.png" width="270" alt="Nantes: a garage card showing free spaces, total capacity, the municipal source and time."> <img src="docs/screenshots/parking-preview.png" width="270" alt="Inspecting Parkhaus Rebgasse in Basel with a destination already selected.">
 
 Map: © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), [OpenFreeMap](https://openfreemap.org/).
 

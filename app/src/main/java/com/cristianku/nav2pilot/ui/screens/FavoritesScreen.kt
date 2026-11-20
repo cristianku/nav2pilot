@@ -34,6 +34,7 @@ import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,6 +44,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
+import com.cristianku.nav2pilot.R
+import com.cristianku.nav2pilot.model.Destination
+import com.cristianku.nav2pilot.places.ParkingAvailability
+import com.cristianku.nav2pilot.places.ParkingReading
+import com.cristianku.nav2pilot.places.stateAt
+import kotlinx.coroutines.delay
+import java.time.Instant
 import com.cristianku.nav2pilot.data.Favorite
 import com.cristianku.nav2pilot.model.PairedDevice
 import com.cristianku.nav2pilot.ui.components.BrandCard
@@ -53,6 +66,8 @@ import com.cristianku.nav2pilot.ui.components.ScreenPadding
 @Composable
 fun FavoritesScreen(
     favorites: List<Favorite>,
+    mapReadings: List<ParkingReading>,
+    lookupParking: suspend (Destination) -> ParkingReading?,
     selectedDevice: PairedDevice?,
     sending: Boolean,
     onSelect: (Favorite) -> Unit,
@@ -84,6 +99,10 @@ fun FavoritesScreen(
         items(favorites, key = { favorite -> favorite.id }) { favorite ->
             FavoriteItem(
                 favorite = favorite,
+                mapReading = remember(favorite.destination, mapReadings) {
+                    ParkingAvailability.matchFavorite(favorite.destination, mapReadings)
+                },
+                lookupParking = lookupParking,
                 selectedDevice = selectedDevice,
                 sending = sending,
                 onSelect = onSelect,
@@ -99,6 +118,8 @@ fun FavoritesScreen(
 @Composable
 private fun FavoriteItem(
     favorite: Favorite,
+    mapReading: ParkingReading?,
+    lookupParking: suspend (Destination) -> ParkingReading?,
     selectedDevice: PairedDevice?,
     sending: Boolean,
     onSelect: (Favorite) -> Unit,
@@ -140,7 +161,8 @@ private fun FavoriteItem(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconBadge(
-                        painter = rememberVectorPainter(Icons.Filled.Place),
+                        painter = if (favorite.destination.isParking) painterResource(R.drawable.ic_place_parking)
+                            else rememberVectorPainter(Icons.Filled.Place),
                         tint = MaterialTheme.colorScheme.secondary,
                         background = MaterialTheme.colorScheme.secondaryContainer,
                     )
@@ -151,6 +173,9 @@ private fun FavoriteItem(
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.SemiBold,
                         )
+                        if (favorite.destination.isParking) {
+                            FavoriteAvailability(favorite.destination, mapReading, lookupParking)
+                        }
                         if (favorite.destination.details.isNotEmpty()) {
                             Text(
                                 favorite.destination.details,
@@ -191,4 +216,26 @@ private fun FavoriteItem(
             }
         },
     )
+}
+
+/** Only visible parking favorites refresh. A reading already on the map is usable on the very first frame. */
+@Composable
+private fun FavoriteAvailability(place: Destination, initial: ParkingReading?, lookup: suspend (Destination) -> ParkingReading?) {
+    var reading by remember(place, initial) { mutableStateOf(initial) }
+    var now by remember(place) { mutableStateOf(Instant.now()) }
+    var loading by remember(place, initial) { mutableStateOf(initial?.isFresh(now) != true) }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(place, initial, lifecycle) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                now = Instant.now()
+                reading = lookup(place)
+                now = Instant.now()
+                loading = false
+                delay(60_000)
+            }
+        }
+    }
+    if (loading) Text(stringResource(R.string.parking_checking), style = MaterialTheme.typography.bodySmall)
+    else ParkingStatusLabel(reading.stateAt(now))
 }

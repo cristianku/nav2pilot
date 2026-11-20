@@ -2,11 +2,29 @@
 <resources>
     <string name="app_name" translatable="false">Nav2Pilot</string>
     <string name="share_target_label">Send to comma device</string>
-    <string name="parking_show">Show parking on the map</string>
-    <string name="parking_hide">Hide parking</string>
+    <string name="places_menu">Points of interest</string>
+    <string name="places_shown">Shown on the map</string>
+    <string name="places_hide">Hide places</string>
+    <string name="places_fuel">Fuel stations</string>
+    <string name="places_charging">EV charging</string>
+    <string name="places_parking">Parking</string>
+    <string name="places_rest_area">Rest areas</string>
+    <string name="places_restaurant">Restaurants</string>
+    <string name="places_cafe">Cafés</string>
+    <string name="places_supermarket">Supermarkets</string>
+    <string name="places_hotel">Hotels</string>
+    <string name="places_pharmacy">Pharmacies</string>
     <string name="parking_closed">Closed</string>
     <string name="parking_full">Full · 0 free spaces</string>
     <string name="parking_free">Free spaces: %1$d</string>
     <string name="parking_total">Total spaces: %1$d</string>
     <string name="parking_unknown">Live availability unavailable</string>
+    <string name="parking_low">Few spaces left: %1$d</string>
+    <string name="parking_checking">Checking availability…</string>
+    <string name="favorite_add">Add to favorites</string>
+    <string name="favorite_remove">Remove from favorites</string>
+    <string name="restaurant_book">Book a table</string>
+    <string name="restaurant_call">Call</string>
+    <string name="restaurant_website">Restaurant website</string>
+    <string name="restaurant_no_reservations">This restaurant does not take reservations.</string>
 </resources>

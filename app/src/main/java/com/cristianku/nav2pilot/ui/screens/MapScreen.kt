@@ -71,7 +71,7 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.activity.compose.BackHandler
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.repeatOnLifecycle
-import com.cristianku.nav2pilot.places.ParkingStatus
+import com.cristianku.nav2pilot.places.stateAt
 import java.time.Instant
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -170,6 +170,8 @@ class MapActions(
     val onDismissChoices: () -> Unit,
     val onClearSelection: () -> Unit,
     val onToggleFavorite: () -> Unit,
+    val isPlaceFavorite: (Destination) -> Boolean,
+    val onTogglePlaceFavorite: (Destination) -> Unit,
     val onSelectDevice: (String) -> Unit,
     val onCheckConnection: () -> Unit,
     val onSend: () -> Unit,
@@ -192,6 +194,7 @@ class MapActions(
     val onHidePlaces: () -> Unit,
     val onChoosePlace: (Place) -> Unit,
     val refreshParking: suspend (MapArea) -> Unit,
+    val restaurantInfo: suspend (Place) -> PlaceInfo?,
     val shortcuts: Map<String, Destination>,
     val recent: List<Destination>,
     val setShortcut: (String, Destination?) -> Unit,
@@ -498,25 +501,20 @@ fun MapScreen(
                     }
                 }
                 if (!searchEditing) {
+                    val showCategory: (PlaceCategory) -> Unit = { category ->
+                        tappedPlace = null
+                        actions.onShowPlaces(category, mapArea)
+                    }
                     Row(Modifier.fillMaxWidth().padding(end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.weight(1f)) {
                             PlaceChips(
                                 category = state.placesCategory,
                                 loading = state.placesLoading,
-                                onShow = { category -> tappedPlace = null; actions.onShowPlaces(category, mapArea) },
+                                onShow = showCategory,
                                 onHide = actions.onHidePlaces,
                             )
                         }
-                        val selected = state.placesCategory == PlaceCategory.PARKING
-                        MapButton(
-                            painter = painterResource(R.drawable.ic_place_parking),
-                            description = stringResource(if (selected) R.string.parking_hide else R.string.parking_show),
-                            active = selected,
-                            onClick = {
-                                tappedPlace = null
-                                if (selected) actions.onHidePlaces() else actions.onShowPlaces(PlaceCategory.PARKING, mapArea)
-                            },
-                        )
+                        PlacesMenuButton(state.placesCategory, showCategory, actions.onHidePlaces)
                     }
                     val shownCategory = state.placesCategory
                     AnimatedVisibility(
@@ -598,9 +596,12 @@ fun MapScreen(
                 }
                 PlacePreview(
                     current, parkingNow, canGo = !same,
+                    saved = actions.isPlaceFavorite(current.toDestination()),
+                    restaurantInfo = actions.restaurantInfo,
+                    onToggleFavorite = { actions.onTogglePlaceFavorite(current.toDestination()) },
                     canAddStop = !same && hasDestination && state.stops.size < MainViewModel.MAX_STOPS,
                     onAddStop = { tappedPlace = null; actions.onAddStop(place.latitude, place.longitude) },
-                    onGoHere = { tappedPlace = null; actions.onChoosePlace(place) },
+                    onGoHere = { tappedPlace = null; actions.onChoosePlace(current) },
                     onDismiss = { tappedPlace = null },
                     modifier = Modifier.align(if (wide) Alignment.BottomStart else Alignment.BottomCenter)
                         .navigationBarsPadding().padding(8.dp)
@@ -736,6 +737,51 @@ private fun MapButton(
     }
 }
 
+/** The POI icon always opens the full list, including the category selected in the chip row. */
+@Composable
+private fun PlacesMenuButton(category: PlaceCategory?, onShow: (PlaceCategory) -> Unit, onHide: () -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        MapButton(
+            painter = painterResource(R.drawable.ic_places),
+            description = stringResource(R.string.places_menu),
+            onClick = { expanded = true },
+            active = category != null,
+        )
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            for (entry in PlaceCategory.entries) {
+                DropdownMenuItem(
+                    text = { Text(categoryLabel(entry)) },
+                    leadingIcon = { Icon(painterResource(placeSymbol(entry)), contentDescription = null) },
+                    trailingIcon = if (entry == category) {
+                        { Icon(Icons.Filled.Check, contentDescription = stringResource(R.string.places_shown)) }
+                    } else null,
+                    onClick = { expanded = false; onShow(entry) },
+                )
+            }
+            HorizontalDivider()
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.places_hide)) },
+                enabled = category != null,
+                onClick = { expanded = false; onHide() },
+            )
+        }
+    }
+}
+
+@Composable
+private fun categoryLabel(entry: PlaceCategory): String = stringResource(when (entry) {
+    PlaceCategory.FUEL -> R.string.places_fuel
+    PlaceCategory.CHARGING -> R.string.places_charging
+    PlaceCategory.PARKING -> R.string.places_parking
+    PlaceCategory.REST_AREA -> R.string.places_rest_area
+    PlaceCategory.RESTAURANT -> R.string.places_restaurant
+    PlaceCategory.CAFE -> R.string.places_cafe
+    PlaceCategory.SUPERMARKET -> R.string.places_supermarket
+    PlaceCategory.HOTEL -> R.string.places_hotel
+    PlaceCategory.PHARMACY -> R.string.places_pharmacy
+})
+
 /**
  * The kinds of places in a row that scrolls sideways; the one tapped is looked up in the part of the map in
  * view and drawn there, a second tap hides it.
@@ -757,7 +803,6 @@ private fun PlaceChips(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         for (entry in PlaceCategory.entries) {
-            if (entry == PlaceCategory.PARKING) continue // fixed P next to this scrolling row
             val selected = entry == category
             PlaceChip(
                 entry = entry,
@@ -807,7 +852,7 @@ private fun PlaceChip(entry: PlaceCategory, selected: Boolean, busy: Boolean, on
                 Icon(painterResource(placeSymbol(entry)), contentDescription = null, tint = iconTint, modifier = Modifier.size(18.dp))
             }
             Spacer(Modifier.width(8.dp))
-            Text(entry.label, style = MaterialTheme.typography.labelLarge, maxLines = 1)
+            Text(categoryLabel(entry), style = MaterialTheme.typography.labelLarge, maxLines = 1)
         }
     }
 }
@@ -864,6 +909,9 @@ private fun PlacePreview(
     place: Place,
     now: Instant,
     canGo: Boolean,
+    saved: Boolean,
+    restaurantInfo: suspend (Place) -> PlaceInfo?,
+    onToggleFavorite: () -> Unit,
     canAddStop: Boolean,
     onAddStop: () -> Unit,
     onGoHere: () -> Unit,
@@ -871,28 +919,33 @@ private fun PlacePreview(
     modifier: Modifier,
 ) {
     val garage = place.parkingReading
+    val isRestaurant = place.category == PlaceCategory.RESTAURANT
+    var contacts by remember(place) { mutableStateOf(place.info) }
+    LaunchedEffect(place) {
+        if (isRestaurant && contacts == null && place.osmId.isNotEmpty()) contacts = restaurantInfo(place)
+    }
     Surface(modifier = modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), shadowElevation = 8.dp) {
         Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val title = garage?.title ?: if (place.name == place.category.singular && place.details.isNotBlank())
                     "${place.name} · ${place.details.substringBefore(',')}" else place.name
                 Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
+                IconButton(onClick = onToggleFavorite) {
+                    Icon(if (saved) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                        stringResource(if (saved) R.string.favorite_remove else R.string.favorite_add),
+                        tint = if (saved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                }
                 IconButton(onClick = onDismiss) { Icon(Icons.Filled.Close, "Close place preview") }
             }
             Text(garage?.address?.takeIf { it.isNotBlank() } ?: place.details.ifBlank { place.toDestination().coordinatesText() })
             val kind = PlaceKinds.label(place.kind).ifBlank { place.category.singular }
-            Text(kindAndStatus(kind, place.info?.openingHours.orEmpty(), currentMinute()))
+            Text(kindAndStatus(kind, contacts?.openingHours.orEmpty(), currentMinute()))
+            if (isRestaurant && contacts != null) RestaurantActions(requireNotNull(contacts))
             if (place.parkingNotes.isNotEmpty()) Text(place.parkingNotes)
             if (place.category == PlaceCategory.PARKING) {
                 val reading = garage?.takeIf { it.isFresh(now) }
-                val free = reading?.vacancies(now)
                 val total = garage?.total?.takeIf { it > 0 } ?: place.parkingCapacity
-                Text(when {
-                    reading?.status == ParkingStatus.CLOSED -> stringResource(R.string.parking_closed)
-                    free == 0 -> stringResource(R.string.parking_full)
-                    free != null -> stringResource(R.string.parking_free, free)
-                    else -> stringResource(R.string.parking_unknown)
-                }, fontWeight = FontWeight.SemiBold)
+                ParkingStatusLabel(garage.stateAt(now))
                 if (total != null) Text(stringResource(R.string.parking_total, total))
                 if (garage != null) {
                     val time = java.time.format.DateTimeFormatter.ofPattern("HH:mm z").withZone(java.time.ZoneId.of(garage.zone))
@@ -1430,6 +1483,7 @@ private fun DestinationPanel(
             }
 
             // needed to decide whether to send it, so never folded away
+            if (info != null && PlaceKinds.category(destination.kind) == PlaceCategory.RESTAURANT) RestaurantActions(info)
             if (destination.approximate) {
                 NoticeRow(
                     text = "Approximate: the link only had the map centre. Check the pin on the map.",

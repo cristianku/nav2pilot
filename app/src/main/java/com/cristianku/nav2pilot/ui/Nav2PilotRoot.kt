@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.cristianku.nav2pilot.BuildConfig
 import com.cristianku.nav2pilot.data.Favorite
 import com.cristianku.nav2pilot.model.Destination
 import com.cristianku.nav2pilot.model.PairedDevice
@@ -43,7 +44,6 @@ import com.cristianku.nav2pilot.ui.screens.DevicesScreen
 import com.cristianku.nav2pilot.ui.screens.FavoritesScreen
 import com.cristianku.nav2pilot.ui.screens.MapActions
 import com.cristianku.nav2pilot.ui.screens.MapScreen
-import com.cristianku.nav2pilot.ui.screens.NEWS_EDITION
 import com.cristianku.nav2pilot.ui.screens.WhatsNew
 
 // narrower than this, or taller than wide, stays the phone layout
@@ -55,7 +55,7 @@ private fun isFavorite(destination: Destination?, favorites: List<Favorite>): Bo
         return false
     }
     for (favorite in favorites) {
-        if (favorite.destination.sameLocationAs(destination)) {
+        if (favorite.destination.sameFavoriteAs(destination)) {
             return true
         }
     }
@@ -85,7 +85,7 @@ fun Nav2PilotRoot(viewModel: MainViewModel, regularLaunch: Boolean) {
     var favoritesOpen by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
     val prefs = remember(context) { context.getSharedPreferences("release_highlights", android.content.Context.MODE_PRIVATE) }
-    var unseen by remember { mutableStateOf(prefs.getString("edition", "") != NEWS_EDITION) }
+    var unseen by remember { mutableStateOf(prefs.getInt("seenVersion", 0) < BuildConfig.VERSION_CODE) }
     var replay by rememberSaveable { mutableStateOf(false) }
     val tester: TesterFeedback = androidx.lifecycle.viewmodel.compose.viewModel()
     // Only evaluate on an ordinary map launch, never while sharing, routing or finishing the new-edition tour.
@@ -106,7 +106,7 @@ fun Nav2PilotRoot(viewModel: MainViewModel, regularLaunch: Boolean) {
     }
 
     val finishTour = {
-        prefs.edit().putString("edition", NEWS_EDITION).apply()
+        prefs.edit().putInt("seenVersion", BuildConfig.VERSION_CODE).apply()
         hadTour = true
         unseen = false
         replay = false
@@ -142,6 +142,8 @@ fun Nav2PilotRoot(viewModel: MainViewModel, regularLaunch: Boolean) {
                 onDismissChoices = { viewModel.dismissChoices() },
                 onClearSelection = { viewModel.clearSelection() },
                 onToggleFavorite = { viewModel.toggleFavorite() },
+                isPlaceFavorite = { isFavorite(it, favorites) },
+                onTogglePlaceFavorite = viewModel::toggleFavorite,
                 onSelectDevice = { dongleId -> viewModel.selectDevice(dongleId) },
                 onCheckConnection = { viewModel.checkConnection() },
                 onSend = { viewModel.sendDestination() },
@@ -163,6 +165,7 @@ fun Nav2PilotRoot(viewModel: MainViewModel, regularLaunch: Boolean) {
                 onHidePlaces = { viewModel.hidePlaces() },
                 onChoosePlace = { place -> viewModel.choosePlace(place) },
                 refreshParking = viewModel::refreshParking,
+                restaurantInfo = viewModel::restaurantInfo,
                 shortcuts = shortcuts.associate { it.id to it.destination },
                 recent = recent.map { it.destination },
                 setShortcut = viewModel::setShortcut,
@@ -198,6 +201,8 @@ fun Nav2PilotRoot(viewModel: MainViewModel, regularLaunch: Boolean) {
             ) {
                 FavoritesScreen(
                     favorites = favorites,
+                    mapReadings = state.places.mapNotNull { it.parkingReading },
+                    lookupParking = viewModel::favoriteParking,
                     selectedDevice = selectedDevice,
                     sending = state.sending,
                     onSelect = { favorite -> viewModel.selectFavorite(favorite) },
