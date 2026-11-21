@@ -122,6 +122,20 @@ class ParkingAvailabilityTest {
         assertNull(read(0).vacancies(now))
     }
 
+    @Test fun veronaOnlyReportsConsistentFreshPublicCarCounts() {
+        val readings = rows("verona", 45.43, 10.99) { url ->
+            assertEquals("https://api.amt3.it/", url)
+            """{"Numeri Parcheggi":[
+                {"id":"211","ts":"${now.epochSecond}","parcheggio":"Tribunale","posti_liberi":"0","posti_totali":"340","parkingNumberOfOccupiedSpaces":"340"},
+                {"id":"216","ts":"${now.epochSecond}","parcheggio":"Polo Zanotto","posti_liberi":"0","posti_totali":"133","parkingNumberOfOccupiedSpaces":"211"},
+                {"id":"218","ts":"${now.epochSecond}","parcheggio":"Terminal Bus","posti_liberi":"45","posti_totali":"60"}]}"""
+        }
+        assertEquals(listOf("AMT3 Verona:211","AMT3 Verona:216"), readings.map { it.id })
+        assertEquals(ParkingLevel.FULL, readings.first().stateAt(now).level)
+        assertEquals(ParkingLevel.UNKNOWN, readings.first().stateAt(now.plusSeconds(301)).level)
+        assertEquals(ParkingLevel.UNKNOWN, readings.last().stateAt(now).level)
+    }
+
     @Test fun datesFromItalyGermanyAndAmericaDoNotUseRequestTime() {
         val it = rows("suedtirol", 46.65, 11.14) {
             """{"data":[{"sname":"Stazione","scode":"16","sorigin":"STA","scoordinate":{"x":11.14,"y":46.65,"srid":4326},"mvalidtime":"2026-11-20 12:00:00.000+0000","mvalue":7,"smetadata.capacity":25}]}"""

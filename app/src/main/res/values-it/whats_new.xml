@@ -1,5 +1,9 @@
 <resources>
     <string name="news_name">Novità</string>
+    <string name="news_coverage_label">Nuova copertura parcheggi</string>
+    <string name="news_coverage_title">Italia: posti liberi a Verona</string>
+    <string name="news_coverage_body">A Verona tocca Parcheggi per vedere i posti liberi segnalati da AMT3, anche al Tribunale, al Centro e in stazione. La P grigia indica che manca un conteggio recente e affidabile.</string>
+    <string name="news_coverage_example">Verona · AMT3</string>
     <string name="news_skip">Salta</string>
     <string name="news_back">Indietro</string>
     <string name="news_next">Avanti</string>

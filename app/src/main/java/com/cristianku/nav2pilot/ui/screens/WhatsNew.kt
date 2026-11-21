@@ -35,9 +35,10 @@ import com.cristianku.nav2pilot.BuildConfig
 import com.cristianku.nav2pilot.R
 import kotlinx.coroutines.launch
 
-private enum class Artwork { PARKING, PREVIEW, SHORTCUTS }
+private enum class Artwork { COVERAGE, PARKING, PREVIEW, SHORTCUTS }
 private data class Slide(val label: Int, val title: Int, val body: Int, val art: Artwork)
 private val slides = listOf(
+    Slide(R.string.news_coverage_label, R.string.news_coverage_title, R.string.news_coverage_body, Artwork.COVERAGE),
     Slide(R.string.news_parking_label, R.string.news_parking_title, R.string.news_parking_body, Artwork.PARKING),
     Slide(R.string.news_explore_label, R.string.news_explore_title, R.string.news_explore_body, Artwork.PREVIEW),
     Slide(R.string.news_search_label, R.string.news_search_title, R.string.news_search_body, Artwork.SHORTCUTS),
@@ -127,10 +128,14 @@ private fun NewsArt(art: Artwork, modifier: Modifier) {
         Row(Modifier.padding(12.dp).background(ink, RoundedCornerShape(16.dp)).padding(horizontal = 16.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(34.dp).background(accent, CircleShape), contentAlignment = Alignment.Center) {
-                Icon(if (art == Artwork.PREVIEW) Icons.Filled.Place else Icons.Filled.Favorite, null,
+                Icon(if (art == Artwork.SHORTCUTS) Icons.Filled.Favorite else Icons.Filled.Place, null,
                     tint = ink, modifier = Modifier.size(20.dp))
             }
-            Text(if (art == Artwork.PREVIEW) "Rebgasse" else stringResource(R.string.news_shortcuts),
+            Text(when (art) {
+                Artwork.COVERAGE -> stringResource(R.string.news_coverage_example)
+                Artwork.PREVIEW -> "Rebgasse"
+                else -> stringResource(R.string.news_shortcuts)
+            },
                 color = Color.White, style = MaterialTheme.typography.titleMedium)
         }
     }

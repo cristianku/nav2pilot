@@ -1,5 +1,9 @@
 <resources>
     <string name="news_name">What’s new</string>
+    <string name="news_coverage_label">New parking coverage</string>
+    <string name="news_coverage_title">Italy: live parking in Verona</string>
+    <string name="news_coverage_body">Tap Parking in Verona to see the spaces reported by AMT3, including at Tribunale, Centro and the station. A gray P means there is no reliable recent count.</string>
+    <string name="news_coverage_example">Verona · AMT3</string>
     <string name="news_skip">Skip</string>
     <string name="news_back">Back</string>
     <string name="news_next">Next</string>

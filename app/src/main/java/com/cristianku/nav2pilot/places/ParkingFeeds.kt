@@ -34,6 +34,7 @@ internal object ParkingFeeds {
             ?: throw IOException("Missing $name parking directory")
     private val zurich by lazy { directory("zurich") }
     private val singapore by lazy { directory("singapore") }
+    private val verona by lazy { directory("verona") }
     private fun date(f: () -> Instant) = try { f() } catch (_: DateTimeParseException) { null }
     private fun JSONObject.text(k: String) = if (isNull(k)) "" else optString(k).trim()
     private fun JSONObject.number(k: String) = text(k).toIntOrNull()
@@ -54,6 +55,22 @@ internal object ParkingFeeds {
     }
 
     private val feeds = listOf(
+        ParkingFeed("verona", MapArea(45.38, 10.92, 45.49, 11.06)) { _, get ->
+            get("https://api.amt3.it/").rows("Numeri Parcheggi").mapNotNull { r ->
+                val id = r.text("id")
+                // Only public car parks with verified municipal coordinates (not bus or camper rows).
+                val p = verona.optJSONArray(id) ?: return@mapNotNull null
+                val at = r.text("ts").toLongOrNull()?.takeIf { it in 1..4102444800L }?.let(Instant::ofEpochSecond)
+                val total = r.number("posti_totali")
+                val occupied = r.number("parkingNumberOfOccupiedSpaces")
+                val free = r.number("posti_liberi")?.takeIf {
+                    total != null && total > 0 && it in 0..total &&
+                        (r.isNull("parkingNumberOfOccupiedSpaces") || occupied == total - it)
+                }
+                reading("AMT3 Verona", "Europe/Rome", id, r.text("parcheggio"), p.optString(2),
+                    p.optDouble(0), p.optDouble(1), at, ParkingStatus.COUNTED, free, total, 300)
+            }
+        },
         ParkingFeed("zurich", MapArea(47.30, 8.44, 47.45, 8.64)) { _, get ->
             val rss = get("https://www.pls-zh.ch/plsFeed/rss").body
             // Only RSS data elements are needed. Never process DTDs or external references.

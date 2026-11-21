@@ -43,6 +43,9 @@ voice search takes you straight to your destination or results.
 
 For the next release, lead with its main feature in `ui/screens/WhatsNew.kt` and update the English and Italian
 `whats_new.xml` resources. Completion is remembered for the installed version code.
+Whenever parking coverage expands, the first page of the update tour on **both Android and iPhone**
+must name the newly supported country or the newly covered cities/operators within an existing country.
+Announce only feeds actually shipped in that build; check both the first launch after updating and replay from Settings.
 
 1. **Get your comma token.** Open [jwt.comma.ai](https://jwt.comma.ai), sign in with the account your comma
    device is paired to, and copy the token.
@@ -180,6 +183,10 @@ Live coverage depends on the operator. Current data sources:
 - Germany: [MobiData BW®, participating operators and data sources](https://api.mobidata-bw.de/park-api/api/public/v3/sources).
 - France: [Nantes Métropole](https://data.nantesmetropole.fr/explore/dataset/244400404_parkings-publics-nantes-disponibilites/) (ODbL; counts for short-stay customers).
 - Italy: [Open Data Hub Mobility](https://opendatahub.com/datasets/) and participating South Tyrol operators.
+  In Verona, [AMT3](https://www.amt3.it/) publishes counts for passenger cars, joined by facility ID to
+  [Comune di Verona](https://www.comune.verona.it/Amministrazione/Documenti-e-dati/Dataset/Parcheggi-a-Verona)
+  and [Visit Verona (San Zeno)](https://www.visitverona.it/it/luoghi/parcheggio-san-zeno) locations.
+  We discard counts older than five minutes or inconsistent with the reported total and occupancy.
 - USA: [City of Asheville and Buncombe County](https://wheresparking.ashevillenc.gov/), using the timestamp of the published snapshot.
 - Hong Kong: [Transport Department via DATA.GOV.HK](https://data.gov.hk/en-data/dataset/hk-td-tis_7-real-time-parking-vacancy-data) (exact private-car counts only).
 - Singapore: [HDB car park availability](https://data.gov.sg/datasets/d_ca933a644e55d34fe21f28b8052fac63/view)
