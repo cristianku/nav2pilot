@@ -32,6 +32,17 @@ enum class PlaceCategory(
     PHARMACY("Pharmacies", "Pharmacy", """["amenity"="pharmacy"]""", listOf("amenity:pharmacy")),
 }
 
+enum class ParkingStructure {
+    COVERED, OUTDOOR, UNKNOWN;
+    companion object {
+        fun fromTags(parking: String, covered: String): ParkingStructure = when {
+            covered == "yes" || parking in setOf("underground", "multi-storey", "carports", "garage_boxes") -> COVERED
+            covered == "no" || parking in setOf("surface", "rooftop", "street_side", "layby", "lane", "shoulder") -> OUTDOOR
+            else -> UNKNOWN
+        }
+    }
+}
+
 /** A point of interest from OpenStreetMap, drawn on the map. */
 data class Place(
     val category: PlaceCategory,
@@ -49,6 +60,7 @@ data class Place(
     val parkingNotes: String = "",
     val parkingCapacity: Int? = null,
     val parkingReading: ParkingReading? = null,
+    val parkingStructure: ParkingStructure = parkingReading?.structure ?: ParkingStructure.UNKNOWN,
 ) {
     fun toDestination(): Destination {
         return Destination(latitude = latitude, longitude = longitude, name = name, details = details,

@@ -42,6 +42,7 @@ data class ParkingReading(
     val id: String, val title: String, val address: String, val point: LatLng,
     val published: Instant?, val status: ParkingStatus, val free: Int?, val total: Int?,
     val source: String, val zone: String, val maxAgeSeconds: Long,
+    val structure: ParkingStructure = ParkingStructure.UNKNOWN,
 ) {
     fun isFresh(now: Instant): Boolean = published != null &&
         !published.isAfter(now.plusSeconds(60)) && !published.isBefore(now.minusSeconds(maxAgeSeconds))
@@ -130,7 +131,8 @@ class ParkingAvailability(private val http: HttpClient, private val io: Coroutin
                 if (match == null || official.count { it.parkingReading?.matches(match) == true } != 1) pin else {
                     remaining.remove(match)
                     pin.copy(info = match.info, parkingNotes = match.parkingNotes, osmId = match.osmId,
-                        parkingCapacity = match.parkingCapacity)
+                        parkingCapacity = match.parkingCapacity,
+                        parkingStructure = if (pin.parkingStructure != ParkingStructure.UNKNOWN) pin.parkingStructure else match.parkingStructure)
                 }
             } + remaining
         }

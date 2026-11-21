@@ -184,6 +184,9 @@ class OverpassPlaces(
                 if (id >= 0 && PlaceInfoLookup.isOsmId("$type/$id")) {
                     osmId = "$type/$id"
                 }
+                val parkingType = tags.optString("parking")
+                val structure = if (category == PlaceCategory.PARKING)
+                    ParkingStructure.fromTags(parkingType,tags.optString("covered")) else ParkingStructure.UNKNOWN
                 found.add(
                     Place(
                         category = category,
@@ -194,10 +197,14 @@ class OverpassPlaces(
                         kind = PlaceKinds.fromTags(tags, category),
                         osmId = osmId,
                         info = PlaceInfo.fromTags(tags),
+                        parkingStructure = structure,
                         parkingNotes = if (category == PlaceCategory.PARKING) listOfNotNull(
-                            when (tags.optString("parking")) {
-                                "underground" -> "Underground"; "multi-storey" -> "Multi-storey"; "surface" -> "Outdoor"
-                                else -> if (tags.optString("covered") == "yes") "Covered" else null
+                            when {
+                                parkingType == "underground" -> "Underground"
+                                parkingType == "multi-storey" -> "Multi-storey"
+                                structure == ParkingStructure.COVERED -> "Covered"
+                                structure == ParkingStructure.OUTDOOR -> "Outdoor"
+                                else -> null
                             },
                             when (tags.optString("fee")) { "yes" -> "Paid parking"; "no" -> "Free parking"; else -> null },
                         ).joinToString(" · ") else "",

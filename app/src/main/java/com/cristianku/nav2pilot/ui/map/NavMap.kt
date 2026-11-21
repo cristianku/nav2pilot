@@ -32,6 +32,7 @@ import com.cristianku.nav2pilot.places.MapArea
 import com.cristianku.nav2pilot.places.PlaceCategory
 import com.cristianku.nav2pilot.places.Place
 import com.cristianku.nav2pilot.places.ParkingLevel
+import com.cristianku.nav2pilot.places.ParkingStructure
 import com.cristianku.nav2pilot.places.stateAt
 import com.cristianku.nav2pilot.ui.theme.pinColor
 import com.cristianku.nav2pilot.ui.MainUiState
@@ -363,10 +364,10 @@ private fun drawData(style: Style, state: MainUiState, holder: MapHolder, contex
         val parking = if (place.category == PlaceCategory.PARKING) place.parkingReading.stateAt(holder.parkingNow) else null
         feature.addNumberProperty("priority", if (highlighted) 2 else if (parking != null && parking.level != ParkingLevel.UNKNOWN) 1 else 0)
         parking?.let {
-            image += "-${it.level}-${it.free ?: "x"}"
+            image += "-${place.parkingStructure}-${it.level}-${it.free ?: "x"}"
             visibleCounts.add(image)
             if (holder.parkingIcons.add(image)) {
-                style.addImage(image, parkingBadge(context, it.level.pinColor, it.pinLabel, highlighted))
+                style.addImage(image, parkingBadge(context, it.level.pinColor, it.pinLabel, highlighted, place.parkingStructure))
             }
         }
         feature.addStringProperty(PROPERTY_ICON, image)
@@ -569,11 +570,12 @@ private fun circleIcon(context: Context, color: Int, label: String): Bitmap {
 }
 
 /** One image per distinct visible count; also works with raster basemaps without a glyph server. */
-private fun parkingBadge(context: Context, color: Int, label: String, highlighted: Boolean): Bitmap {
+private fun parkingBadge(context: Context, color: Int, label: String, highlighted: Boolean, structure: ParkingStructure): Bitmap {
     val d = context.resources.displayMetrics.density
     val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 13 * d; typeface = Typeface.DEFAULT_BOLD }
     val inset = if (highlighted) 3 * d else 0f
-    val w = kotlin.math.ceil(maxOf(26 * d, paint.measureText(label) + 14 * d) + 2 * inset).toInt()
+    val glyphWidth = if (structure == ParkingStructure.UNKNOWN) 0f else 16*d
+    val w = kotlin.math.ceil(maxOf(26 * d, paint.measureText(label) + 14 * d + glyphWidth) + 2 * inset).toInt()
     val h = (26 * d + 2 * inset).toInt()
     return Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).also {
         val canvas = Canvas(it)
@@ -586,7 +588,21 @@ private fun parkingBadge(context: Context, color: Int, label: String, highlighte
         canvas.drawRoundRect(edge, edge, w-edge, h-edge, h/2f, h/2f, paint)
         paint.color = android.graphics.Color.WHITE
         paint.textAlign = Paint.Align.CENTER
-        canvas.drawText(label, w/2f, (h - paint.ascent() - paint.descent())/2, paint)
+        canvas.drawText(label, (w+glyphWidth)/2f, (h - paint.ascent() - paint.descent())/2, paint)
+        if (glyphWidth>0) {
+            canvas.save()
+            canvas.translate(inset+7*d,h/2f); canvas.scale(d,d)
+            paint.strokeWidth=1.6f; paint.strokeCap=Paint.Cap.ROUND; paint.style=Paint.Style.STROKE
+            if (structure == ParkingStructure.COVERED) {
+                canvas.drawLine(0f,-1f,6f,-6f,paint); canvas.drawLine(6f,-6f,12f,-1f,paint)
+                canvas.drawLine(2f,-2f,2f,5f,paint); canvas.drawLine(10f,-2f,10f,5f,paint)
+            } else {
+                canvas.drawCircle(6f,0f,2.6f,paint)
+                canvas.translate(6f,0f)
+                repeat(8) { canvas.drawLine(0f,-4.5f,0f,-6f,paint); canvas.rotate(45f) }
+            }
+            canvas.restore()
+        }
     }
 }
 
